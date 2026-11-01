@@ -15129,10 +15129,21 @@ function showIndicatorLineActionPill(ind, point) {
                         </div>
                     </div>
                 `;
+            } else {
+                catalystCardHtml = `
+                    <div style="background: rgba(16, 185, 129, 0.05); border: 1px dashed rgba(16, 185, 129, 0.35); border-radius: 12px; padding: 12px 16px; margin-bottom: 14px; text-align: center;">
+                        <div style="font-size: 13px; font-weight: 800; color: #10b981; margin-bottom: 3px;">
+                            ✅ No Breaking Macro Shocks Today
+                        </div>
+                        <div style="font-size: 11.5px; color: #94a3b8; line-height: 1.4;">
+                            Zero disruptive Grade-A catalysts detected. Technical structure, Session VWAP, and S&R boundaries govern price action.
+                        </div>
+                    </div>
+                `;
             }
 
             let headlinesHtml = '';
-            const list = news.headlines || [];
+            const list = (news.headlines || []).filter(h => h.published_at !== 'Stale Archive' && h.time_ago !== 'Archived');
             if (list.length > 0) {
                 list.slice(0, 12).forEach(h => {
                     const hScore = h.score || 0;

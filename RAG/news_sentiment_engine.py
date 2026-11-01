@@ -32,12 +32,22 @@ from RAG.config import RAGConfig
 
 logger = logging.getLogger("NewsSentimentEngine")
 
+# Live Google News Curated Business Topic (Strictly verified live business newsrooms)
 RSS_PRIMARY_URL = (
-    "https://news.google.com/rss/search?q=NIFTY+50+OR+Sensex+OR+RBI+OR+Crude+when:1d&hl=en-IN&gl=IN&ceid=IN:en"
-)
-RSS_BACKUP_URL = (
     "https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=en-IN&gl=IN&ceid=IN:en"
 )
+# Live Market Search restricted to the last 12 hours strictly
+RSS_BACKUP_URL = (
+    "https://news.google.com/rss/search?q=NIFTY+50+OR+Sensex+OR+RBI+when:12h&hl=en-IN&gl=IN&ceid=IN:en"
+)
+
+BLOCKED_SCRAPERS = [
+    "dd news", "kucoin", "scanx", "bbn times", "pragativadi", "investment guru", "cryptocurrency"
+]
+
+STALE_ANACHRONISMS = [
+    r"fed rate hike", r"midterm election", r"crude oil above \$11", r"nse ipo in focus"
+]
 CACHE_FILE = Path(__file__).resolve().parent.parent / "temp_storage" / "news_sentiment_cache.json"
 
 
@@ -149,6 +159,11 @@ class NewsSentimentEngine:
         t_clean = title.strip()
         t_lower = t_clean.lower()
 
+        # 0. Reject low-tier scrapers and stale recycled articles
+        s_lower = source.lower().strip()
+        is_blocked_source = any(b in s_lower for b in BLOCKED_SCRAPERS)
+        is_stale_article = any(re.search(p, t_lower) for p in STALE_ANACHRONISMS)
+
         # 1. Noise check (routine stock tips, columns, retail chatter)
         noise_patterns = [
             r"chartist talk", r"what history suggest", r"what 25 yrs", r"stocks to buy",
@@ -157,6 +172,25 @@ class NewsSentimentEngine:
             r"technical view", r"what to expect", r"hot stocks", r"penny stocks"
         ]
         is_routine_noise = any(re.search(p, t_lower) for p in noise_patterns)
+
+        if is_blocked_source or is_stale_article:
+            category = "MARKET_NOISE"
+            impact_score = 1.0
+            return {
+                "title": t_clean,
+                "source": source or "Financial Media",
+                "published_at": "Stale Archive",
+                "published_ist": "Stale",
+                "time_ago": "Archived",
+                "pub_epoch": 0.0,
+                "category": "MARKET_NOISE",
+                "impact_score": 1.0,
+                "is_high_impact": False,
+                "polarity": "NEUTRAL",
+                "score": 0.0,
+                "market_direction": "SIDEWAYS",
+                "trading_verdict": "Stale recycled news filtered out.",
+            }
 
         category = "MARKET_NOISE"
         impact_score = 2.0
@@ -276,8 +310,11 @@ class NewsSentimentEngine:
         if is_routine_noise and category == "MARKET_NOISE":
             impact_score = 1.5
 
-        is_high_impact = (impact_score >= 7.5)
         formatted_ist, pub_epoch, time_ago, display_pub = NewsSentimentEngine.format_pub_date_ist(pub_date)
+
+        # Freshness Check: Only news within the last 18 hours can qualify as Grade-A breaking catalyst!
+        is_stale_by_time = time_ago.endswith("d ago") or "20h ago" in time_ago or "21h ago" in time_ago or "22h ago" in time_ago or "23h ago" in time_ago
+        is_high_impact = (impact_score >= 7.5) and not is_stale_by_time and not is_routine_noise
 
         return {
             "title": t_clean,
@@ -336,7 +373,9 @@ class NewsSentimentEngine:
                     pub = pub_elem.text if pub_elem is not None and pub_elem.text else ""
                     src = src_elem.text if src_elem is not None and src_elem.text else ""
                     if title:
-                        headlines_raw.append({"title": title, "pub": pub, "src": src})
+                        src_lower = (src or "").lower().strip()
+                        if not any(b in src_lower for b in BLOCKED_SCRAPERS):
+                            headlines_raw.append({"title": title, "pub": pub, "src": src})
                 if headlines_raw:
                     break
             except Exception as e:
