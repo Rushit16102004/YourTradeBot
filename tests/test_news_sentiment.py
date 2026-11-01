@@ -123,3 +123,27 @@ class TestNewsSentimentEngine:
         assert news_item["status"] in ("PASS", "CAUTION", "FAIL")
         assert "badge" in news_item
         assert "detail" in news_item
+    def test_07_anti_scraper_and_buffett_noise_rejection(self):
+        # 1. Warren Buffett lifestyle trivia should NOT trigger war / geopolitical alert
+        res_wb = NewsSentimentEngine.classify_headline(
+            "Warren Buffett Hasn't Had Water In 48 Years, Here's What He Drinks Instead",
+            source="NDTV",
+            pub_date="Sat, 31 Oct 2026 16:25:00 GMT"
+        )
+        assert res_wb["category"] == "MARKET_NOISE"
+        assert res_wb["is_high_impact"] is False
+        assert res_wb["polarity"] == "NEUTRAL"
+
+        # 2. Scrapers and auto blogs should be rejected
+        res_dd = NewsSentimentEngine.classify_headline(
+            "Stock markets trade marginally higher after US Fed rate hike; NSE IPO in focus",
+            source="DD News"
+        )
+        assert res_dd["category"] == "MARKET_NOISE"
+        assert res_dd["is_high_impact"] is False
+
+        res_auto = NewsSentimentEngine.classify_headline(
+            "Royal Enfield Himalayan 750 Revealed Ahead Of EICMA 2026 Debut",
+            source="Gaadiwaadi.com"
+        )
+        assert res_auto["is_high_impact"] is False

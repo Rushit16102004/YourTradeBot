@@ -42,11 +42,22 @@ RSS_BACKUP_URL = (
 )
 
 BLOCKED_SCRAPERS = [
-    "dd news", "kucoin", "scanx", "bbn times", "pragativadi", "investment guru", "cryptocurrency"
+    "dd news", "kucoin", "scanx", "bbn times", "pragativadi", "investment guru", "cryptocurrency",
+    "motor octane", "motoroctane", "rushlane", "gaadiwaadi", "autocar", "carwale", "zigwheels"
 ]
 
 STALE_ANACHRONISMS = [
     r"fed rate hike", r"midterm election", r"crude oil above \$11", r"nse ipo in focus"
+]
+NOISE_PATTERNS = [
+    r"chartist talk", r"what history suggest", r"what 25 yrs", r"stocks to buy",
+    r"brokerage recommends", r"target price", r"stock picks", r"portfolio advice",
+    r"mutual fund inflow", r"top gainers", r"top losers", r"buzzing stocks",
+    r"technical view", r"what to expect", r"hot stocks", r"penny stocks",
+    r"hasn't had water", r"drinks instead", r"revealed ahead", r"\bvs\b",
+    r"should you pay", r"supersonic jet", r"first look", r"mileage",
+    r"spotted flying", r"age of the imperial ceo", r"horoscope", r"movie",
+    r"celebrity", r"actor", r"actress", r"box office"
 ]
 CACHE_FILE = Path(__file__).resolve().parent.parent / "temp_storage" / "news_sentiment_cache.json"
 
@@ -169,9 +180,13 @@ class NewsSentimentEngine:
             r"chartist talk", r"what history suggest", r"what 25 yrs", r"stocks to buy",
             r"brokerage recommends", r"target price", r"stock picks", r"portfolio advice",
             r"mutual fund inflow", r"top gainers", r"top losers", r"buzzing stocks",
-            r"technical view", r"what to expect", r"hot stocks", r"penny stocks"
+            r"technical view", r"what to expect", r"hot stocks", r"penny stocks",
+            r"hasn't had water", r"drinks instead", r"revealed ahead", r"\bvs\b",
+            r"should you pay", r"supersonic jet", r"first look", r"mileage",
+            r"spotted flying", r"age of the imperial ceo", r"horoscope", r"movie",
+            r"celebrity", r"actor", r"actress", r"box office"
         ]
-        is_routine_noise = any(re.search(p, t_lower) for p in noise_patterns)
+        is_routine_noise = any(re.search(p, t_lower) for p in NOISE_PATTERNS)
 
         if is_blocked_source or is_stale_article:
             category = "MARKET_NOISE"
@@ -250,11 +265,14 @@ class NewsSentimentEngine:
                 market_direction = "BALANCED"
                 trading_verdict = "Crude holding steady. No macro shock to Indian equity valuations."
 
-        # C. Geopolitics & War (Impact: 9.2)
-        elif any(k in t_lower for k in ["war", "missile", "military", "escalat", "attack", "sanction", "ceasefire", "iran", "israel", "russia", "ukraine", "truce"]):
+        # C. Geopolitics & War (Impact: 9.2 - Strict Word Boundaries to avoid false positives like "Warren Buffett")
+        elif bool(re.search(r"\b(war|wars|warfare|missiles?|military action|military conflict|airstrikes?|ceasefire|truce)\b", t_lower)) or (
+            bool(re.search(r"\b(iran|israel|russia|ukraine|gaza|hezbollah|houthis?|taiwan)\b", t_lower)) and
+            any(w in t_lower for w in ["strike", "attack", "conflict", "bomb", "crisis", "tensions", "sanction", "invasion"])
+        ):
             category = "GEOPOLITICAL"
             impact_score = 9.2
-            if any(w in t_lower for w in ["ceasefire", "peace", "deal", "truce", "de-escalat", "ease", "talks", "withdrawn"]):
+            if any(w in t_lower for w in ["ceasefire", "peace agreement", "peace deal", "peace treaty", "truce signed", "de-escalat", "troops withdrawn"]):
                 polarity = "STRONG BULLISH"
                 score = 0.80
                 market_direction = "RELIEF RALLY"
@@ -313,8 +331,10 @@ class NewsSentimentEngine:
 
         formatted_ist, pub_epoch, time_ago, display_pub = NewsSentimentEngine.format_pub_date_ist(pub_date)
 
-        # Freshness Check: Only news within the last 18 hours can qualify as Grade-A breaking catalyst!
-        is_stale_by_time = time_ago.endswith("d ago") or "20h ago" in time_ago or "21h ago" in time_ago or "22h ago" in time_ago or "23h ago" in time_ago
+        # Freshness Check: Only news within the last 12 hours can qualify as Grade-A breaking catalyst!
+        utc_now = datetime.datetime.now(datetime.timezone.utc)
+        age_hours = (utc_now.timestamp() - pub_epoch) / 3600.0 if pub_epoch > 0 else 0.0
+        is_stale_by_time = (age_hours > 12.0)
         is_high_impact = (impact_score >= 7.5) and not is_stale_by_time and not is_routine_noise
 
         return {
@@ -390,15 +410,20 @@ class NewsSentimentEngine:
             with self._cache_lock:
                 return dict(self._cached_summary)
 
-        # Classify all headlines
+        # Classify all headlines with strict 18-hour freshness cap
+        utc_now = datetime.datetime.now(datetime.timezone.utc)
         classified_items: List[Dict[str, Any]] = []
         high_impact_items: List[Dict[str, Any]] = []
 
         for h in headlines_raw:
             res = self.classify_headline(title=h["title"], source=h.get("src", ""), pub_date=h.get("pub", ""), link=h.get("link", ""))
-            classified_items.append(res)
-            if res["is_high_impact"]:
-                high_impact_items.append(res)
+            epoch = res.get("pub_epoch", 0.0)
+            age_h = (utc_now.timestamp() - epoch) / 3600.0 if epoch > 0 else 999.0
+            # Strictly retain headlines from today (<= 18 hours) to prevent displaying obsolete news
+            if age_h <= 18.0 and res.get("category") != "MARKET_NOISE" or (age_h <= 18.0 and not any(re.search(p, h["title"].lower()) for p in NOISE_PATTERNS)):
+                classified_items.append(res)
+                if res["is_high_impact"]:
+                    high_impact_items.append(res)
 
         # Sort high impact items by impact_score descending, then recency
         high_impact_items.sort(key=lambda x: (x["impact_score"], x.get("pub_epoch", 0.0)), reverse=True)
