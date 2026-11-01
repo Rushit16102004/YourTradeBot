@@ -41,7 +41,8 @@ registered_users.csv
 database/registered_users.csv
 user_login_records.csv
 database/user_login_records.csv
-temp_storage/
+temp_storage/*
+!temp_storage/*.py
 scratch/
 latest_session_url.txt
 
