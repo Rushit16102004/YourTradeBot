@@ -330,19 +330,20 @@ class BackgroundTradingEngine:
                 except Exception:
                     pass
             refreshed_df = None
-            if self.is_authed and self.client and not self.api_cfg.is_mock_mode:
+            if self.client and not self.api_cfg.is_mock_mode:
                 try:
                     refreshed_df = self.client.get_historical_candles(
                         self.api_cfg.exchange,
                         self.api_cfg.token,
                         interval="FIVE_MINUTE",
-                        days=60,  # 60 days / 2 months
+                        days=50,  # 50 trading days fits NSE/Yahoo feed cleanly
                     )
                 except Exception as ex:
                     logger.warning("Error fetching live candles: %s", ex)
 
             if refreshed_df is None or len(refreshed_df) < 50:
-                refreshed_df = generate_sample_candles(3375)
+                cur_anchor = self.latest_price if (self.latest_price and self.latest_price > 1000) else 23050.0
+                refreshed_df = generate_sample_candles(3375, base_price=cur_anchor)
 
             if refreshed_df is not None and not refreshed_df.empty:
                 times = refreshed_df.index.strftime("%H:%M")

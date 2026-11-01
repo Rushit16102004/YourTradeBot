@@ -5,10 +5,9 @@ import numpy as np
 import pandas as pd
 from config import StrategyConfig
 from indicators import compute_all_indicators
-from strategy import ZFTFStrategy
 
 
-def generate_sample_candles(n: int = 3375, interval_min: int = 5) -> pd.DataFrame:
+def generate_sample_candles(n: int = 3375, interval_min: int = 5, base_price: float = 23050.0) -> pd.DataFrame:
     """Generates sample candles (default: 5m, or 1m if interval_min=1)."""
     np.random.seed(42)
     import pytz
@@ -20,11 +19,11 @@ def generate_sample_candles(n: int = 3375, interval_min: int = 5) -> pd.DataFram
     start_dt = end_dt - pd.Timedelta(minutes=interval_min * (n - 1))
     dates = [start_dt + pd.Timedelta(minutes=interval_min * i) for i in range(n)]
 
-    price = 22700.0
+    price = float(base_price)
     rows = []
     spread_std = 6.0 if interval_min == 1 else 12.0
     for d in dates:
-        ret = np.random.normal(0.00005 if interval_min == 1 else 0.0001, 0.001 if interval_min == 1 else 0.002)
+        ret = np.random.normal(0.0, 0.001 if interval_min == 1 else 0.0015)
         open_ = price
         close_ = round(open_ * (1 + ret), 2)
         high_ = round(max(open_, close_) + abs(np.random.normal(0, spread_std)), 2)
@@ -45,6 +44,7 @@ def generate_sample_candles(n: int = 3375, interval_min: int = 5) -> pd.DataFram
 
 
 def run_parity_audit():
+    from strategy import ZFTFStrategy
     cfg = StrategyConfig()
     cfg.z_threshold = 1.5
     df = generate_sample_candles(250)

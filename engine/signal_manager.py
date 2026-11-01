@@ -7,7 +7,7 @@ import logging
 from typing import Optional, Set
 import pandas as pd
 from indicators import compute_all_indicators
-from strategy import VWAPDualEMAStrategy, StrategySignalState
+from engine.strategy import VWAPDualEMAStrategy, StrategySignalState
 from telegram_notifier import TelegramNotifier
 
 logger = logging.getLogger(__name__)
