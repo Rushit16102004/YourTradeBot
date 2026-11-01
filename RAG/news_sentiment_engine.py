@@ -63,9 +63,11 @@ class NewsSentimentEngine:
     # Default State & Cache Persistence
     # -------------------------------------------------------------
     def _get_default_summary(self) -> Dict[str, Any]:
+        ist_tz = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+        now_ist = datetime.datetime.now(ist_tz)
         return {
             "status": "ok",
-            "last_updated": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S IST"),
+            "last_updated": now_ist.strftime("%d %b %Y, %I:%M %p IST"),
             "overall_sentiment": "NEUTRAL",
             "sentiment_score": 0.0,
             "is_high_impact": False,
@@ -98,6 +100,46 @@ class NewsSentimentEngine:
     # -------------------------------------------------------------
     # Noise Filtering & Heuristic Classification
     # -------------------------------------------------------------
+    @staticmethod
+    def format_pub_date_ist(pub_date_str: str) -> tuple[str, float, str, str]:
+        """
+        Converts any international GMT / UTC / RFC-2822 date to Indian Standard Time (IST).
+        Returns: (formatted_ist, epoch_seconds, time_ago, full_display_str)
+        Example: ('01 Nov, 12:07 PM IST', 1730460442.0, '5h 10m ago', '01 Nov, 12:07 PM IST (5h 10m ago)')
+        """
+        if not pub_date_str:
+            return "Recently", 0.0, "Recently", "Recently"
+        try:
+            import email.utils
+            dt_utc = email.utils.parsedate_to_datetime(pub_date_str)
+            if dt_utc.tzinfo is None:
+                dt_utc = dt_utc.replace(tzinfo=datetime.timezone.utc)
+            ist_tz = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+            dt_ist = dt_utc.astimezone(ist_tz)
+            epoch = dt_utc.timestamp()
+
+            utc_now = datetime.datetime.now(datetime.timezone.utc)
+            diff_sec = max(0, int((utc_now - dt_utc).total_seconds()))
+
+            if diff_sec < 90:
+                time_ago = "Just now"
+            elif diff_sec < 3600:
+                m = diff_sec // 60
+                time_ago = f"{m}m ago"
+            elif diff_sec < 86400:
+                h = diff_sec // 3600
+                m = (diff_sec % 3600) // 60
+                time_ago = f"{h}h {m}m ago" if m > 0 else f"{h}h ago"
+            else:
+                d = diff_sec // 86400
+                time_ago = f"{d}d ago"
+
+            formatted_ist = dt_ist.strftime("%d %b, %I:%M %p IST")
+            full_display = f"{formatted_ist} ({time_ago})"
+            return formatted_ist, epoch, time_ago, full_display
+        except Exception:
+            return pub_date_str, 0.0, "Recently", pub_date_str
+
     @staticmethod
     def classify_headline(title: str, source: str = "", pub_date: str = "") -> Dict[str, Any]:
         """
@@ -235,11 +277,15 @@ class NewsSentimentEngine:
             impact_score = 1.5
 
         is_high_impact = (impact_score >= 7.5)
+        formatted_ist, pub_epoch, time_ago, display_pub = NewsSentimentEngine.format_pub_date_ist(pub_date)
 
         return {
             "title": t_clean,
             "source": source or "Financial Media",
-            "published_at": pub_date,
+            "published_at": display_pub,
+            "published_ist": formatted_ist,
+            "time_ago": time_ago,
+            "pub_epoch": pub_epoch,
             "category": category,
             "impact_score": impact_score,
             "is_high_impact": is_high_impact,
@@ -311,8 +357,10 @@ class NewsSentimentEngine:
             if res["is_high_impact"]:
                 high_impact_items.append(res)
 
-        # Sort high impact items by impact_score descending
-        high_impact_items.sort(key=lambda x: x["impact_score"], reverse=True)
+        # Sort high impact items by impact_score descending, then recency
+        high_impact_items.sort(key=lambda x: (x["impact_score"], x.get("pub_epoch", 0.0)), reverse=True)
+        # Sort all headlines chronologically (newest news at the top!)
+        classified_items.sort(key=lambda x: (x.get("is_high_impact", False), x.get("pub_epoch", 0.0)), reverse=True)
 
         # Determine overall market sentiment
         if high_impact_items:
@@ -346,7 +394,8 @@ class NewsSentimentEngine:
         else:
             overall_sentiment = "NEUTRAL"
 
-        now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S IST")
+        ist_tz = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+        now_str = datetime.datetime.now(ist_tz).strftime("%d %b %Y, %I:%M %p IST")
         new_summary: Dict[str, Any] = {
             "status": "ok",
             "last_updated": now_str,

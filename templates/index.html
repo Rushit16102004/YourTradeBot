@@ -14964,6 +14964,43 @@ function showIndicatorLineActionPill(ind, point) {
         // ==============================================================
         let cachedNewsData = null;
 
+        function formatNewsDate(pubStr) {
+            if (!pubStr) return 'Recently';
+            if (pubStr.includes('IST') && pubStr.includes('ago')) return pubStr;
+            try {
+                const d = new Date(pubStr);
+                if (isNaN(d.getTime())) return pubStr;
+                const istTime = d.toLocaleTimeString('en-IN', {
+                    timeZone: 'Asia/Kolkata',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                });
+                const istDate = d.toLocaleDateString('en-IN', {
+                    timeZone: 'Asia/Kolkata',
+                    day: '2-digit',
+                    month: 'short'
+                });
+                const diffMs = Math.max(0, Date.now() - d.getTime());
+                const diffSec = Math.floor(diffMs / 1000);
+                let timeAgo = 'Just now';
+                if (diffSec < 90) {
+                    timeAgo = 'Just now';
+                } else if (diffSec < 3600) {
+                    timeAgo = `${Math.floor(diffSec / 60)}m ago`;
+                } else if (diffSec < 86400) {
+                    const h = Math.floor(diffSec / 3600);
+                    const m = Math.floor((diffSec % 3600) / 60);
+                    timeAgo = m > 0 ? `${h}h ${m}m ago` : `${h}h ago`;
+                } else {
+                    timeAgo = `${Math.floor(diffSec / 86400)}d ago`;
+                }
+                return `${istDate}, ${istTime} IST (${timeAgo})`;
+            } catch (e) {
+                return pubStr;
+            }
+        }
+
         function openNewsModal() {
             const overlay = document.getElementById('news-modal-overlay');
             if (overlay) overlay.style.display = 'flex';
@@ -15085,10 +15122,10 @@ function showIndicatorLineActionPill(ind, point) {
                         <div style="font-size: 13.5px; font-weight: 700; color: #f8fafc; line-height: 1.4; margin-bottom: 6px;">
                             ${topCatalyst.title}
                         </div>
-                        <div style="font-size: 11px; color: #94a3b8; display: flex; gap: 10px;">
+                        <div style="font-size: 11px; color: #94a3b8; display: flex; gap: 10px; align-items: center;">
                             <span>Source: <b>${topCatalyst.source}</b></span>
                             <span>•</span>
-                            <span>Published: ${topCatalyst.published_at || 'Recently'}</span>
+                            <span>🕒 <b>${formatNewsDate(topCatalyst.published_at)}</b></span>
                         </div>
                     </div>
                 `;
@@ -15112,7 +15149,10 @@ function showIndicatorLineActionPill(ind, point) {
                                 <span style="font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: ${hBg}; color: ${hColor};">${h.polarity} (${h.score > 0 ? '+' : ''}${h.score.toFixed(2)})</span>
                             </div>
                             <div style="font-size: 12px; color: #f1f5f9; line-height: 1.4; margin-bottom: 4px;">${h.title}</div>
-                            <div style="font-size: 10.5px; color: #64748b;">${h.published_at || ''}</div>
+                            <div style="font-size: 11px; color: #94a3b8; display: flex; align-items: center; gap: 4px;">
+                                <span>🕒</span>
+                                <span>${formatNewsDate(h.published_at)}</span>
+                            </div>
                         </div>
                     `;
                 });
