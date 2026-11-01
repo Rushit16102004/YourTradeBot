@@ -1,0 +1,70 @@
+# ==========================================
+# SECURITY & SENSITIVE CREDENTIALS (CRITICAL)
+# ==========================================
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+!.env.example
+*.env
+*.pem
+*.key
+*.cert
+*.crt
+.streamlit/secrets.toml
+
+# AI & API Key Artifacts
+RAG/gemini_key.txt
+
+# Tunnel Configuration & Binaries
+ngrok.exe
+ngrok.zip
+cloudflared.exe
+ngrok_config.txt
+ngrok.yml
+
+# ==========================================
+# USER PRIVACY & DATABASE STORAGE
+# ==========================================
+# Databases & WAL Journals (Prevent leaking user hashes & tokens)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+database/users.db*
+data_cache/users.db*
+
+# User Registration & Login Audit Exports (Contains usernames, emails, login records)
+registered_users.csv
+database/registered_users.csv
+user_login_records.csv
+database/user_login_records.csv
+temp_storage/
+scratch/
+latest_session_url.txt
+
+# Vector Embeddings Database
+RAG/chroma_db/
+data_cache/
+
+# ==========================================
+# PYTHON COMPILED & SYSTEM ARTIFACTS
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+*.log
+
+# Environments
+venv/
+env/
+.venv/
+dist/
+build/
+*.egg-info/
+.DS_Store
+Thumbs.db

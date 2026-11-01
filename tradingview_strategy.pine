@@ -1,0 +1,190 @@
+//@version=5
+indicator("ZFTF - Z Score Trend Following Indicator", overlay=true)
+
+// ======================================================
+// 1. INPUTS
+// ======================================================
+
+window      = input.int(20, "Rolling Window")
+z_threshold = input.float(2.0, "Z Entry Threshold")
+slope_entry = input.float(0.001, "Slope Entry Threshold")
+slope_exit  = input.float(-0.001, "Slope Exit Threshold")
+
+target_pct  = input.float(0.06, "Target %")
+stop_pct    = input.float(0.03, "Stop %")
+
+// ======================================================
+// 2. INDICATORS
+// ======================================================
+
+// Rolling mean & std
+mean = ta.sma(close, window)
+std  = ta.stdev(close, window)
+
+// Z-score
+z = std > 0 ? (close - mean) / std : 0
+
+// Linear regression slope (trend strength)
+slope = ta.linreg(close, window, 0) - ta.linreg(close, window, 1)
+
+// ======================================================
+// 3. ENTRY / EXIT LOGIC
+// ======================================================
+
+var bool  in_position = false
+var float entry_price = na
+
+entry_signal = false
+exit_signal  = false
+
+// ENTRY
+if not in_position and std > 0
+    if z > z_threshold and slope > slope_entry
+        in_position := true
+        entry_price := close
+        entry_signal := true
+
+// EXIT
+if in_position
+    target_hit = close >= entry_price * (1 + target_pct)
+    stop_hit   = close <= entry_price * (1 - stop_pct)
+    trend_exit = slope < slope_exit
+
+    if target_hit or stop_hit or trend_exit
+        in_position := false
+        exit_signal := true
+
+// ======================================================
+// 4. CALCULATIONS
+// ======================================================
+
+// Target & Stop
+target_line = in_position ? entry_price * (1 + target_pct) : na
+stop_line   = in_position ? entry_price * (1 - stop_pct) : na
+
+// Live PnL %
+live_pnl = in_position ? ((close - entry_price) / entry_price) * 100 : na
+
+// Signal Code
+//  1 = BUY
+// -1 = SELL
+//  2 = HOLD
+//  0 = NONE
+signal =
+     entry_signal ? 1 :
+     exit_signal  ? -1 :
+     in_position  ? 2 : 0
+
+// ======================================================
+// 5. PLOTS
+// ======================================================
+
+// Mean
+plot(mean, color=color.orange, linewidth=2, title="Rolling Mean")
+
+// Background
+bgcolor(z > z_threshold ? color.new(color.green, 85) : na)
+
+// Entry / Exit
+plotshape(entry_signal,
+     title="BUY",
+     location=location.belowbar,
+     style=shape.triangleup,
+     color=color.lime,
+     size=size.small,
+     text="BUY")
+
+plotshape(exit_signal,
+     title="SELL",
+     location=location.abovebar,
+     style=shape.triangledown,
+     color=color.red,
+     size=size.small,
+     text="SELL")
+
+// Target & Stop
+plot(target_line,
+     color=color.green,
+     linewidth=2,
+     style=plot.style_linebr,
+     title="Target")
+
+plot(stop_line,
+     color=color.red,
+     linewidth=2,
+     style=plot.style_linebr,
+     title="Stop")
+
+// ======================================================
+// 6. STATUS LINE / DATA WINDOW
+// ======================================================
+
+plot(signal,
+     title="Signal (1=BUY,-1=SELL,2=HOLD,0=NONE)",
+     color=color.white,
+     display=display.status_line + display.data_window)
+
+plot(live_pnl,
+     title="Live PnL %",
+     color=color.green,
+     display=display.status_line + display.data_window)
+
+plot(entry_price,
+     title="Entry Price",
+     color=color.yellow,
+     display=display.status_line + display.data_window)
+
+plot(target_line,
+     title="Target Price",
+     color=color.green,
+     display=display.status_line + display.data_window)
+
+plot(stop_line,
+     title="Stop Price",
+     color=color.red,
+     display=display.status_line + display.data_window)
+
+plot(z,
+     title="Z-Score",
+     color=color.blue,
+     display=display.status_line + display.data_window)
+
+plot(slope,
+     title="Slope",
+     color=color.purple,
+     display=display.status_line + display.data_window)
+
+// ======================================================
+// 7. SIGNAL LABEL (Last Bar)
+// ======================================================
+
+var label sigLabel = na
+
+if barstate.islast
+    label.delete(sigLabel)
+
+    string txt =
+         signal == 1 ? "🟢 BUY" :
+         signal == -1 ? "🔴 SELL" :
+         in_position ? "🟡 HOLD" : "⚪ NONE"
+
+    color bg =
+         signal == 1 ? color.green :
+         signal == -1 ? color.red :
+         in_position ? color.orange : color.gray
+
+    string info =
+         txt +
+         "\nEntry : " + (na(entry_price) ? "NA" : str.tostring(entry_price, format.mintick)) +
+         "\nPnL : " + (na(live_pnl) ? "NA" : str.tostring(live_pnl, "#.##") + "%") +
+         "\nTarget : " + (na(target_line) ? "NA" : str.tostring(target_line, format.mintick)) +
+         "\nStop : " + (na(stop_line) ? "NA" : str.tostring(stop_line, format.mintick))
+
+    sigLabel := label.new(
+         bar_index,
+         high,
+         info,
+         style=label.style_label_down,
+         color=bg,
+         textcolor=color.white,
+         size=size.normal)

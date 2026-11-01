@@ -1,0 +1,30 @@
+# Web Application Framework & Server
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+jinja2>=3.1.4
+python-multipart>=0.0.9
+
+# Data Processing & Quant Indicators
+pandas>=2.2.0
+numpy>=1.26.0
+pytz>=2024.1
+plotly>=5.20.0
+
+# Vector Database & Embeddings (RAG)
+chromadb>=0.5.0
+
+# Derivatives Scraping & Network
+requests>=2.31.0
+curl_cffi>=0.7.0
+websocket-client>=1.7.0
+yfinance>=0.2.38
+
+# Broker Authentication & Security
+smartapi-python>=1.4.8
+pyotp>=2.9.0
+bcrypt>=4.0.0
+python-jose[cryptography]>=3.3.0
+python-dotenv>=1.0.1
+
+# Optional & Testing
+pytest>=8.0.0

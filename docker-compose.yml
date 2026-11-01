@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  nifty-terminal:
+    build: .
+    container_name: nifty_pro_terminal
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # Persist user accounts & databases
+      - ./users.db:/app/users.db
+      - ./RAG/chroma_db:/app/RAG/chroma_db
+      - ./data_cache:/app/data_cache
+      - ./temp_storage:/app/temp_storage
+      - ./logs:/app/logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"

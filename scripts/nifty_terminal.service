@@ -1,0 +1,21 @@
+[Unit]
+Description=NIFTY 50 Pro Terminal 24/7 Trading Server & RAG Copilot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/nifty_terminal
+Environment="PATH=/var/www/nifty_terminal/venv/bin:/usr/local/bin:/usr/bin"
+EnvironmentFile=/var/www/nifty_terminal/.env
+ExecStart=/var/www/nifty_terminal/venv/bin/python server.py
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/www/nifty_terminal/logs/service.log
+StandardError=append:/var/www/nifty_terminal/logs/service_error.log
+
+# Resource Limits
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
