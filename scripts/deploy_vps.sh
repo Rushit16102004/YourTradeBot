@@ -18,8 +18,8 @@ mkdir -p $APP_DIR/logs
 mkdir -p $APP_DIR/temp_storage
 mkdir -p $APP_DIR/data_cache
 
-# Copy project files if running inside the repository directory
-if [ -f "server.py" ]; then
+# Copy project files if running outside the application directory
+if [ -f "server.py" ] && [ "$(pwd)" != "$APP_DIR" ]; then
     cp -r * $APP_DIR/
 fi
 
