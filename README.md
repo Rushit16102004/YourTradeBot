@@ -2,7 +2,7 @@
 
 > **An advanced, institutional-grade intraday trading terminal and systematic algorithmic platform for NIFTY 50.**
 
-🌐 **Live Website Link**: [**http://130.210.26.32**](http://130.210.26.32)
+🌐 **Live Website Link**: [**https://yourtradebot.duckdns.org**](https://yourtradebot.duckdns.org) *(Mirror: `http://130.210.26.32`)*
 
 ---
 
@@ -57,7 +57,7 @@ Receive instant, automated notifications directly on Telegram for strictly 3 cri
 ## 📖 How to Use the Terminal
 
 ### Step 1: Access the Website & Sign Up
-1. Open the terminal at [**http://130.210.26.32**](http://130.210.26.32).
+1. Open the terminal at [**https://yourtradebot.duckdns.org**](https://yourtradebot.duckdns.org).
 2. Click **Register** to create your trader account.
 3. Select your preferred **Trading Style** (Intraday Scalper, Day Trader, Swing Trader, or Options Buyer) to customize how the AI Copilot responds to your questions.
 
