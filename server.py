@@ -191,6 +191,12 @@ async def lifespan(app: FastAPI):
     engine.start()
     # Pre-calculate S&R levels in background worker immediately
     threading.Thread(target=precalculate_sr_levels, daemon=True).start()
+    # Start Real-Time High-Impact News Sentiment Poller (every 90s)
+    try:
+        from RAG.news_sentiment_engine import NewsSentimentEngine
+        NewsSentimentEngine.get_instance().start_background_poller(interval_sec=90)
+    except Exception as e_news:
+        logger.warning("Could not start NewsSentimentEngine background poller: %s", e_news)
     logger.info("Local Web Server ready at http://localhost:8000")
     yield
     logger.info("Shutting down Local Web Server...")
@@ -1724,6 +1730,25 @@ async def get_active_patterns_endpoint(request: Request):
     from indicators.pattern_detector import PatternDetector
     patterns_res = PatternDetector.analyze_patterns(df_5m, cur_p)
     return JSONResponse(content={"status": "ok", "patterns": patterns_res})
+
+
+@app.get("/api/news")
+async def get_news_sentiment_endpoint(request: Request):
+    """
+    Returns real-time macro news sentiment & Grade-A high-impact catalysts.
+    Strictly filters out small noise and provides directional NIFTY guidance.
+    """
+    from RAG.news_sentiment_engine import NewsSentimentEngine
+    summary = NewsSentimentEngine.get_instance().get_sentiment_summary()
+    return JSONResponse(content={"status": "ok", "news": summary})
+
+
+@app.post("/api/news/refresh")
+async def refresh_news_sentiment_endpoint(request: Request):
+    """Forces immediate refresh of Google News RSS feed."""
+    from RAG.news_sentiment_engine import NewsSentimentEngine
+    summary = NewsSentimentEngine.get_instance().fetch_latest_news(force=True)
+    return JSONResponse(content={"status": "ok", "news": summary})
 
 
 @app.get("/health")

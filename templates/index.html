@@ -1678,6 +1678,54 @@
             box-shadow: 0 4px 18px rgba(37, 99, 235, 0.5);
             border-color: rgba(191, 219, 254, 0.9);
         }
+        .dock-btn.news-btn {
+            background: linear-gradient(135deg, #075985 0%, #0284c7 100%);
+            color: #ffffff;
+            border: 1px solid rgba(186, 230, 253, 0.35);
+        }
+        .dock-btn.news-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 18px rgba(14, 165, 233, 0.5);
+            border-color: rgba(224, 242, 254, 0.9);
+        }
+        .news-sentiment-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 11px;
+            border-radius: 9999px;
+            font-size: 11.5px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            background: rgba(15, 23, 42, 0.8);
+            color: #e2e8f0;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .news-sentiment-pill:hover {
+            border-color: rgba(56, 189, 248, 0.85);
+            background: rgba(30, 41, 59, 0.95);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 10px rgba(56, 189, 248, 0.25);
+        }
+        .news-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #94a3b8;
+            box-shadow: 0 0 5px #94a3b8;
+            transition: all 0.3s ease;
+        }
+        .news-dot.bullish {
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+        }
+        .news-dot.bearish {
+            background: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
+            animation: pulse-glow 1.5s infinite;
+        }
         @media (max-width: 768px) {
             .floating-terminal-dock {
                 bottom: 12px;
@@ -3517,6 +3565,11 @@
             </div>
 
             <div class="header-line-right">
+                <!-- 📰 Real-Time Macro News Sentiment Pill -->
+                <div id="news-sentiment-pill" class="news-sentiment-pill" onclick="openNewsModal()" title="Real-Time Macro News & Market Direction Engine (Click to inspect)">
+                    <span class="news-dot" id="news-dot"></span>
+                    <span id="news-label">📰 News: Syncing...</span>
+                </div>
                 <!-- 🟢 Market Session Status Pill -->
                 <div id="market-status-pill" class="market-status-pill market-status-closed" title="National Stock Exchange (NSE) Session Status">
                     <span class="status-dot"></span>
@@ -4494,6 +4547,10 @@
     <!-- 🚀 & 🤖 Floating Terminal Action Dock (Neat, Draggable, Never Blocks Time Scale) -->
     <div class="floating-terminal-dock" id="floating-terminal-dock">
         <span class="dock-drag-handle" id="dock-drag-handle" title="Drag to move dock anywhere on screen">⠿</span>
+        <button class="dock-btn news-btn" id="news-trigger-btn" onclick="openNewsModal()" title="Real-Time Macro News & Market Direction Engine">
+            <span style="font-size: 13px;">📰</span>
+            <span>News</span>
+        </button>
         <button class="dock-btn preflight-btn" id="preflight-trigger-btn" onclick="openPreFlightModal()" title="1-Click Pre-Trade Go / No-Go Engine">
             <span style="font-size: 13px;">🚀</span>
             <span>Pre-Flight</span>
@@ -4540,6 +4597,9 @@
 
         <!-- Quick Strategy Prompt Suggestion Pills -->
         <div class="copilot-pills-bar">
+            <button class="copilot-pill" onclick="openNewsModal()" style="border-color: #38bdf8; color: #38bdf8; background: rgba(56, 189, 248, 0.12); font-weight: 700;">
+                📰 News Sentiment
+            </button>
             <button class="copilot-pill" onclick="openPreFlightModal()" style="border-color: #10b981; color: #10b981; background: rgba(16, 185, 129, 0.12); font-weight: 700;">
                 🚀 Pre-Flight (Go / No-Go)
             </button>
@@ -13643,6 +13703,12 @@ function showIndicatorLineActionPill(ind, point) {
                 fetchMacroMetrics();
             }, 10000);
 
+            // 7.1 Real-Time High-Impact News Sentiment updated every 30s!
+            fetchNewsSentiment();
+            setInterval(() => {
+                fetchNewsSentiment();
+            }, 30000);
+
             // 8. 5-Second Screen Recommendation Toast Notification on Website Open
             setTimeout(() => {
                 try {
@@ -13991,6 +14057,48 @@ function showIndicatorLineActionPill(ind, point) {
         <button onclick="dismissSebiFooter()" style="background: transparent; border: none; color: #64748b; font-size: 14px; cursor: pointer; padding: 0 4px; line-height: 1;" title="Dismiss notification bar">✕</button>
     </div>
 
+
+    <!-- ============================================================== -->
+    <!-- 📰 REAL-TIME MACRO NEWS SENTIMENT & DIRECTION ENGINE MODAL -->
+    <!-- ============================================================== -->
+    <div id="news-modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(6px); z-index: 99998; align-items: center; justify-content: center;" onclick="handleNewsOverlayClick(event)">
+        <div style="background: #0f172a; border: 1px solid #334155; border-radius: 16px; width: 94%; max-width: 720px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 60px rgba(0,0,0,0.9); overflow: hidden;">
+            <!-- Modal Header -->
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid #1e293b; background: #0b1120;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 22px;">📰</span>
+                    <div>
+                        <div style="font-weight: 800; color: #f8fafc; font-size: 15px; letter-spacing: 0.3px;">Macro News & Market Direction Engine</div>
+                        <div style="font-size: 11px; color: #94a3b8;">Real-Time Google News RSS • Strict Grade-A Noise Filtering (≥ 7.5 Impact)</div>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button onclick="refreshNewsData()" style="background: #1e293b; border: 1px solid #334155; color: #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px;" title="Fetch live Google News RSS now">
+                        <span>🔄</span> Refresh Feed
+                    </button>
+                    <button onclick="closeNewsModal()" style="background: transparent; border: none; color: #94a3b8; font-size: 18px; cursor: pointer; padding: 2px 6px;">✕</button>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div id="news-modal-body" style="padding: 18px 20px; max-height: 65vh; overflow-y: auto;">
+                <div style="text-align: center; padding: 30px; color: #94a3b8;">
+                    <div class="spinner" style="margin: 0 auto 12px auto;"></div>
+                    Fetching real-time Google News RSS & auditing macro catalysts...
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-top: 1px solid #1e293b; background: #0b1120;">
+                <button onclick="askCopilotForNewsPlan()" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); border: 1px solid #38bdf8; color: #ffffff; padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                    <span>🤖</span> Ask AI Copilot: How to Trade This News?
+                </button>
+                <button onclick="closeNewsModal()" style="background: #1e293b; border: 1px solid #334155; color: #94a3b8; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 12px; cursor: pointer;">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- ============================================================== -->
     <!-- 🚀 PRE-FLIGHT CHECK MODAL (1-Click Pre-Trade Go / No-Go Engine) -->
@@ -14850,6 +14958,213 @@ function showIndicatorLineActionPill(ind, point) {
             dismissSebiFooter();
         }, 10000);
 
+
+        // ==============================================================
+        // 📰 Macro News Sentiment & Market Direction Client Controller
+        // ==============================================================
+        let cachedNewsData = null;
+
+        function openNewsModal() {
+            const overlay = document.getElementById('news-modal-overlay');
+            if (overlay) overlay.style.display = 'flex';
+            fetchNewsData();
+        }
+
+        function closeNewsModal() {
+            const overlay = document.getElementById('news-modal-overlay');
+            if (overlay) overlay.style.display = 'none';
+        }
+
+        function handleNewsOverlayClick(event) {
+            if (event.target.id === 'news-modal-overlay') closeNewsModal();
+        }
+
+        async function fetchNewsData() {
+            const body = document.getElementById('news-modal-body');
+            if (body && !cachedNewsData) {
+                body.innerHTML = '<div style="text-align: center; padding: 30px; color: #94a3b8;"><div class="spinner" style="margin: 0 auto 12px auto;"></div>Auditing live Google News RSS & macro catalysts...</div>';
+            }
+            try {
+                const res = await fetch('/api/news', { headers: getAuthHeaders() });
+                const data = await res.json();
+                if (data.status === 'ok' && data.news) {
+                    cachedNewsData = data.news;
+                    renderNewsData(data.news);
+                    updateNewsHeaderPill(data.news);
+                } else {
+                    if (body) body.innerHTML = '<div style="color: #ef4444; padding: 20px; text-align: center;">Could not load news sentiment feed.</div>';
+                }
+            } catch (err) {
+                if (body) body.innerHTML = `<div style="color: #ef4444; padding: 20px; text-align: center;">Network error: ${err.message}</div>`;
+            }
+        }
+
+        async function refreshNewsData() {
+            const body = document.getElementById('news-modal-body');
+            if (body) {
+                body.innerHTML = '<div style="text-align: center; padding: 30px; color: #94a3b8;"><div class="spinner" style="margin: 0 auto 12px auto;"></div>Fetching fresh Google News Financial RSS stream...</div>';
+            }
+            try {
+                const res = await fetch('/api/news/refresh', { method: 'POST', headers: getAuthHeaders() });
+                const data = await res.json();
+                if (data.status === 'ok' && data.news) {
+                    cachedNewsData = data.news;
+                    renderNewsData(data.news);
+                    updateNewsHeaderPill(data.news);
+                }
+            } catch (err) {
+                fetchNewsData();
+            }
+        }
+
+        async function fetchNewsSentiment() {
+            try {
+                const res = await fetch('/api/news', { headers: getAuthHeaders() });
+                const data = await res.json();
+                if (data.status === 'ok' && data.news) {
+                    cachedNewsData = data.news;
+                    updateNewsHeaderPill(data.news);
+                }
+            } catch (e) {
+                // Ignore background polling errors
+            }
+        }
+
+        function updateNewsHeaderPill(news) {
+            const pill = document.getElementById('news-sentiment-pill');
+            const dot = document.getElementById('news-dot');
+            const label = document.getElementById('news-label');
+            if (!pill || !dot || !label) return;
+
+            const score = news.sentiment_score || 0.0;
+            const sentiment = news.overall_sentiment || 'NEUTRAL';
+            const isHighImpact = news.is_high_impact || false;
+
+            dot.className = 'news-dot';
+            if (score > 0.15) {
+                dot.classList.add('bullish');
+                label.innerHTML = `📰 News: <b style="color: #10b981;">Bullish</b> (${score > 0 ? '+' : ''}${score.toFixed(2)})`;
+                pill.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+            } else if (score < -0.15) {
+                dot.classList.add('bearish');
+                label.innerHTML = `📰 News: <b style="color: #ef4444;">Bearish</b> (${score.toFixed(2)})`;
+                pill.style.borderColor = isHighImpact ? 'rgba(239, 68, 68, 0.8)' : 'rgba(239, 68, 68, 0.4)';
+            } else {
+                label.innerHTML = `📰 News: <b style="color: #94a3b8;">Neutral</b> (0.00)`;
+                pill.style.borderColor = 'rgba(148, 163, 184, 0.3)';
+            }
+        }
+
+        function renderNewsData(news) {
+            const body = document.getElementById('news-modal-body');
+            if (!body) return;
+
+            const score = news.sentiment_score || 0.0;
+            const sentiment = news.overall_sentiment || 'NEUTRAL';
+            const isHigh = news.is_high_impact || false;
+            const topCatalyst = news.breaking_catalyst;
+
+            let badgeColor = '#94a3b8';
+            let badgeBg = 'rgba(148, 163, 184, 0.12)';
+            if (score > 0.15) {
+                badgeColor = '#10b981';
+                badgeBg = 'rgba(16, 185, 129, 0.15)';
+            } else if (score < -0.15) {
+                badgeColor = '#ef4444';
+                badgeBg = 'rgba(239, 68, 68, 0.15)';
+            }
+
+            let catalystCardHtml = '';
+            if (topCatalyst && isHigh) {
+                catalystCardHtml = `
+                    <div style="background: rgba(239, 68, 68, 0.1); border: 2px solid ${badgeColor}; border-radius: 12px; padding: 14px 16px; margin-bottom: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span style="font-size: 11px; font-weight: 800; color: ${badgeColor}; text-transform: uppercase; letter-spacing: 0.5px;">🚨 ACTIVE GRADE-A CATALYST (${topCatalyst.category})</span>
+                            <span style="font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 4px; background: ${badgeBg}; color: ${badgeColor};">Impact: ${topCatalyst.impact_score}/10</span>
+                        </div>
+                        <div style="font-size: 13.5px; font-weight: 700; color: #f8fafc; line-height: 1.4; margin-bottom: 6px;">
+                            ${topCatalyst.title}
+                        </div>
+                        <div style="font-size: 11px; color: #94a3b8; display: flex; gap: 10px;">
+                            <span>Source: <b>${topCatalyst.source}</b></span>
+                            <span>•</span>
+                            <span>Published: ${topCatalyst.published_at || 'Recently'}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            let headlinesHtml = '';
+            const list = news.headlines || [];
+            if (list.length > 0) {
+                list.slice(0, 12).forEach(h => {
+                    const hScore = h.score || 0;
+                    const hColor = hScore > 0.15 ? '#10b981' : (hScore < -0.15 ? '#ef4444' : '#94a3b8');
+                    const hBg = hScore > 0.15 ? 'rgba(16, 185, 129, 0.1)' : (hScore < -0.15 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(148, 163, 184, 0.1)');
+                    const isGradeA = h.is_high_impact;
+                    headlinesHtml += `
+                        <div style="background: #141d33; border: 1px solid ${isGradeA ? hColor + '66' : '#1e293b'}; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 10.5px; font-weight: 700; color: #60a5fa;">[${h.source || 'News'}]</span>
+                                    ${isGradeA ? '<span style="font-size: 9.5px; font-weight: 800; padding: 1px 6px; border-radius: 3px; background: #dc2626; color: #ffffff;">GRADE-A MACRO</span>' : '<span style="font-size: 9.5px; color: #64748b; padding: 1px 5px; border-radius: 3px; background: #1e293b;">Macro</span>'}
+                                </div>
+                                <span style="font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: ${hBg}; color: ${hColor};">${h.polarity} (${h.score > 0 ? '+' : ''}${h.score.toFixed(2)})</span>
+                            </div>
+                            <div style="font-size: 12px; color: #f1f5f9; line-height: 1.4; margin-bottom: 4px;">${h.title}</div>
+                            <div style="font-size: 10.5px; color: #64748b;">${h.published_at || ''}</div>
+                        </div>
+                    `;
+                });
+            } else {
+                headlinesHtml = '<div style="color: #64748b; font-size: 12px; text-align: center; padding: 16px;">No macro headlines available right now.</div>';
+            }
+
+            body.innerHTML = `
+                <!-- Noise Filter Status Banner -->
+                <div style="display: flex; align-items: center; justify-content: space-between; background: #0c1527; border: 1px solid #1e293b; border-radius: 8px; padding: 7px 12px; margin-bottom: 12px; font-size: 11px;">
+                    <span style="color: #38bdf8; font-weight: 700;">🛡️ Strict Noise Filter: Active</span>
+                    <span style="color: #94a3b8;">Routine analyst tips discarded • Grade-A Threshold &ge; 7.5</span>
+                </div>
+
+                <!-- Hero Sentiment Gauge Card -->
+                <div style="background: ${badgeBg}; border: 2px solid ${badgeColor}; border-radius: 12px; padding: 14px 18px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 11.5px; font-weight: 800; color: ${badgeColor}; text-transform: uppercase;">OVERALL MACRO SENTIMENT</span>
+                        <span style="font-size: 14px; font-weight: 900; color: ${badgeColor};">${sentiment} (${score > 0 ? '+' : ''}${score.toFixed(2)} / 1.0)</span>
+                    </div>
+                    <div style="font-size: 15px; font-weight: 800; color: #f8fafc; margin-bottom: 6px;">
+                        🎯 Market Direction: <span style="color: ${badgeColor};">${news.market_direction || 'SIDEWAYS'}</span>
+                    </div>
+                    <div style="font-size: 12px; color: #cbd5e1; line-height: 1.4;">
+                        <b>Options Verdict:</b> ${news.trading_verdict || 'Follow Session VWAP and S&R.'}
+                    </div>
+                </div>
+
+                ${catalystCardHtml}
+
+                <!-- Breaking News Feed Section -->
+                <div style="margin-top: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 12px; font-weight: 800; color: #e2e8f0; text-transform: uppercase; letter-spacing: 0.5px;">Live Macro News Feed (${news.feed_count || 0} headlines)</span>
+                        <span style="font-size: 10.5px; color: #64748b;">Updated: ${news.last_updated || 'Just now'}</span>
+                    </div>
+                    ${headlinesHtml}
+                </div>
+            `;
+        }
+
+        function askCopilotForNewsPlan() {
+            closeNewsModal();
+            toggleCopilot(true);
+            setTimeout(() => {
+                const input = document.getElementById('copilot-user-input');
+                if (input) {
+                    input.value = "What is the latest breaking macro news catalyst and what is your directional trading verdict for NIFTY 50 options (CE vs PE and Session VWAP levels)?";
+                    handleCopilotSubmit();
+                }
+            }, 300);
+        }
 
         // ==============================================================
         // 🚀 Pre-Flight Check & Smart Money Trap Radar Client Controller

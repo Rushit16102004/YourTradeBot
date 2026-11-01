@@ -336,11 +336,35 @@ class GeminiLLMClient:
                     f"• Swing Pivots Identified: {pat.get('swing_pivots_count', 0)} swing points identified across 5m session candles.\n\n"
                 )
 
+            # Real-Time News Sentiment & Macro Catalyst Engine
+            news_s = market_state.get("news_sentiment")
+            if not news_s:
+                try:
+                    from RAG.news_sentiment_engine import NewsSentimentEngine
+                    news_s = NewsSentimentEngine.get_instance().get_sentiment_summary()
+                except Exception:
+                    news_s = None
+            news_str = ""
+            if news_s:
+                is_hi = news_s.get("is_high_impact", False)
+                top_c = news_s.get("breaking_catalyst")
+                c_title = top_c.get("title", "None") if top_c else "None"
+                news_str = (
+                    f"REAL-TIME NEWS SENTIMENT & MACRO CATALYST ENGINE:\n"
+                    f"• Sentiment Status: {news_s.get('overall_sentiment', 'NEUTRAL')} (Score: {news_s.get('sentiment_score', 0.0):+.2f})\n"
+                    f"• Grade-A High-Impact Catalyst Active: {'YES' if is_hi else 'NO (Noise Filtered)'}\n"
+                    f"• Catalyst Category: {news_s.get('impact_category', 'NONE')}\n"
+                    f"• Breaking Headline: {c_title}\n"
+                    f"• Directional Bias: {news_s.get('market_direction', 'SIDEWAYS')}\n"
+                    f"• Tactical Options Guidance: {news_s.get('trading_verdict', 'Trade Session VWAP & S&R')}\n\n"
+                )
+
             market_context_str = (
                 f"CURRENT REAL-TIME MARKET STATE:\n"
                 f"- Symbol: NIFTY 50 (NSE 5m)\n"
                 f"- Current LTP: ₹{market_state.get('price', '--')}\n"
                 f"- MTF Confluence Ribbon: {market_state.get('mtf_confluence', 'Mixed')}\n\n"
+                f"{news_str}"
                 f"{tw_str}"
                 f"{oc_str}"
                 f"{mr_str}"
@@ -698,6 +722,51 @@ class GeminiLLMClient:
                 "can i enter", "trade suggestion", "entry suggestion", "where to buy", "where to sell"
             ])
         )
+
+        # 0.005 Dedicated answer for News Sentiment & Macro Catalysts
+        news_query_terms = [
+            "news", "headline", "headlines", "samachar", "khabar", "rbi", "crude", "oil",
+            "war", "geopolitic", "fed", "inflation", "cpi", "sebi", "why market", "market kyu"
+        ]
+        if not synthesis and any(w in q_lower for w in news_query_terms):
+            from RAG.news_sentiment_engine import NewsSentimentEngine
+            ns = NewsSentimentEngine.get_instance().get_sentiment_summary()
+            is_hi = ns.get("is_high_impact", False)
+            ov_s = ns.get("overall_sentiment", "NEUTRAL")
+            score = ns.get("sentiment_score", 0.0)
+            dir_bias = ns.get("market_direction", "SIDEWAYS")
+            verdict = ns.get("trading_verdict", "Follow technicals.")
+            cat = ns.get("impact_category", "NONE")
+            bc = ns.get("breaking_catalyst")
+            headlines = ns.get("headlines", [])[:3]
+
+            hl_lines = []
+            for h in headlines:
+                src = h.get("source", "Media")
+                hl_lines.append(f"  • **[{src}]** {h.get('title')} (*{h.get('polarity', 'NEUTRAL')}*)")
+            hl_text = "\n".join(hl_lines) if hl_lines else "  • No major headlines currently recorded."
+
+            if is_hi and bc:
+                synthesis = (
+                    f"Hello {uname}!\n\n"
+                    f"🚨 **Real-Time Macro News Catalyst Alert ({cat}):**\n\n"
+                    f"• **Headline:** {bc.get('title')}\n\n"
+                    f"• **Sentiment Gauge:** **{ov_s}** (Polarity: {score:+.2f} / 1.0) | **Impact:** {bc.get('impact_score', 8.0):.1f}/10 (Grade-A Catalyst)\n\n"
+                    f"• **NIFTY 50 Directional Impact:** **{dir_bias}**\n\n"
+                    f"• **Tactical Options Execution:** {verdict}\n\n"
+                    f"• **Recent Macro Headlines:**\n{hl_text}\n\n"
+                    f"💡 *Grade-A Filter Active: Routine analyst chatter & noise are discarded to keep your execution focused strictly on high-impact macro movers.*"
+                )
+            else:
+                synthesis = (
+                    f"Hello {uname}!\n\n"
+                    f"📰 **Real-Time Macro News Sentiment Report:**\n\n"
+                    f"• **Overall Sentiment:** **{ov_s}** (Polarity: {score:+.2f} / 1.0)\n\n"
+                    f"• **Macro Catalyst Status:** No disruptive Grade-A macro shocks detected (Impact < 7.5). Global and domestic cues are currently steady.\n\n"
+                    f"• **NIFTY 50 Directional Guidance:** **{dir_bias}** — {verdict}\n\n"
+                    f"• **Latest Market Headlines:**\n{hl_text}\n\n"
+                    f"💡 *Strict High-Impact Engine: Routine stock tips and opinions are filtered out so you only react when significant macro news moves the tape.*"
+                )
 
         # 0.01 Direct answer for Time-of-Day Window queries
         tw = market_state.get("time_window", {}) if market_state else {}

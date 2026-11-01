@@ -462,6 +462,14 @@ class RAGService:
             except Exception as e_ps:
                 logger.debug("Non-fatal note retrieving prediction stats: %s", e_ps)
 
+        # Ingest real-time news sentiment & macro catalyst into market_state
+        if market_state is not None and "news_sentiment" not in market_state:
+            try:
+                from RAG.news_sentiment_engine import NewsSentimentEngine
+                market_state["news_sentiment"] = NewsSentimentEngine.get_instance().get_sentiment_summary()
+            except Exception as e_ns:
+                logger.debug("Non-fatal note retrieving news sentiment: %s", e_ns)
+
         # Generate response
         result = self.llm.generate(
             user_query=query,

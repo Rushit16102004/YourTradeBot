@@ -601,6 +601,86 @@ class PreFlightEngine:
             positive_drivers.append("Open corridor between primary S&R zones.")
             confluence_score += 8.0
 
+        # -------------------------------------------------------------
+        # 7. Real-Time High-Impact News Sentiment & Macro Catalyst Scan
+        # -------------------------------------------------------------
+        from RAG.news_sentiment_engine import NewsSentimentEngine
+        news_summary = NewsSentimentEngine.get_instance().get_sentiment_summary()
+
+        is_news_high_impact = bool(news_summary.get("is_high_impact", False))
+        news_score = float(news_summary.get("sentiment_score", 0.0) or 0.0)
+        news_cat = news_summary.get("impact_category", "NONE")
+        breaking_event = news_summary.get("breaking_catalyst")
+        news_verdict = news_summary.get("trading_verdict", "")
+
+        if is_news_high_impact and breaking_event:
+            cat_name = breaking_event.get("category", news_cat)
+            head_title = breaking_event.get("title", "")
+            is_bullish_news = (news_score > 0.20)
+            is_bearish_news = (news_score < -0.20)
+
+            if trade_dir == "BUY":
+                if is_bullish_news:
+                    checklist.append({
+                        "name": "Macro News Catalyst & Sentiment",
+                        "status": "PASS",
+                        "badge": f"🟢 HIGH-IMPACT MACRO TAILWIND ({cat_name})",
+                        "detail": f"Grade-A Catalyst Active: {head_title}. Market Direction: Bullish. {news_verdict}"
+                    })
+                    positive_drivers.append(f"High-impact bullish catalyst active ({cat_name}).")
+                    confluence_score += 12.0
+                elif is_bearish_news:
+                    checklist.append({
+                        "name": "Macro News Catalyst & Sentiment",
+                        "status": "CAUTION",
+                        "badge": f"🔴 HIGH-IMPACT MACRO HEADWIND ({cat_name})",
+                        "detail": f"Opposing Grade-A Catalyst: {head_title}. Market Direction: Bearish drag. {news_verdict}"
+                    })
+                    caution_reasons.append(f"Macro news shock contrary to long setup ({cat_name}: {head_title[:60]}...).")
+                    confluence_score -= 15.0
+                else:
+                    checklist.append({
+                        "name": "Macro News Catalyst & Sentiment",
+                        "status": "PASS",
+                        "badge": "⚪ NEUTRAL MACRO CATALYST",
+                        "detail": f"Active Macro Event ({cat_name}): {head_title}. Bias is balanced."
+                    })
+            else: # SELL
+                if is_bearish_news:
+                    checklist.append({
+                        "name": "Macro News Catalyst & Sentiment",
+                        "status": "PASS",
+                        "badge": f"🔴 HIGH-IMPACT MACRO TAILWIND ({cat_name})",
+                        "detail": f"Grade-A Bearish Catalyst: {head_title}. Supports short/put setups. {news_verdict}"
+                    })
+                    positive_drivers.append(f"High-impact bearish catalyst active ({cat_name}).")
+                    confluence_score += 12.0
+                elif is_bullish_news:
+                    checklist.append({
+                        "name": "Macro News Catalyst & Sentiment",
+                        "status": "CAUTION",
+                        "badge": f"🟢 HIGH-IMPACT MACRO HEADWIND ({cat_name})",
+                        "detail": f"Opposing Grade-A Catalyst: {head_title}. Market Direction: Bullish rally. {news_verdict}"
+                    })
+                    caution_reasons.append(f"Macro news shock contrary to short setup ({cat_name}: {head_title[:60]}...).")
+                    confluence_score -= 15.0
+                else:
+                    checklist.append({
+                        "name": "Macro News Catalyst & Sentiment",
+                        "status": "PASS",
+                        "badge": "⚪ NEUTRAL MACRO CATALYST",
+                        "detail": f"Active Macro Event ({cat_name}): {head_title}. Bias is balanced."
+                    })
+        else:
+            checklist.append({
+                "name": "Macro News Catalyst & Sentiment",
+                "status": "PASS",
+                "badge": "🟢 NO ADVERSE MACRO CATALYST",
+                "detail": "Macro news environment is calm (Grade-A impact < 7.5). Technicals & Session VWAP dictate flow."
+            })
+            positive_drivers.append("No disruptive high-impact macro news.")
+            confluence_score += 5.0
+
         # Clamp Confluence Score between 15% and 96%
         final_confluence = int(max(15.0, min(96.0, round(confluence_score))))
 
@@ -719,5 +799,14 @@ class PreFlightEngine:
                 "pe_change_oi": pe_chg,
                 "ce_change_oi": ce_chg,
                 "shift_type": oi_shift_obj.get("shift_type", "BALANCED"),
+            },
+            "news_sentiment": {
+                "overall_sentiment": news_summary.get("overall_sentiment", "NEUTRAL"),
+                "sentiment_score": news_score,
+                "is_high_impact": is_news_high_impact,
+                "impact_category": news_cat,
+                "breaking_catalyst": breaking_event,
+                "market_direction": news_summary.get("market_direction", "SIDEWAYS"),
+                "trading_verdict": news_verdict,
             },
         }
