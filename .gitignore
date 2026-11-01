@@ -43,6 +43,7 @@ user_login_records.csv
 database/user_login_records.csv
 temp_storage/*
 !temp_storage/*.py
+!temp_storage/nifty50_volume_5m.csv
 scratch/
 latest_session_url.txt
 
