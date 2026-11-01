@@ -3,20 +3,25 @@ RAG/news_sentiment_engine.py
 Real-Time High-Impact News Sentiment & Macro Catalyst Engine.
 
 Features:
-1. 100% Free Live Streaming: Uses Google News Financial RSS (zero paid API keys, unlimited requests).
-2. Strict Noise Reduction ("Big News Only"): Filters out routine broker tips, chartist chatter,
-   and daily retail noise. Retains ONLY Grade-A catalysts (RBI / Monetary Policy, Crude Oil shocks,
-   Geopolitics/War, Government/SEBI policy, and Top-5 Index Heavyweights).
+1. 100% Free Live Streaming: Uses Google News Financial RSS targeted strictly at Indian Stock Markets.
+2. Strict Relevance & Noise Reduction ("Big Market News Only"):
+   - Rejects non-market lifestyle/viral trivia (e.g., Warren Buffett diet, car launches, Bollywood).
+   - Rejects exam/recruitment scrapers (Bankersadda, Studycafe, Sarkari).
+   - Retains ONLY news that genuinely affects Indian equity markets (RBI Monetary Policy, Crude Oil shocks,
+     Geopolitics, SEBI/Government Policy, and Top-5 Index Heavyweights).
 3. Directional Polarity & NIFTY Options Verdict:
    - Evaluates impact score (1 to 10) and sentiment polarity (-1.0 to +1.0).
    - Grade-A cutoff: Impact >= 7.5 triggers directional trade guidance (CE Calls vs PE Puts).
-4. Dual Classification Pipeline: Instant regex/heuristic rules with optional Gemini LLM verification.
+4. Strict Recency Cap:
+   - Displays headlines from the last 8 hours only (no stale or yesterday's news).
+   - Grade-A catalysts must be within 6 hours.
 5. Thread-Safe Background Polling: Continuously updates in background every 90 seconds.
 """
 
 from __future__ import annotations
 
 import datetime
+import email.utils
 import json
 import logging
 import os
@@ -32,23 +37,27 @@ from RAG.config import RAGConfig
 
 logger = logging.getLogger("NewsSentimentEngine")
 
-# Live Google News Curated Business Topic (Strictly verified live business newsrooms)
+# Live Google News search strictly restricted to Indian Financial Markets & Commodities within 8 hours
 RSS_PRIMARY_URL = (
-    "https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=en-IN&gl=IN&ceid=IN:en"
+    "https://news.google.com/rss/search?q=(NIFTY+OR+Sensex+OR+RBI+OR+SEBI+OR+\"stock+market\"+OR+\"crude+oil\")+when:8h&hl=en-IN&gl=IN&ceid=IN:en"
 )
-# Live Market Search restricted to the last 12 hours strictly
+# Backup URL restricted to Indian Economy within 12 hours
 RSS_BACKUP_URL = (
-    "https://news.google.com/rss/search?q=NIFTY+50+OR+Sensex+OR+RBI+when:12h&hl=en-IN&gl=IN&ceid=IN:en"
+    "https://news.google.com/rss/search?q=(NIFTY+OR+Sensex+OR+RBI+OR+SEBI+OR+\"Indian+economy\")+when:12h&hl=en-IN&gl=IN&ceid=IN:en"
 )
 
 BLOCKED_SCRAPERS = [
     "dd news", "kucoin", "scanx", "bbn times", "pragativadi", "investment guru", "cryptocurrency",
-    "motor octane", "motoroctane", "rushlane", "gaadiwaadi", "autocar", "carwale", "zigwheels"
+    "motor octane", "motoroctane", "rushlane", "gaadiwaadi", "autocar", "carwale", "zigwheels",
+    "bankersadda", "studycafe", "adda247", "testbook", "shiksha", "jagranjosh", "sarkari",
+    "energynow", "beinsure"
 ]
 
 STALE_ANACHRONISMS = [
-    r"fed rate hike", r"midterm election", r"crude oil above \$11", r"nse ipo in focus"
+    r"fed rate hike", r"midterm election", r"crude oil above \$11", r"nse ipo in focus",
+    r"nse ipo listed", r"listing today"
 ]
+
 NOISE_PATTERNS = [
     r"chartist talk", r"what history suggest", r"what 25 yrs", r"stocks to buy",
     r"brokerage recommends", r"target price", r"stock picks", r"portfolio advice",
@@ -59,7 +68,41 @@ NOISE_PATTERNS = [
     r"spotted flying", r"age of the imperial ceo", r"horoscope", r"movie",
     r"celebrity", r"actor", r"actress", r"box office"
 ]
+
+MAX_HEADLINE_AGE_HOURS = 8.0
+MAX_CATALYST_AGE_HOURS = 6.0
 CACHE_FILE = Path(__file__).resolve().parent.parent / "temp_storage" / "news_sentiment_cache.json"
+
+
+def is_indian_market_relevant(title: str) -> bool:
+    """Verifies that the headline directly concerns Indian financial markets, commodities, or key macro drivers."""
+    t = title.lower()
+    indian_market_patterns = [
+        r"\bnifty\b", r"\bsensex\b", r"\bsebi\b", r"\brbi\b", r"\bd-street\b",
+        r"\bdalal street\b", r"\bstock markets?\b", r"\bindian markets?\b",
+        r"\bequities\b", r"\bindian equity\b", r"\bcrude oil\b", r"\bbrent\b",
+        r"\breliance\b", r"\bhdfc\b", r"\bicici\b", r"\btcs\b", r"\binfosys\b",
+        r"\bsbi\b", r"\bgst collection\b", r"\brepo rate\b", r"\bmonetary policy\b",
+        r"\binflation\b", r"\bf&o\b", r"\bbank nifty\b", r"\bfii\b", r"\bdii\b",
+        r"\bshaktikanta\b", r"\bfederal reserve\b", r"\bfomc\b", r"\bwar\b", r"\bmissiles?\b",
+        r"\bceasefire\b", r"\bmilitary\b"
+    ]
+    return any(re.search(p, t) for p in indian_market_patterns)
+
+
+def is_analyst_or_preview(title: str) -> bool:
+    """Detects routine commentary, weekly outlooks, or analyst opinions that should not trigger market shock alerts."""
+    t = title.lower()
+    preview_patterns = [
+        r"\banalysts?\b", r"\bview\b", r"\bviews\b", r"\bexpectations?\b",
+        r"\bahead of market\b", r"\bthings to watch\b", r"\bfactors to watch\b",
+        r"\bsteer markets?\b", r"\bweek ahead\b", r"\bwhat history suggests\b",
+        r"\bwhat to expect\b", r"\bfrom wall street to d-street\b",
+        r"\bstocks? to watch\b", r"\bstock picks?\b", r"\bchartist\b",
+        r"\bwhat 25 yrs\b", r"\btarget price\b", r"\bbrokerage\b",
+        r"\blikely to remain\b", r"\bfaces another\b", r"\bwill decide\b"
+    ]
+    return any(re.search(p, t) for p in preview_patterns)
 
 
 class NewsSentimentEngine:
@@ -131,7 +174,6 @@ class NewsSentimentEngine:
         if not pub_date_str:
             return "Recently", 0.0, "Recently", "Recently"
         try:
-            import email.utils
             dt_utc = email.utils.parsedate_to_datetime(pub_date_str)
             if dt_utc.tzinfo is None:
                 dt_utc = dt_utc.replace(tzinfo=datetime.timezone.utc)
@@ -170,34 +212,24 @@ class NewsSentimentEngine:
         t_clean = title.strip()
         t_lower = t_clean.lower()
 
-        # 0. Reject low-tier scrapers and stale recycled articles
+        # 0. Reject non-Indian market news, low-tier scrapers, and stale recycled articles
         s_lower = source.lower().strip()
         is_blocked_source = any(b in s_lower for b in BLOCKED_SCRAPERS)
         is_stale_article = any(re.search(p, t_lower) for p in STALE_ANACHRONISMS)
-
-        # 1. Noise check (routine stock tips, columns, retail chatter)
-        noise_patterns = [
-            r"chartist talk", r"what history suggest", r"what 25 yrs", r"stocks to buy",
-            r"brokerage recommends", r"target price", r"stock picks", r"portfolio advice",
-            r"mutual fund inflow", r"top gainers", r"top losers", r"buzzing stocks",
-            r"technical view", r"what to expect", r"hot stocks", r"penny stocks",
-            r"hasn't had water", r"drinks instead", r"revealed ahead", r"\bvs\b",
-            r"should you pay", r"supersonic jet", r"first look", r"mileage",
-            r"spotted flying", r"age of the imperial ceo", r"horoscope", r"movie",
-            r"celebrity", r"actor", r"actress", r"box office"
-        ]
+        is_relevant_market = is_indian_market_relevant(t_clean)
+        is_preview = is_analyst_or_preview(t_clean)
         is_routine_noise = any(re.search(p, t_lower) for p in NOISE_PATTERNS)
 
-        if is_blocked_source or is_stale_article:
+        if is_blocked_source or is_stale_article or not is_relevant_market:
             category = "MARKET_NOISE"
             impact_score = 1.0
             return {
                 "title": t_clean,
                 "source": source or "Financial Media",
                 "link": link or "",
-                "published_at": "Stale Archive",
-                "published_ist": "Stale",
-                "time_ago": "Archived",
+                "published_at": "Stale / Non-Market News",
+                "published_ist": "Filtered",
+                "time_ago": "Filtered",
                 "pub_epoch": 0.0,
                 "category": "MARKET_NOISE",
                 "impact_score": 1.0,
@@ -205,7 +237,7 @@ class NewsSentimentEngine:
                 "polarity": "NEUTRAL",
                 "score": 0.0,
                 "market_direction": "SIDEWAYS",
-                "trading_verdict": "Stale recycled news filtered out.",
+                "trading_verdict": "Non-market related or recycled news filtered out.",
             }
 
         category = "MARKET_NOISE"
@@ -215,16 +247,25 @@ class NewsSentimentEngine:
         market_direction = "SIDEWAYS"
         trading_verdict = "Routine market noise. Does not alter structural bias; rely on Session VWAP."
 
-        # 2. High-Impact Category Classifications
+        # 2. High-Impact Category Classifications (Strictly require active catalyst conditions)
 
         # A. Central Bank / Monetary Policy (Impact: 9.0)
-        cb_keywords = [
-            "rbi", "repo rate", "mpc", "monetary policy", "rate hike", "rate cut",
-            "shaktikanta", "fed rate", "fomc", "powell", "cpi inflation", "wpi inflation",
-            "federal reserve", "central bank", "interest rate", "interest rates", "inflation"
-        ]
-        is_cb_match = any(k in t_lower for k in cb_keywords) or bool(re.search(r"\b(fed|rbi|fomc|mpc)\b", t_lower))
-        if is_cb_match:
+        # Must be interest rates, rate cuts/hikes, MPC decisions, or inflation breach
+        cb_rate_trigger = (
+            bool(re.search(r"\b(rbi|repo rate|monetary policy|mpc)\b", t_lower)) and
+            any(w in t_lower for w in ["cut", "cuts", "slash", "slashes", "hike", "hikes", "raises", "rate decision", "repo rate by"])
+        ) or (
+            bool(re.search(r"\b(fed|fomc|federal reserve)\b", t_lower)) and
+            any(w in t_lower for w in ["rate cut", "rate hike", "cuts rates", "raises rates", "slashes rates", "rate decision"])
+        ) or (
+            bool(re.search(r"\b(cpi inflation|retail inflation|wpi inflation)\b", t_lower)) and
+            any(w in t_lower for w in ["spikes", "surges to", "jumps to", "cools to", "falls to", "eases to"])
+        )
+
+        # Exclude administrative routine announcements
+        is_admin_cb = any(w in t_lower for w in ["recruitment", "exam", "calendar", "jobs", "vacancy", "cyber", "advisory", "circular", "credit trend"])
+
+        if cb_rate_trigger and not is_admin_cb:
             category = "CENTRAL_BANK"
             impact_score = 9.0
             if any(w in t_lower for w in ["cut", "cuts", "slash", "easing", "dovish", "cools", "falls", "drop", "lower", "tamed"]):
@@ -245,10 +286,11 @@ class NewsSentimentEngine:
                 trading_verdict = "Status quo RBI / Fed policy stance. Price likely to consolidate within VWAP Bands."
 
         # B. Crude Oil & Energy Shocks (Impact: 8.0)
-        elif any(k in t_lower for k in ["crude", "brent", "oil prices", "opec", "petroleum"]):
+        # Must be an actual price spike or plunge
+        elif bool(re.search(r"\b(crude oil|brent crude|oil prices?)\b", t_lower)) and any(w in t_lower for w in ["surge", "surges", "spike", "spikes", "jump 3", "jump 4", "jump 5", "plunge", "plunges", "slump", "crashes", "tumbles", "slide"]):
             category = "CRUDE_SHOCK"
             impact_score = 8.0
-            if any(w in t_lower for w in ["surge", "surges", "spike", "spikes", "jump", "jumps", "rises", "climbs", "rally", "high", "rebound"]):
+            if any(w in t_lower for w in ["surge", "surges", "spike", "spikes", "jump", "climbs"]):
                 polarity = "BEARISH"
                 score = -0.70
                 market_direction = "BEARISH DRAG"
@@ -266,13 +308,13 @@ class NewsSentimentEngine:
                 trading_verdict = "Crude holding steady. No macro shock to Indian equity valuations."
 
         # C. Geopolitics & War (Impact: 9.2 - Strict Word Boundaries to avoid false positives like "Warren Buffett")
-        elif bool(re.search(r"\b(war|wars|warfare|missiles?|military action|military conflict|airstrikes?|ceasefire|truce)\b", t_lower)) or (
-            bool(re.search(r"\b(iran|israel|russia|ukraine|gaza|hezbollah|houthis?|taiwan)\b", t_lower)) and
-            any(w in t_lower for w in ["strike", "attack", "conflict", "bomb", "crisis", "tensions", "sanction", "invasion"])
-        ):
+        elif (
+            bool(re.search(r"\b(airstrikes?|missile attack|missiles? strike|military invasion|military attack|war escalation|red sea attack)\b", t_lower)) and
+            (bool(re.search(r"\b(iran|israel|russia|ukraine|middle east|gaza|red sea|hormuz|gulf)\b", t_lower)) or bool(re.search(r"\b(war|wars)\b", t_lower)))
+        ) or bool(re.search(r"\b(ceasefire signed|peace deal signed|peace treaty|truce agreed|troops withdrawn)\b", t_lower)):
             category = "GEOPOLITICAL"
             impact_score = 9.2
-            if any(w in t_lower for w in ["ceasefire", "peace agreement", "peace deal", "peace treaty", "truce signed", "de-escalat", "troops withdrawn"]):
+            if any(w in t_lower for w in ["ceasefire", "peace agreement", "peace deal", "peace treaty", "truce signed", "de-escalat", "troops withdrawn", "truce agreed"]):
                 polarity = "STRONG BULLISH"
                 score = 0.80
                 market_direction = "RELIEF RALLY"
@@ -284,7 +326,7 @@ class NewsSentimentEngine:
                 trading_verdict = "Geopolitical escalation triggering global risk-off flight to safe havens. High gap-down and breakdown vulnerability."
 
         # D. Government / Regulatory Policy (Impact: 8.5)
-        elif any(k in t_lower for k in ["union budget", "sebi", "stt", "f&o expiry", "capital gains", "ltcg", "gst collection", "customs duty"]):
+        elif bool(re.search(r"\b(union budget|sebi|stt hike|f&o ban|capital gains tax)\b", t_lower)):
             category = "GOV_POLICY"
             impact_score = 8.5
             if any(w in t_lower for w in ["curb", "tighten", "penalty", "tax hike", "stt hike", "restrictions", "crackdown"]):
@@ -305,37 +347,36 @@ class NewsSentimentEngine:
                 trading_verdict = "Regulatory announcement monitored; wait for institutional confirmation before reacting."
 
         # E. Top-5 Heavyweight Corporate Disruptions (Reliance, HDFC Bank, ICICI Bank, Infosys, TCS) (Impact: 7.5)
-        elif any(k in t_lower for k in ["reliance", "hdfc bank", "icici bank", "infosys", "tcs"]):
+        elif bool(re.search(r"\b(reliance industries|hdfc bank|icici bank|infosys|tcs)\b", t_lower)) and any(w in t_lower for w in ["profit jumps", "profit beats", "net profit up 2", "q2 net profit jumps", "profit falls", "profit misses", "slumps"]):
             category = "HEAVYWEIGHT_EARNINGS"
             impact_score = 7.5
-            if any(w in t_lower for w in ["profit jumps", "profit beats", "strong q", "net profit up", "q2 net profit", "q3 net profit", "q4 net profit", "q1 net profit", "deal win"]):
+            if any(w in t_lower for w in ["profit jumps", "profit beats", "net profit up", "deal win"]):
                 polarity = "BULLISH"
                 score = 0.65
                 market_direction = "HEAVYWEIGHT LIFT"
                 trading_verdict = "Top constituent earnings beat providing direct structural lift to NIFTY 50 index."
-            elif any(w in t_lower for w in ["profit falls", "profit misses", "slumps", "penalty", "probe", "resigns", "scam"]):
+            else:
                 polarity = "BEARISH"
                 score = -0.65
                 market_direction = "HEAVYWEIGHT DRAG"
                 trading_verdict = "Top index constituent drag weighing heavily on NIFTY index. Avoid aggressive call buying."
-            else:
-                impact_score = 5.0
-                polarity = "NEUTRAL"
-                score = 0.0
-                market_direction = "NEUTRAL"
-                trading_verdict = "Index heavyweight news noted. Routine operational announcement."
 
-        # Re-check noise override
-        if is_routine_noise and category == "MARKET_NOISE":
-            impact_score = 1.5
+        # Noise & Analyst Preview override: if headline is an analyst preview or routine chatter, demote impact
+        if is_routine_noise or is_preview:
+            category = "MARKET_NOISE"
+            impact_score = min(impact_score, 3.0)
+            polarity = "NEUTRAL"
+            score = 0.0
+            market_direction = "SIDEWAYS"
+            trading_verdict = "Routine analyst commentary; rely on technical Session VWAP."
 
         formatted_ist, pub_epoch, time_ago, display_pub = NewsSentimentEngine.format_pub_date_ist(pub_date)
 
-        # Freshness Check: Only news within the last 12 hours can qualify as Grade-A breaking catalyst!
+        # Freshness Check: Only news within the last 6 hours can qualify as Grade-A breaking catalyst!
         utc_now = datetime.datetime.now(datetime.timezone.utc)
         age_hours = (utc_now.timestamp() - pub_epoch) / 3600.0 if pub_epoch > 0 else 0.0
-        is_stale_by_time = (age_hours > 12.0)
-        is_high_impact = (impact_score >= 7.5) and not is_stale_by_time and not is_routine_noise
+        is_stale_by_time = (age_hours > MAX_CATALYST_AGE_HOURS)
+        is_high_impact = (impact_score >= 7.5) and not is_stale_by_time and not is_routine_noise and not is_preview
 
         return {
             "title": t_clean,
@@ -410,17 +451,26 @@ class NewsSentimentEngine:
             with self._cache_lock:
                 return dict(self._cached_summary)
 
-        # Classify all headlines with strict 18-hour freshness cap
+        # Classify all headlines with strict 8-hour freshness cap and Indian market relevance
         utc_now = datetime.datetime.now(datetime.timezone.utc)
         classified_items: List[Dict[str, Any]] = []
         high_impact_items: List[Dict[str, Any]] = []
 
         for h in headlines_raw:
-            res = self.classify_headline(title=h["title"], source=h.get("src", ""), pub_date=h.get("pub", ""), link=h.get("link", ""))
+            title_text = h["title"]
+            # Strict Indian Market Relevance
+            if not is_indian_market_relevant(title_text):
+                continue
+            # Filter noise patterns
+            if any(re.search(p, title_text.lower()) for p in NOISE_PATTERNS):
+                continue
+
+            res = self.classify_headline(title=title_text, source=h.get("src", ""), pub_date=h.get("pub", ""), link=h.get("link", ""))
             epoch = res.get("pub_epoch", 0.0)
-            age_h = (utc_now.timestamp() - epoch) / 3600.0 if epoch > 0 else 999.0
-            # Strictly retain headlines from today (<= 18 hours) to prevent displaying obsolete news
-            if age_h <= 18.0 and res.get("category") != "MARKET_NOISE" or (age_h <= 18.0 and not any(re.search(p, h["title"].lower()) for p in NOISE_PATTERNS)):
+            age_h = (utc_now.timestamp() - epoch) / 3600.0 if epoch > 0 else 0.0
+
+            # Strictly retain headlines from today (<= 8 hours) so users only see fresh news
+            if age_h <= MAX_HEADLINE_AGE_HOURS and res.get("time_ago") != "Filtered":
                 classified_items.append(res)
                 if res["is_high_impact"]:
                     high_impact_items.append(res)
@@ -527,7 +577,6 @@ class NewsSentimentEngine:
                 with urllib.request.urlopen(req, timeout=4) as resp:
                     resp_data = json.loads(resp.read().decode("utf-8"))
                 text = resp_data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                # Extract json block
                 match = re.search(r"\{.*\}", text, re.DOTALL)
                 if match:
                     parsed = json.loads(match.group(0))
@@ -572,7 +621,6 @@ class NewsSentimentEngine:
             logger.info("NewsSentimentEngine background poller started (interval: %ds)", interval_sec)
 
     def _run_poller_loop(self, interval_sec: int):
-        # Initial non-blocking fetch
         try:
             self.fetch_latest_news(force=True)
         except Exception as e:
