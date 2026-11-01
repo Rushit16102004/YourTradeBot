@@ -141,20 +141,9 @@ class TelegramNotifier:
         return self.send_message(msg, parse_mode="HTML")
 
     def send_startup_alert(self, symbol: str = "NIFTY 50") -> Tuple[bool, str]:
-        """Sends startup notification that code is running with today's date and time."""
-        now = datetime.now(IST)
-        date_str = now.strftime("%d-%m-%Y")
-        time_str = now.strftime("%H:%M:%S IST")
-        msg = (
-            "🟢 <b>CODE IS RUNNING</b>\n"
-            "━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"📅 <b>Date:</b> {date_str}\n"
-            f"⏰ <b>Time:</b> {time_str}\n"
-            f"📊 <b>Instrument:</b> {symbol}\n"
-            "🟢 <b>Status:</b> Code is running today.\n"
-            "━━━━━━━━━━━━━━━━━━━━━━"
-        )
-        return self.send_message(msg, parse_mode="HTML")
+        """Startup alerts disabled per notification policy (only Main Signal, S&R Breakout/Reversal, and 3:30 PM Force Exit are active)."""
+        logger.info("Startup alert skipped (policy: strictly trading & exit signals only)")
+        return True, "Startup alerts disabled"
 
     def send_test_alert(self) -> Tuple[bool, str]:
         """Sends a verification message to confirm Telegram integration is working."""
@@ -190,14 +179,14 @@ class TelegramNotifier:
         time_str = alert_time.strftime("%H:%M:%S IST")
 
         msg = (
-            "🛑 <b>EOD: ALL POSITIONS EXITED</b>\n"
+            "🛑 <b>3:30 PM FORCE EXIT: ALL POSITIONS SQUARED OFF</b>\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n"
-            "⚠️ <b>ALL POSITIONS EXIT TODAY</b>\n"
+            "⚠️ <b>ALL POSITIONS EXIT TODAY (3:30 PM MANDATORY EXIT)</b>\n"
             f"📅 <b>Date:</b> {date_str}\n"
             f"⏰ <b>Time:</b> {time_str}\n"
             f"📊 <b>Instrument:</b> {symbol}\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n"
-            "🛑 <i>End of Day session closed. All positions exited.</i>"
+            "🛑 <i>3:30 PM Market close square-off completed. All intraday positions force-exited.</i>"
         )
         return self.send_message(msg, parse_mode="HTML")
 

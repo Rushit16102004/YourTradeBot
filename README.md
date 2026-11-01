@@ -1,120 +1,91 @@
-# Live Trading Dashboard & Pine Script Strategy (Angel One SmartAPI)
+# 📈 NIFTY 50 Pro Terminal & AI Strategy Copilot
 
-An intraday trading terminal and systematic algorithmic trading engine integrating **TradingView Pine Script v6**, **Angel One SmartAPI (SmartWebSocketV2)**, and a **real-time Streamlit + Plotly 5-minute interactive dashboard**.
+> **An advanced, institutional-grade intraday trading terminal and systematic algorithmic platform for NIFTY 50.**
 
----
-
-## 📌 Features
-
-1. **TradingView Pine Script v6 Strategy**:
-   - Anchored Daily VWAP, Dual EMA (9 & 21), RSI (9), ATR (14), and Volume SMA (20).
-   - Intraday session timing filter (09:30 to 15:00 IST) and 15:15 IST automatic square-off.
-   - Dynamic indicator-driven Stop Loss ($ATR \times 1.5$) and Target ($Risk \times 2.0$).
-   - Persistent label overlay with exact priority: `BUY` -> `SELL` -> `HOLD` -> `NONE`.
-   - Audio and webhook alert conditions.
-
-2. **Python Live Strategy Engine**:
-   - 100% mathematical parity with Pine Script calculations (Wilder's RMA smoothing, anchored VWAP).
-   - Zero look-ahead bias: evaluations trigger on finalized 5-minute candle boundaries.
-   - Conservative same-candle resolution (Stop Loss prioritized when both boundaries are hit).
-
-3. **5-Minute Candle Aggregation Engine**:
-   - Native Asia/Kolkata (`pytz`) timezone synchronization.
-   - Handles cumulative broker volume by calculating interval volume from ticks.
-   - Forming candle updates continuously; finalized candles dispatched to strategy listeners.
-
-4. **Angel One SmartAPI WebSocket Feed**:
-   - Automated TOTP generation via `pyotp`.
-   - Full live quote WebSocket stream (`SmartWebSocketV2`) with auto-reconnect.
-   - Built-in simulation fallback mode for testing outside market hours.
-
-5. **Streamlit & Plotly Trading Terminal**:
-   - Interactive candlestick chart with overlays for VWAP, EMA 9, EMA 21, and Volume.
-   - Visual markers for confirmed BUY / SELL signals.
-   - Real-time horizontal levels for Entry, Target, and Stop-Loss.
-   - Signal cards displaying Live Unrealized P&L %, Entry Price, and Target/Stop values.
-   - Historical backtesting module with performance metrics and equity curve.
-   - Candle-by-candle Pine Script vs Python parity inspector.
+🌐 **Live Website Link**: [**http://130.210.26.32**](http://130.210.26.32)
 
 ---
 
-## 🚀 Windows Setup & Installation
+## 🌟 Platform Overview
 
-### Step 1: Open PowerShell and Navigate to Project
-```powershell
-cd c:\Users\ASUS\OneDrive\Desktop\VWAP_final
-```
-
-### Step 2: Create and Activate Virtual Environment
-```powershell
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-```
-
-### Step 3: Install Required Dependencies
-```powershell
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-### Step 4: Configure Credentials
-Your local `.env` has been initialized. If you ever update credentials, edit `.env`:
-```ini
-ANGEL_API_KEY=your_api_key
-ANGEL_CLIENT_ID=your_client_code
-ANGEL_PASSWORD=your_mpin_or_password
-ANGEL_TOTP_SECRET=your_base32_totp_secret
-DEFAULT_EXCHANGE=NSE
-DEFAULT_SYMBOL=RELIANCE-EQ
-DEFAULT_TOKEN=2885
-MOCK_MODE=false
-```
+**NIFTY 50 Pro Terminal** combines TradingView-grade interactive charting with systematic quantitative strategies and a real-time **Multi-Agent AI Copilot**. Built for intraday traders, scalpers, and institutional analysts, the platform delivers zero-latency market visualization, dynamic support and resistance detection, and automated Telegram alerts.
 
 ---
 
-## 🧪 Testing and Verification
+## 🚀 Key Features
 
-### 1. Run the Parity Audit
-Validates indicator formulas and state transitions against the Pine Script logic:
-```powershell
-python parity_check.py
-```
+### 1. 📊 TradingView-Grade Interactive Pro Charting
+- **Multi-Timeframe Architecture**: Seamlessly switch between **5-Minute**, **15-Minute**, **1-Hour**, and **Daily (1D)** timeframes.
+- **Institutional Technical Overlays**:
+  - Anchored Daily **VWAP** (Volume-Weighted Average Price) with dynamic ±2σ Statistical Volatility Bands.
+  - Dual EMA (9 & 21) trend momentum filters.
+  - 20-Period Volume Moving Average and real-time constituent volume accumulation.
+- **Dynamic Support & Resistance Engine**:
+  - Automatically maps 1-month and 2-month confluence support and resistance levels.
+  - Displays touch bounce counts, price clusters, and institutional rejection zones.
 
-### 2. Run the Full Unit Test Suite
-Runs tests for candle aggregation, indicators, strategy state transitions, and exits:
-```powershell
-pytest -v tests/
-```
+### 2. 📐 Interactive Drawing Suite & Risk:Reward Position Calculator
+- **Full Drawing Toolkit**: Trendlines, horizontal support/resistance rays, rectangles, price markers, and measurement tools.
+- **Interactive Risk:Reward (R:R) Tool**:
+  - Place **Long Position** or **Short Position** tools directly on any candle.
+  - Automatically calculates entry price, target (+6%), stop loss (-3%), and real-time R:R ratio.
+  - **Persistent User Storage**: All custom drawings and R:R measurements are saved to your account in the cloud.
+
+### 3. 🤖 Multi-Agent AI Strategy Copilot (Gemini + RAG)
+- **Chain-of-Thought Institutional Synthesis**:
+  - **Alpha Scout**: Hunts for high-probability edges, VWAP bounces, and momentum breakouts.
+  - **Devil's Advocate**: Identifies potential bull/bear traps, option chain resistance walls, and volume exhaustion.
+  - **Master Synthesizer**: Delivers a definitive verdict with Entry, Target, Stop-Loss, and R:R sizing.
+- **Real-Time Market Feeds Attached to RAG**:
+  - **RVOL (Relative Volume Z-Score)**: Institutional activity detection.
+  - **Market Regime**: ADX trend strength and ATR dynamic stop sizing ($SL = 1.2 \times ATR$).
+  - **Option Chain Shifts**: Live Call and Put open interest accumulation tracking.
+- **Multi-Turn Conversation Memory**: Retains session context so you can ask natural follow-ups (e.g., *"Should I exit now?"*).
+
+### 4. 🔔 24/7 Real-Time Telegram Alerts
+Receive instant, automated notifications directly on Telegram for strictly 3 critical market events:
+1. **Main Systematic Strategy Signals**: Confirmed BUY / SELL signals with execution price, target, stop loss, Z-score, and Linreg slope.
+2. **S&R Breakout & Reversal Signals**: High-momentum breaks of strong multi-month levels (gap $\ge$ 50 pts) and liquidity sweep reversals.
+3. **3:30 PM Mandatory Force Exit**: End-of-day alert confirming all intraday positions are squared off at market close.
+
+### 5. 👤 Personalized User Accounts & Privacy
+- **Isolated User Workspaces**: Secure account registration with encrypted credentials.
+- **Cloud State Synchronization**: Indicator preferences, drawing tools, and Copilot conversations are preserved across all your devices (desktop, laptop, and mobile).
 
 ---
 
-## 🖥️ Launching the Application
+## 📖 How to Use the Terminal
 
-### 1. High-Performance Pure HTML Local Server (Recommended)
-Blazing-fast sub-second loading, in-memory RAM cache for 20 trading days, multi-timeframe switching (5m, 15m, 1h, 1d), native on-chart drawing tools (measurements, zones, eraser), and real-time tick updates:
-```powershell
-python server.py
-```
-Open your browser at **`http://localhost:8000`**.
+### Step 1: Access the Website & Sign Up
+1. Open the terminal at [**http://130.210.26.32**](http://130.210.26.32).
+2. Click **Register** to create your trader account.
+3. Select your preferred **Trading Style** (Intraday Scalper, Day Trader, Swing Trader, or Options Buyer) to customize how the AI Copilot responds to your questions.
 
-### 2. Standalone 24/7 Terminal Daemon (Headless / No Browser)
-Runs 24/7 in background terminal, evaluates 5-minute clock boundaries, and dispatches Telegram alerts without opening any browser:
-```powershell
-python live_runner.py
-```
+### Step 2: Navigate the Chart & Timeframes
+- Use the top navigation bar to switch between **5m**, **15m**, **1h**, and **1d** candle timeframes.
+- Use your mouse wheel or trackpad pinch to zoom in/out, and drag horizontally to pan across past market sessions.
+- Click the **Indicators** button to toggle VWAP, Volatility Bands, SMA, or Volume overlays.
 
-### 3. Legacy Streamlit Dashboard
-```powershell
-streamlit run app.py
-```
-Open at `http://localhost:8501`.
+### Step 3: Draw on the Chart & Calculate Risk:Reward
+1. Click the **Tools** icon on the left toolbar.
+2. Select **Long Position** or **Short Position**.
+3. Click on the chart where you entered a trade.
+4. Drag the green Target handle and red Stop-Loss handle to adjust your levels. The tool displays your exact **Risk-to-Reward ratio** in real-time.
+5. All drawings save automatically to your account.
+
+### Step 4: Interact with the AI Strategy Copilot
+1. Click the **Copilot** panel on the right side of the screen.
+2. Type any market question, such as:
+   - *"Is NIFTY Call good at 23,050?"*
+   - *"Analyze current VWAP slope and volume momentum."*
+   - *"What are the key resistance walls from the option chain?"*
+3. The AI analyzes real-time candle data, multi-timeframe confluence, and institutional levels to give you a structured recommendation.
+
+### Step 5: Receive Live Telegram Alerts
+- Ensure your Telegram bot and chat ID are linked in your settings to get real-time audio and push alerts for verified strategy setups and 3:30 PM session close.
 
 ---
 
-## 📊 Pine Script Setup in TradingView
+## ⚖️ Regulatory Disclaimer
 
-1. Open [TradingView](https://www.tradingview.com) and open any chart (e.g. `NSE:RELIANCE`, 5-minute timeframe).
-2. Open the **Pine Editor** tab at the bottom.
-3. Open `tradingview_strategy.pine` from this folder, copy its contents, and paste it into the Pine Editor.
-4. Click **Save** and **Add to Chart**.
-5. The indicator lines, BUY/SELL signals, and the interactive status label will appear on the latest bar.
+*This software is designed solely for technical charting, algorithmic analysis, and educational purposes. It does NOT provide financial, legal, or investment advice. Trading in equities, derivatives, and financial markets carries significant financial risk. Users are advised to exercise independent judgment and consult with a certified financial advisor before placing any real trades.*

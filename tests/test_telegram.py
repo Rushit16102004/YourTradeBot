@@ -32,14 +32,10 @@ def test_telegram_signal_formatting(monkeypatch):
     notifier = TelegramNotifier(bot_token="TEST_BOT_123", chat_id="TEST_CHAT_456")
     assert notifier.is_configured
 
-    # 1. Startup Alert (stating code is running with today's date & time)
+    # 1. Startup Alert policy: Disabled per user requirement (only 3 core notification types active)
     ok, res = notifier.send_startup_alert()
     assert ok
-    assert len(sent_payloads) == 1
-    startup_text = sent_payloads[0][1]["text"]
-    assert "CODE IS RUNNING" in startup_text
-    assert "Date:" in startup_text
-    assert "Time:" in startup_text
+    assert len(sent_payloads) == 0  # No startup alert dispatched
 
     # 2. BUY Signal
     sent_payloads.clear()

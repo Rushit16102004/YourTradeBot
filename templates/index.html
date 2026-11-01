@@ -13810,7 +13810,7 @@ function showIndicatorLineActionPill(ind, point) {
                             </div>
                             <input id="reg-phone" type="tel" maxlength="10" placeholder="10-digit mobile number" oninput="handleRegPhoneInput()" onblur="checkPhoneAvailability()" style="flex: 1; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 14px; outline: none; letter-spacing: 0.5px; transition: border-color 0.2s ease;">
                         </div>
-                        <div id="reg-phone-hint" style="font-size: 11px; color: #64748b; margin-top: 4px;">Enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.</div>
+                        <div id="reg-phone-hint" style="font-size: 11px; color: #64748b; margin-top: 4px;"></div>
                     </div>
 
                     <!-- 6. Trading Style -->
@@ -14308,7 +14308,7 @@ function showIndicatorLineActionPill(ind, point) {
             const clean = phoneInput.value.replace(/\D/g, '');
             if (!clean) {
                 if (statusEl) statusEl.innerHTML = '';
-                if (hint) hint.innerHTML = 'Enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.';
+                if (hint) hint.innerHTML = '';
                 phoneInput.style.borderColor = '#334155';
                 isPhoneAvailable = null;
                 return;

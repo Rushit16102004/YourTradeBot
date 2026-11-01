@@ -8,7 +8,7 @@ from typing import Optional, Set
 import pandas as pd
 from indicators import compute_all_indicators
 from engine.strategy import VWAPDualEMAStrategy, StrategySignalState
-from telegram_notifier import TelegramNotifier
+from engine.telegram_notifier import TelegramNotifier
 
 logger = logging.getLogger(__name__)
 
@@ -112,8 +112,8 @@ class LiveSignalManager:
             current_dt = ist.localize(current_dt)
 
         today_str = current_dt.strftime("%Y-%m-%d")
-        # Check if 15:10 or later
-        if (current_dt.hour == 15 and current_dt.minute >= 10) or current_dt.hour > 15:
+        # Check if 15:30 (3:30 PM) or later
+        if (current_dt.hour == 15 and current_dt.minute >= 30) or current_dt.hour > 15:
             if self.last_eod_alert_date != today_str:
                 self.last_eod_alert_date = today_str
                 if self.telegram_notifier and self.telegram_notifier.is_configured:
@@ -130,7 +130,7 @@ class LiveSignalManager:
                         },
                         daemon=True
                     ).start()
-                    logger.info("Dispatched 3:10 PM EOD Exit alert for %s", today_str)
+                    logger.info("Dispatched 3:30 PM EOD Force Exit alert for %s", today_str)
                     return True
         return False
 

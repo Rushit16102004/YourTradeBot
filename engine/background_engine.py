@@ -20,9 +20,9 @@ from config import SmartAPIConfig, StrategyConfig, TelegramConfig
 from data_cache import CandleCacheManager
 from indicators import compute_all_indicators
 from parity_check import generate_sample_candles
-from signal_manager import LiveSignalManager
+from engine.signal_manager import LiveSignalManager
 from smartapi_client import AngelSmartApiClient
-from telegram_notifier import TelegramNotifier
+from engine.telegram_notifier import TelegramNotifier
 from broker.nifty50_volume_aggregator import get_volume_aggregator
 
 logger = logging.getLogger(__name__)
@@ -155,14 +155,6 @@ class BackgroundTradingEngine:
             )
             self._thread.start()
             logger.info("BackgroundTradingEngine started successfully.")
-
-        # Send Telegram Code Start alert (stating code is running with today's date and time)
-        if self.notifier and self.notifier.is_configured:
-            threading.Thread(
-                target=self.notifier.send_startup_alert,
-                kwargs={"symbol": self.api_cfg.symbol},
-                daemon=True,
-            ).start()
 
     def stop(self):
         """Stops the background thread."""
