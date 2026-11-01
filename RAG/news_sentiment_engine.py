@@ -151,7 +151,7 @@ class NewsSentimentEngine:
             return pub_date_str, 0.0, "Recently", pub_date_str
 
     @staticmethod
-    def classify_headline(title: str, source: str = "", pub_date: str = "") -> Dict[str, Any]:
+    def classify_headline(title: str, source: str = "", pub_date: str = "", link: str = "") -> Dict[str, Any]:
         """
         Classifies individual headline into high-impact macro categories vs routine noise,
         assigning impact score (1 to 10), polarity (-1.0 to 1.0), and directional trade bias.
@@ -179,6 +179,7 @@ class NewsSentimentEngine:
             return {
                 "title": t_clean,
                 "source": source or "Financial Media",
+                "link": link or "",
                 "published_at": "Stale Archive",
                 "published_ist": "Stale",
                 "time_ago": "Archived",
@@ -319,6 +320,7 @@ class NewsSentimentEngine:
         return {
             "title": t_clean,
             "source": source or "Financial Media",
+            "link": link or "",
             "published_at": display_pub,
             "published_ist": formatted_ist,
             "time_ago": time_ago,
@@ -369,13 +371,15 @@ class NewsSentimentEngine:
                     title_elem = item.find("title")
                     pub_elem = item.find("pubDate")
                     src_elem = item.find("source")
+                    link_elem = item.find("link")
                     title = title_elem.text if title_elem is not None and title_elem.text else ""
                     pub = pub_elem.text if pub_elem is not None and pub_elem.text else ""
                     src = src_elem.text if src_elem is not None and src_elem.text else ""
+                    link = link_elem.text if link_elem is not None and link_elem.text else ""
                     if title:
                         src_lower = (src or "").lower().strip()
                         if not any(b in src_lower for b in BLOCKED_SCRAPERS):
-                            headlines_raw.append({"title": title, "pub": pub, "src": src})
+                            headlines_raw.append({"title": title, "pub": pub, "src": src, "link": link})
                 if headlines_raw:
                     break
             except Exception as e:
@@ -391,7 +395,7 @@ class NewsSentimentEngine:
         high_impact_items: List[Dict[str, Any]] = []
 
         for h in headlines_raw:
-            res = self.classify_headline(title=h["title"], source=h.get("src", ""), pub_date=h.get("pub", ""))
+            res = self.classify_headline(title=h["title"], source=h.get("src", ""), pub_date=h.get("pub", ""), link=h.get("link", ""))
             classified_items.append(res)
             if res["is_high_impact"]:
                 high_impact_items.append(res)

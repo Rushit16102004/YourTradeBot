@@ -15119,13 +15119,14 @@ function showIndicatorLineActionPill(ind, point) {
                             <span style="font-size: 11px; font-weight: 800; color: ${badgeColor}; text-transform: uppercase; letter-spacing: 0.5px;">🚨 ACTIVE GRADE-A CATALYST (${topCatalyst.category})</span>
                             <span style="font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 4px; background: ${badgeBg}; color: ${badgeColor};">Impact: ${topCatalyst.impact_score}/10</span>
                         </div>
-                        <div style="font-size: 13.5px; font-weight: 700; color: #f8fafc; line-height: 1.4; margin-bottom: 6px;">
-                            ${topCatalyst.title}
-                        </div>
-                        <div style="font-size: 11px; color: #94a3b8; display: flex; gap: 10px; align-items: center;">
+                        <a href="${topCatalyst.link || '#'}" target="_blank" rel="noopener noreferrer" style="color: #f8fafc; text-decoration: none; font-size: 13.5px; font-weight: 700; line-height: 1.4; display: block; margin-bottom: 6px; transition: color 0.15s ease;" onmouseover="this.style.color='#38bdf8'" onmouseout="this.style.color='#f8fafc'">
+                            ${topCatalyst.title} <span style="font-size: 11px; color: #38bdf8;">↗</span>
+                        </a>
+                        <div style="font-size: 11px; color: #94a3b8; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                             <span>Source: <b>${topCatalyst.source}</b></span>
                             <span>•</span>
                             <span>🕒 <b>${formatNewsDate(topCatalyst.published_at)}</b></span>
+                            ${topCatalyst.link ? `<span style="margin-left: auto;"><a href="${topCatalyst.link}" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; text-decoration: none; font-weight: 700; font-size: 11px;">Read Full Story ↗</a></span>` : ''}
                         </div>
                     </div>
                 `;
@@ -15150,8 +15151,9 @@ function showIndicatorLineActionPill(ind, point) {
                     const hColor = hScore > 0.15 ? '#10b981' : (hScore < -0.15 ? '#ef4444' : '#94a3b8');
                     const hBg = hScore > 0.15 ? 'rgba(16, 185, 129, 0.1)' : (hScore < -0.15 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(148, 163, 184, 0.1)');
                     const isGradeA = h.is_high_impact;
+                    const linkUrl = h.link || '#';
                     headlinesHtml += `
-                        <div style="background: #141d33; border: 1px solid ${isGradeA ? hColor + '66' : '#1e293b'}; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;">
+                        <div style="background: #141d33; border: 1px solid ${isGradeA ? hColor + '66' : '#1e293b'}; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; transition: border-color 0.2s ease;">
                             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
                                 <div style="display: flex; align-items: center; gap: 6px;">
                                     <span style="font-size: 10.5px; font-weight: 700; color: #60a5fa;">[${h.source || 'News'}]</span>
@@ -15159,10 +15161,15 @@ function showIndicatorLineActionPill(ind, point) {
                                 </div>
                                 <span style="font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: ${hBg}; color: ${hColor};">${h.polarity} (${h.score > 0 ? '+' : ''}${h.score.toFixed(2)})</span>
                             </div>
-                            <div style="font-size: 12px; color: #f1f5f9; line-height: 1.4; margin-bottom: 4px;">${h.title}</div>
-                            <div style="font-size: 11px; color: #94a3b8; display: flex; align-items: center; gap: 4px;">
-                                <span>🕒</span>
-                                <span>${formatNewsDate(h.published_at)}</span>
+                            <a href="${linkUrl}" target="_blank" rel="noopener noreferrer" style="color: #f1f5f9; text-decoration: none; font-size: 12px; font-weight: 600; line-height: 1.4; display: block; margin-bottom: 5px; transition: color 0.15s ease;" onmouseover="this.style.color='#38bdf8'" onmouseout="this.style.color='#f1f5f9'">
+                                ${h.title} <span style="font-size: 10.5px; opacity: 0.6; margin-left: 2px;">↗</span>
+                            </a>
+                            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #94a3b8;">
+                                <div style="display: flex; align-items: center; gap: 4px;">
+                                    <span>🕒</span>
+                                    <span>${formatNewsDate(h.published_at)}</span>
+                                </div>
+                                ${h.link ? `<a href="${h.link}" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; text-decoration: none; font-size: 10.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 2px;">Read Article ↗</a>` : ''}
                             </div>
                         </div>
                     `;
