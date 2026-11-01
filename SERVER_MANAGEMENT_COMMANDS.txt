@@ -1,0 +1,228 @@
+================================================================================
+           YOURTRADEBOT — 24/7 ORACLE CLOUD SERVER MANAGEMENT MANUAL
+================================================================================
+Generated on:       2026-11-01
+Official Domain:    https://yourtradebot.duckdns.org (Automated SSL Secured)
+Fallback IP:        http://130.210.26.32
+Server IP:          130.210.26.32
+Username:           ubuntu
+SSH Key Path:       C:\Users\ASUS\Downloads\ssh-key-2026-11-01.key
+App Directory:      /var/www/nifty_terminal
+Service Name:       nifty_terminal
+Web Ports:          443 (HTTPS Secure) & 80 (HTTP) & 8000 (Internal API)
+================================================================================
+
+TABLE OF CONTENTS:
+1. HOW TO ACCESS YOUR SERVER (SSH & CLOUD CONSOLE)
+2. HOW TO STOP, START, AND RESTART THE TRADING BOT
+3. HOW TO UPDATE CODE ON THE SERVER
+4. HOW TO DOWNLOAD DATA FROM SERVER TO YOUR D: DRIVE OR DESKTOP
+5. HOW TO UPLOAD FILES FROM YOUR COMPUTER TO SERVER
+6. HOW TO VIEW LIVE REAL-TIME LOGS & DEBUG ERRORS
+7. USEFUL DATABASE COMMANDS (VIEW USERS & CHAT QUERIES)
+8. SERVER HEALTH & PERFORMANCE CHECKS (STORAGE, RAM, CPU)
+9. EMERGENCY TROUBLESHOOTING & RESET COMMANDS
+
+
+================================================================================
+1. HOW TO ACCESS YOUR SERVER
+================================================================================
+
+[Option A] From Windows PowerShell (Standard Way - Takes 3 Seconds):
+1. Open PowerShell on your Windows computer.
+2. Run this exact command:
+   ssh -i "$env:USERPROFILE\Downloads\ssh-key-2026-11-01.key" ubuntu@130.210.26.32
+
+   *Note: If prompted "Are you sure you want to continue connecting (yes/no/[fingerprint])?", 
+          type "yes" and hit Enter.
+
+[Option B] If you are already inside C:\Users\ASUS\Downloads:
+   ssh -i .\ssh-key-2026-11-01.key ubuntu@130.210.26.32
+
+[Option C] From Oracle Cloud Web Browser (If SSH ever fails):
+1. Log into https://cloud.oracle.com/
+2. Go to Compute -> Instances -> Click your instance name ("nifty-trading-server").
+3. Scroll down to "Console connection" on the left menu.
+4. Click "Launch Cloud Shell Connection" to open an in-browser terminal directly.
+
+
+================================================================================
+2. HOW TO STOP, START, AND RESTART THE TRADING BOT
+================================================================================
+Run these commands INSIDE your server SSH terminal:
+
+To CHECK if bot is currently running:
+   sudo systemctl status nifty_terminal
+
+To STOP the trading bot:
+   sudo systemctl stop nifty_terminal
+
+To START the trading bot:
+   sudo systemctl start nifty_terminal
+
+To RESTART the trading bot (Use after changing .env or settings):
+   sudo systemctl restart nifty_terminal
+
+To RESTART the Nginx Web Server (HTTPS / SSL):
+   sudo systemctl restart nginx
+
+To REBOOT the entire Linux cloud computer:
+   sudo reboot
+
+
+================================================================================
+3. HOW TO UPDATE CODE ON THE SERVER
+================================================================================
+
+[Method A - Automatic Deployment via Git]:
+Whenever you push changes from your laptop to GitHub:
+   git add .
+   git commit -m "Update feature"
+   git push origin main
+
+Your server code can be instantly updated using Method B below.
+
+[Method B - Instant Manual Update (Apply changes in 3 seconds)]:
+Log into your server and run this single command:
+   cd /var/www/nifty_terminal && git pull origin main && sudo systemctl restart nifty_terminal && sudo systemctl status nifty_terminal --no-pager
+
+
+================================================================================
+4. HOW TO DOWNLOAD DATA FROM SERVER TO YOUR COMPUTER (BACKUPS)
+================================================================================
+Run these commands on your WINDOWS POWERSHELL (NOT inside the server):
+
+1. DOWNLOAD REGISTERED BETA USERS (CSV) DIRECTLY TO D: DRIVE:
+   scp -i "$env:USERPROFILE\Downloads\ssh-key-2026-11-01.key" ubuntu@130.210.26.32:/var/www/nifty_terminal/registered_users.csv "D:\beta user.csv"
+   -> This downloads the full registered user database directly to your D: drive as "beta user.csv"!
+
+2. DOWNLOAD THE ENTIRE USER DATABASE (users.db):
+   scp -i "$env:USERPROFILE\Downloads\ssh-key-2026-11-01.key" ubuntu@130.210.26.32:/var/www/nifty_terminal/database/users.db "$env:USERPROFILE\Desktop\users_backup.db"
+   -> This downloads the full SQLite database to your Windows Desktop!
+
+3. DOWNLOAD USER LOGIN RECORDS (CSV):
+   scp -i "$env:USERPROFILE\Downloads\ssh-key-2026-11-01.key" ubuntu@130.210.26.32:/var/www/nifty_terminal/user_login_records.csv "$env:USERPROFILE\Desktop\user_login_records.csv"
+
+4. DOWNLOAD APPLICATION LOGS TO YOUR DESKTOP:
+   scp -i "$env:USERPROFILE\Downloads\ssh-key-2026-11-01.key" ubuntu@130.210.26.32:/var/www/nifty_terminal/logs/service_error.log "$env:USERPROFILE\Desktop\service_error.log"
+
+5. DOWNLOAD THE COMPLETE APPLICATION FOLDER (FULL BACKUP):
+   scp -r -i "$env:USERPROFILE\Downloads\ssh-key-2026-11-01.key" ubuntu@130.210.26.32:/var/www/nifty_terminal "$env:USERPROFILE\Desktop\SERVER_FULL_BACKUP"
+
+[Method B - 1-Click Instant Browser Download]:
+You can also download CSV files and check endpoints directly from your browser:
+- Website Link:           https://yourtradebot.duckdns.org/
+- All User Logins CSV:    https://yourtradebot.duckdns.org/api/admin/login-records/csv
+- Registered Users CSV:   https://yourtradebot.duckdns.org/api/admin/users/csv
+- Copilot AI Chat Data:   https://yourtradebot.duckdns.org/api/admin/copilot/queries
+- Real-Time News API:     https://yourtradebot.duckdns.org/api/news
+- Pre-Flight API:         https://yourtradebot.duckdns.org/api/preflight
+- Server Health Check:    https://yourtradebot.duckdns.org/health
+
+
+================================================================================
+5. HOW TO UPLOAD FILES FROM YOUR COMPUTER TO SERVER
+================================================================================
+Run these commands on your WINDOWS POWERSHELL:
+
+1. Upload a single file (for example, updated .env file):
+   scp -i "$env:USERPROFILE\Downloads\ssh-key-2026-11-01.key" "C:\path\to\your\.env" ubuntu@130.210.26.32:/var/www/nifty_terminal/.env
+
+2. Upload a restored database:
+   scp -i "$env:USERPROFILE\Downloads\ssh-key-2026-11-01.key" "$env:USERPROFILE\Desktop\users_backup.db" ubuntu@130.210.26.32:/var/www/nifty_terminal/database/users.db
+
+
+================================================================================
+6. HOW TO VIEW LIVE REAL-TIME LOGS & DEBUG ERRORS
+================================================================================
+Run these commands INSIDE your server SSH terminal:
+
+1. STREAM LIVE BOT LOGS (Watch every tick, candle, and user query as it happens):
+   sudo journalctl -u nifty_terminal -f
+   (Press Ctrl + C to exit the live stream)
+
+2. VIEW LAST 100 LINES OF BOT LOGS:
+   sudo journalctl -u nifty_terminal -n 100 --no-pager
+
+3. VIEW THE ERROR LOG FILE:
+   sudo tail -n 50 /var/www/nifty_terminal/logs/service_error.log
+
+4. VIEW NGINX WEB ACCESS LOG (See live HTTPS visits):
+   sudo tail -n 50 /var/log/nginx/access.log
+
+5. VIEW NGINX WEB ERROR LOG:
+   sudo tail -n 50 /var/log/nginx/error.log
+
+
+================================================================================
+7. USEFUL DATABASE COMMANDS (VIEW DATA DIRECTLY ON SERVER)
+================================================================================
+Run these commands INSIDE your server SSH terminal:
+
+1. View the 10 most recent registered users:
+   sqlite3 /var/www/nifty_terminal/database/users.db "SELECT id, username, email, phone, trading_style, created_at FROM users ORDER BY id DESC LIMIT 10;"
+
+2. Count total registered users:
+   sqlite3 /var/www/nifty_terminal/database/users.db "SELECT COUNT(*) AS total_users FROM users;"
+
+3. View last 10 user logins (IP, location, timestamp):
+   sqlite3 /var/www/nifty_terminal/database/users.db "SELECT id, username, ip_address, login_time, success FROM user_logins ORDER BY id DESC LIMIT 10;"
+
+4. View last 10 AI Copilot chat questions asked by users:
+   sqlite3 /var/www/nifty_terminal/database/users.db "SELECT username, query, created_at FROM user_queries ORDER BY id DESC LIMIT 10;"
+
+5. View user drawings count:
+   sqlite3 /var/www/nifty_terminal/database/users.db "SELECT user_id, drawing_type, COUNT(*) FROM user_drawings GROUP BY user_id, drawing_type;"
+
+
+================================================================================
+8. SERVER HEALTH & PERFORMANCE CHECKS
+================================================================================
+Run these commands INSIDE your server SSH terminal:
+
+1. CHECK REMAINING DISK STORAGE:
+   df -h /
+   (Look at "Avail" - you have ~195 GB free storage!)
+
+2. CHECK RAM & SWAP MEMORY USAGE:
+   free -h
+   (Shows Total RAM, Used RAM, and 2 GB Swap file)
+
+3. CHECK LIVE CPU & MEMORY MONITOR:
+   top
+   (Or run: sudo apt install -y htop && htop)
+   (Press "q" to exit)
+
+4. CHECK ACTIVE OPEN PORTS:
+   sudo ss -tulpn
+   (Ports 80, 443, and 8000 should all show LISTEN)
+
+
+================================================================================
+9. EMERGENCY TROUBLESHOOTING & RESET COMMANDS
+================================================================================
+If anything ever goes wrong:
+
+1. If the bot won't start after a bad code change, reset server files to GitHub:
+   cd /var/www/nifty_terminal
+   git reset --hard origin/main
+   sudo systemctl restart nifty_terminal
+
+2. If database ever gets locked by SQLite:
+   sudo systemctl stop nifty_terminal
+   sudo rm -f /var/www/nifty_terminal/database/users.db-wal /var/www/nifty_terminal/database/users.db-shm
+   sudo systemctl start nifty_terminal
+
+3. If Nginx web server gives 502 Bad Gateway:
+   sudo systemctl restart nifty_terminal
+   sudo systemctl restart nginx
+
+4. If you edit .env credentials on the server:
+   sudo nano /var/www/nifty_terminal/.env
+   (Save: Ctrl + O, Enter. Exit: Ctrl + X)
+   sudo systemctl restart nifty_terminal
+
+5. Check automated SSL renewal status:
+   sudo systemctl status certbot.timer
+   sudo certbot renew --dry-run
+================================================================================
