@@ -112,7 +112,9 @@ NOISE_PATTERNS = [
     r"hasn't had water", r"drinks instead", r"revealed ahead", r"\bvs\b",
     r"should you pay", r"supersonic jet", r"first look", r"mileage",
     r"spotted flying", r"age of the imperial ceo", r"horoscope", r"movie",
-    r"celebrity", r"actor", r"actress", r"box office"
+    r"celebrity", r"actor", r"actress", r"box office", r"diet", r"fitness",
+    r"eating habits?", r"drinks? water", r"drinking water", r"personal life",
+    r"lifestyle", r"luxury car", r"watch collection", r"water in \d+ years"
 ]
 
 CACHE_FILE = Path(__file__).resolve().parent.parent / "temp_storage" / "news_sentiment_cache.json"
@@ -226,7 +228,15 @@ class NewsSentimentEngine:
                 data = json.loads(SESSION_STORE_FILE.read_text(encoding="utf-8"))
                 stored_epoch = data.get("session_start_epoch", 0.0)
                 if stored_epoch == curr_epoch and "articles" in data and isinstance(data["articles"], dict):
-                    return data["articles"]
+                    cleaned_articles = {}
+                    for k, item in data["articles"].items():
+                        title = item.get("title", "")
+                        if not is_indian_market_relevant(title):
+                            continue
+                        if any(re.search(p, title.lower()) for p in NOISE_PATTERNS):
+                            continue
+                        cleaned_articles[k] = item
+                    return cleaned_articles
                 else:
                     logger.info(
                         "4:00 PM Session Reset triggered! Cleared old news store (Stored: %s, Current: %s)",
@@ -364,7 +374,7 @@ class NewsSentimentEngine:
         is_preview = is_analyst_or_preview(t_clean)
         is_routine_noise = any(re.search(p, t_lower) for p in NOISE_PATTERNS)
 
-        if is_blocked_source or is_stale_article or not is_relevant_market:
+        if is_blocked_source or is_stale_article or not is_relevant_market or is_routine_noise:
             category = "MARKET_NOISE"
             impact_score = 1.0
             return {

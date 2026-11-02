@@ -777,7 +777,7 @@ class BackgroundTradingEngine:
         change_pct = round((change / prev_close) * 100.0, 2) if prev_close > 0 else 0.0
         is_positive = change >= 0
 
-        # Authentic 50-Constituent Market Breadth (Advances vs Declines)
+        # Authentic 50-Constituent Market Breadth (Advances vs Declines - Strictly 50 Stocks & 100%)
         advances = 25
         declines = 25
         try:
@@ -786,9 +786,9 @@ class BackgroundTradingEngine:
             breadth_func = getattr(va, "get_market_breadth", None)
             if callable(breadth_func):
                 b_info = va.get_market_breadth()
-                if b_info:
-                    advances = b_info.get("advances", 25)
-                    declines = b_info.get("declines", 25)
+                if b_info and "advances" in b_info:
+                    advances = int(b_info.get("advances", 25))
+                    declines = 50 - advances
                 else:
                     adv_est = int(round(25 + (change_pct / 1.5) * 18))
                     advances = max(4, min(46, adv_est))
@@ -802,8 +802,11 @@ class BackgroundTradingEngine:
             advances = max(4, min(46, adv_est))
             declines = 50 - advances
 
+        # Guarantee strict 50 constituents and 100.0% sum
+        advances = max(0, min(50, advances))
+        declines = 50 - advances
         advances_pct = round((advances / 50.0) * 100.0, 1)
-        declines_pct = round((declines / 50.0) * 100.0, 1)
+        declines_pct = round(100.0 - advances_pct, 1)
         breadth_dict = {
             "advances": advances,
             "declines": declines,

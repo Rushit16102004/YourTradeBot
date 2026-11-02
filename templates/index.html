@@ -2154,6 +2154,39 @@
            RESPONSIVE DESIGN ACROSS ALL DEVICES (MOBILE, TABLET, DESKTOP)
            ======================================================== */
 
+        /* Global Admin Visitor Analytics Badge & Buttons */
+        #admin-analytics-badge {
+            position: relative;
+            display: none;
+            align-items: center;
+            gap: 4px;
+            margin-right: 6px;
+        }
+        #btn-admin-stats {
+            background: rgba(168, 85, 247, 0.15) !important;
+            border: 1px solid rgba(168, 85, 247, 0.5) !important;
+            color: #e9d5ff !important;
+            font-weight: 700 !important;
+            padding: 4px 10px !important;
+            border-radius: 6px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+        }
+        #btn-admin-stats:hover {
+            background: rgba(168, 85, 247, 0.28) !important;
+            border-color: #a855f7 !important;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(168, 85, 247, 0.35);
+        }
+        #btn-admin-download-csv:hover {
+            background: rgba(37, 99, 235, 0.35) !important;
+            border-color: #60a5fa !important;
+            transform: translateY(-1px);
+        }
+
         /* Mobile Drawing Toolbar Toggle Button (Hidden on Desktop) */
         .mobile-draw-toggle {
             display: none;
@@ -9451,16 +9484,22 @@ function showIndicatorLineActionPill(ind, point) {
                 }
             }
 
-            // Market Breadth (Constituents Up vs Down)
+            // Market Breadth (Constituents Up vs Down - Strictly 50 Stocks & 100%)
             if (data.market_breadth) {
                 const bUpCount = document.getElementById('breadth-up-count');
                 const bUpPct = document.getElementById('breadth-up-pct');
                 const bDownCount = document.getElementById('breadth-down-count');
                 const bDownPct = document.getElementById('breadth-down-pct');
-                if (bUpCount) bUpCount.innerText = data.market_breadth.advances;
-                if (bUpPct) bUpPct.innerText = `${data.market_breadth.advances_pct}%`;
-                if (bDownCount) bDownCount.innerText = data.market_breadth.declines;
-                if (bDownPct) bDownPct.innerText = `${data.market_breadth.declines_pct}%`;
+                let adv = parseInt(data.market_breadth.advances, 10);
+                let dec = parseInt(data.market_breadth.declines, 10);
+                if (isNaN(adv)) adv = 25;
+                if (isNaN(dec) || (adv + dec !== 50)) dec = 50 - adv;
+                const advPct = Math.round((adv / 50.0) * 100);
+                const decPct = 100 - advPct;
+                if (bUpCount) bUpCount.innerText = adv;
+                if (bUpPct) bUpPct.innerText = `${advPct}%`;
+                if (bDownCount) bDownCount.innerText = dec;
+                if (bDownPct) bDownPct.innerText = `${decPct}%`;
             }
             const ccEl = document.getElementById('candle-count');
             if (ccEl && data.candles) ccEl.innerText = data.candles.length;
