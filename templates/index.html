@@ -4468,9 +4468,6 @@
                 <button id="btn-guest-login" class="btn-action" onclick="openAuthModal('login')" title="Log In or Register to save drawings & access personalized AI Copilot" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: #ffffff; font-weight: 700; border: 1px solid #60a5fa; box-shadow: 0 0 10px rgba(37,99,235,0.35); padding: 4px 10px; border-radius: 6px;">
                     👤 <span class="hide-on-mobile">Log In</span><span class="show-on-mobile">Login</span>
                 </button>
-                <button id="btn-header-connect-dev" class="btn-action" onclick="openDeveloperContactModal()" title="Connect with Developer or Webpage Provider" style="background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-weight: 700; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s ease;">
-                    💬 <span class="hide-on-mobile">Connect with Developer or Webpage Provider</span><span class="show-on-mobile">Contact</span>
-                </button>
 
                 <!-- Logged-In User Profile Badge -->
                 <div id="user-profile-badge" style="display: none; position: relative;">
@@ -15013,7 +15010,6 @@ function showIndicatorLineActionPill(ind, point) {
         async function checkAuthState() {
             const token = localStorage.getItem('auth_token');
             const guestBtn = document.getElementById('btn-guest-login');
-            const devBtn = document.getElementById('btn-header-connect-dev');
             const userBadge = document.getElementById('user-profile-badge');
             const navUserDisplay = document.getElementById('nav-username-display');
             const menuName = document.getElementById('menu-user-name');
@@ -15024,7 +15020,6 @@ function showIndicatorLineActionPill(ind, point) {
             if (!token) {
                 currentUser = null;
                 if (guestBtn) guestBtn.style.display = 'inline-flex';
-                if (devBtn) devBtn.style.display = 'inline-flex';
                 if (userBadge) userBadge.style.display = 'none';
                 if (adminBadge) adminBadge.style.display = 'none';
                 if (adminStatsTimer) { clearInterval(adminStatsTimer); adminStatsTimer = null; }
@@ -15041,7 +15036,6 @@ function showIndicatorLineActionPill(ind, point) {
                     if (data && data.is_authenticated && data.user) {
                         currentUser = data.user;
                         if (guestBtn) guestBtn.style.display = 'none';
-                        if (devBtn) devBtn.style.display = 'none';
                         if (userBadge) userBadge.style.display = 'inline-flex';
                         const vipBanner = document.getElementById('guest-vip-banner');
                         if (vipBanner) vipBanner.style.display = 'none';
