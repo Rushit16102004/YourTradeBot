@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="robots" content="noindex, nofollow">
     <title>NIFTY 50 Pro Terminal — TradingView Pro Suite</title>
     <!-- Official TradingView Lightweight Charts v4.1.3 (Inlined Local Engine) -->
     <script>
@@ -14003,11 +14004,11 @@ function showIndicatorLineActionPill(ind, point) {
                 <form id="form-auth-login" autocomplete="off" onsubmit="handleLoginSubmit(event)" style="display: block;">
                     <div style="margin-bottom: 14px;">
                         <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 6px;">Username or Email</label>
-                        <input id="login-identifier" type="text" autocomplete="off" required placeholder="e.g. trader1 or trader@email.com" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 10px 12px; border-radius: 8px; font-size: 13px; outline: none;">
+                        <input id="login-identifier" type="text" autocomplete="username" required placeholder="e.g. trader1 or trader@email.com" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 10px 12px; border-radius: 8px; font-size: 13px; outline: none;">
                     </div>
                     <div style="margin-bottom: 18px;">
                         <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 6px;">Password</label>
-                        <input id="login-password" type="password" autocomplete="new-password" required placeholder="Enter your password" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 10px 12px; border-radius: 8px; font-size: 13px; outline: none;">
+                        <input id="login-password" type="password" autocomplete="current-password" required placeholder="Enter your password" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 10px 12px; border-radius: 8px; font-size: 13px; outline: none;">
                     </div>
                     <button type="submit" id="btn-submit-login" style="width: 100%; padding: 12px; min-height: 44px; background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: #fff; border: 1px solid #60a5fa; font-weight: 700; border-radius: 8px; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(37,99,235,0.4);">
                         Log In to Terminal
@@ -14030,7 +14031,7 @@ function showIndicatorLineActionPill(ind, point) {
                             <label style="font-size: 12px; color: #94a3b8; font-weight: 600;">Username <span style="color: #ef4444;">*</span></label>
                             <span id="reg-username-status" style="font-size: 11px;"></span>
                         </div>
-                        <input id="reg-username" type="text" required placeholder="Choose a unique username" oninput="debounceCheckUsername()" onblur="checkUsernameAvailability()" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none; transition: border-color 0.2s ease;">
+                        <input id="reg-username" type="text" autocomplete="username" required placeholder="Choose a unique username" oninput="debounceCheckUsername()" onblur="checkUsernameAvailability()" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none; transition: border-color 0.2s ease;">
                     </div>
 
                     <!-- 2. Email Address -->
@@ -14042,7 +14043,7 @@ function showIndicatorLineActionPill(ind, point) {
                     <!-- 3. Password -->
                     <div style="margin-bottom: 12px;">
                         <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 5px;">Password <span style="color: #ef4444;">*</span></label>
-                        <input id="reg-password" type="password" required minlength="6" placeholder="At least 6 characters" oninput="checkPasswordMatch()" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none;">
+                        <input id="reg-password" type="password" autocomplete="new-password" required minlength="6" placeholder="At least 6 characters" oninput="checkPasswordMatch()" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none;">
                     </div>
 
                     <!-- 4. Confirm Password -->
@@ -14051,7 +14052,7 @@ function showIndicatorLineActionPill(ind, point) {
                             <label style="font-size: 12px; color: #94a3b8; font-weight: 600;">Confirm Password <span style="color: #ef4444;">*</span></label>
                             <span id="reg-password-match-status" style="font-size: 11px;"></span>
                         </div>
-                        <input id="reg-confirm-password" type="password" required minlength="6" placeholder="Re-enter your password" oninput="checkPasswordMatch()" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none; transition: border-color 0.2s ease;">
+                        <input id="reg-confirm-password" type="password" autocomplete="new-password" required minlength="6" placeholder="Re-enter your password" oninput="checkPasswordMatch()" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none; transition: border-color 0.2s ease;">
                     </div>
 
                     <!-- 5. Mobile Number (India) -->
