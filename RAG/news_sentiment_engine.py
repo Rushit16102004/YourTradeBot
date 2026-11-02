@@ -1,21 +1,24 @@
 """
 RAG/news_sentiment_engine.py
-Real-Time High-Impact News Sentiment & Macro Catalyst Engine.
+Real-Time High-Impact News Sentiment & Macro Catalyst Engine with Session Memory.
 
-Features:
-1. 100% Free Live Streaming: Uses Google News Financial RSS targeted strictly at Indian Stock Markets.
-2. Strict Relevance & Noise Reduction ("Big Market News Only"):
-   - Rejects non-market lifestyle/viral trivia (e.g., Warren Buffett diet, car launches, Bollywood).
-   - Rejects exam/recruitment scrapers (Bankersadda, Studycafe, Sarkari).
-   - Retains ONLY news that genuinely affects Indian equity markets (RBI Monetary Policy, Crude Oil shocks,
-     Geopolitics, SEBI/Government Policy, and Top-5 Index Heavyweights).
-3. Directional Polarity & NIFTY Options Verdict:
-   - Evaluates impact score (1 to 10) and sentiment polarity (-1.0 to +1.0).
-   - Grade-A cutoff: Impact >= 7.5 triggers directional trade guidance (CE Calls vs PE Puts).
-4. Strict Recency Cap:
-   - Displays headlines from the last 8 hours only (no stale or yesterday's news).
-   - Grade-A catalysts must be within 6 hours.
-5. Thread-Safe Background Polling: Continuously updates in background every 90 seconds.
+Session Rules (NSE Indian Market Cycle):
+1. 24H Working Trading Day Memory:
+   - News accumulates from 4:00 PM of the previous working trading day until 4:00 PM of the current day.
+   - Every working trading day at 4:00 PM IST (market post-close), the old news storage is emptied,
+     and a new accumulation cycle starts for the next trading day.
+2. Weekend & Holiday Hold (72H+ Accumulation):
+   - For Monday trading, news accumulates from Friday 4:00 PM to Monday 4:00 PM (72 hours).
+   - On Saturday, Sunday, or declared exchange holidays, news is NEVER wiped at 4:00 PM;
+     it is held and accumulated until 4:00 PM of the next working trading day.
+3. Market Behavior & Polarity Decision:
+   - Evaluated dynamically using ALL news currently held in session temp memory.
+   - High-impact Grade-A catalysts (RBI repo rate, Crude oil price surge/slump, War/Geopolitics, SEBI F&O curbs)
+     provide directional conviction (CE Calls vs PE Puts).
+   - In calm periods, aggregate session sentiment provides macro tailwind/headwind context.
+4. Strict Filtering:
+   - Retains ONLY news relevant to Indian stock market, NIFTY 50, Sensex, Crude Oil, and Macro Drivers.
+   - Filters out non-market trivia (Warren Buffett diet, car launches, Bollywood) and scrapers (Bankersadda, FXStreet, etc.).
 """
 
 from __future__ import annotations
@@ -37,20 +40,62 @@ from RAG.config import RAGConfig
 
 logger = logging.getLogger("NewsSentimentEngine")
 
-# Live Google News search strictly restricted to Indian Financial Markets & Commodities within 8 hours
-RSS_PRIMARY_URL = (
-    "https://news.google.com/rss/search?q=(NIFTY+OR+Sensex+OR+RBI+OR+SEBI+OR+\"stock+market\"+OR+\"crude+oil\")+when:8h&hl=en-IN&gl=IN&ceid=IN:en"
-)
-# Backup URL restricted to Indian Economy within 12 hours
-RSS_BACKUP_URL = (
-    "https://news.google.com/rss/search?q=(NIFTY+OR+Sensex+OR+RBI+OR+SEBI+OR+\"Indian+economy\")+when:12h&hl=en-IN&gl=IN&ceid=IN:en"
-)
+# Indian Standard Time Zone
+IST_TZ = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+
+# NSE Exchange Holidays for 2026/2027
+NSE_HOLIDAYS_2026 = {
+    datetime.date(2026, 1, 26),  # Republic Day
+    datetime.date(2026, 3, 3),   # Holi
+    datetime.date(2026, 3, 20),  # Id-Ul-Fitr
+    datetime.date(2026, 4, 3),   # Good Friday
+    datetime.date(2026, 4, 14),  # Dr. Ambedkar Jayanti
+    datetime.date(2026, 5, 1),   # Maharashtra Day
+    datetime.date(2026, 5, 27),  # Bakri Id / Eid-Ul-Adha
+    datetime.date(2026, 6, 26),  # Muharram
+    datetime.date(2026, 8, 15),  # Independence Day
+    datetime.date(2026, 10, 2),  # Mahatma Gandhi Jayanti
+    datetime.date(2026, 10, 20), # Dussehra
+    datetime.date(2026, 11, 8),  # Diwali Laxmi Pujan
+    datetime.date(2026, 11, 24), # Gurunanak Jayanti
+    datetime.date(2026, 12, 25), # Christmas
+}
+
+
+def is_trading_day(d: datetime.date) -> bool:
+    """Returns True if the given date is a working NSE trading day (Mon-Fri and not an exchange holiday)."""
+    return d.weekday() < 5 and d not in NSE_HOLIDAYS_2026
+
+
+def get_session_start_ist(now_ist: datetime.datetime) -> datetime.datetime:
+    """
+    Computes the start timestamp of the current trading news session:
+    - On a working trading day at/after 4:00 PM IST: Session starts today at 4:00 PM IST.
+    - Before 4:00 PM IST, or on weekends / exchange holidays:
+      Rolls back to the previous working trading day at 4:00 PM IST.
+    Examples:
+    - Monday 08:53 AM -> Friday 4:00 PM (72h weekend accumulation)
+    - Tuesday 10:00 AM -> Monday 4:00 PM (24h weekday accumulation)
+    - Tuesday 04:05 PM -> Tuesday 4:00 PM (reset for Wednesday)
+    """
+    today = now_ist.date()
+    today_4pm = datetime.datetime.combine(today, datetime.time(16, 0), tzinfo=now_ist.tzinfo)
+
+    if is_trading_day(today) and now_ist >= today_4pm:
+        return today_4pm
+
+    check_date = today - datetime.timedelta(days=1)
+    while not is_trading_day(check_date):
+        check_date -= datetime.timedelta(days=1)
+
+    return datetime.datetime.combine(check_date, datetime.time(16, 0), tzinfo=now_ist.tzinfo)
+
 
 BLOCKED_SCRAPERS = [
     "dd news", "kucoin", "scanx", "bbn times", "pragativadi", "investment guru", "cryptocurrency",
     "motor octane", "motoroctane", "rushlane", "gaadiwaadi", "autocar", "carwale", "zigwheels",
     "bankersadda", "studycafe", "adda247", "testbook", "shiksha", "jagranjosh", "sarkari",
-    "energynow", "beinsure"
+    "energynow", "beinsure", "fxstreet"
 ]
 
 STALE_ANACHRONISMS = [
@@ -69,9 +114,8 @@ NOISE_PATTERNS = [
     r"celebrity", r"actor", r"actress", r"box office"
 ]
 
-MAX_HEADLINE_AGE_HOURS = 8.0
-MAX_CATALYST_AGE_HOURS = 6.0
 CACHE_FILE = Path(__file__).resolve().parent.parent / "temp_storage" / "news_sentiment_cache.json"
+SESSION_STORE_FILE = Path(__file__).resolve().parent.parent / "temp_storage" / "news_session_store.json"
 
 
 def is_indian_market_relevant(title: str) -> bool:
@@ -85,7 +129,7 @@ def is_indian_market_relevant(title: str) -> bool:
         r"\bsbi\b", r"\bgst collection\b", r"\brepo rate\b", r"\bmonetary policy\b",
         r"\binflation\b", r"\bf&o\b", r"\bbank nifty\b", r"\bfii\b", r"\bdii\b",
         r"\bshaktikanta\b", r"\bfederal reserve\b", r"\bfomc\b", r"\bwar\b", r"\bmissiles?\b",
-        r"\bceasefire\b", r"\bmilitary\b"
+        r"\bceasefire\b", r"\bmilitary\b", r"\bgift nifty\b"
     ]
     return any(re.search(p, t) for p in indian_market_patterns)
 
@@ -100,7 +144,10 @@ def is_analyst_or_preview(title: str) -> bool:
         r"\bwhat to expect\b", r"\bfrom wall street to d-street\b",
         r"\bstocks? to watch\b", r"\bstock picks?\b", r"\bchartist\b",
         r"\bwhat 25 yrs\b", r"\btarget price\b", r"\bbrokerage\b",
-        r"\blikely to remain\b", r"\bfaces another\b", r"\bwill decide\b"
+        r"\blikely to remain\b", r"\bfaces another\b", r"\bwill decide\b",
+        r"\bweekly column\b", r"\bcolumn\b", r"\breport\b", r"\bpotential\b",
+        r"\bforecast\b", r"\bpredict\b", r"\bmay ease\b", r"\bby march\b",
+        r"\bspeculat\w*\b", r"\bfears?\b"
     ]
     return any(re.search(p, t) for p in preview_patterns)
 
@@ -127,18 +174,20 @@ class NewsSentimentEngine:
     # Default State & Cache Persistence
     # -------------------------------------------------------------
     def _get_default_summary(self) -> Dict[str, Any]:
-        ist_tz = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
-        now_ist = datetime.datetime.now(ist_tz)
+        now_ist = datetime.datetime.now(IST_TZ)
+        session_start = get_session_start_ist(now_ist)
         return {
             "status": "ok",
             "last_updated": now_ist.strftime("%d %b %Y, %I:%M %p IST"),
+            "session_start_ist": session_start.strftime("%d %b %Y, %I:%M %p IST"),
+            "session_hours": round((now_ist - session_start).total_seconds() / 3600.0, 1),
             "overall_sentiment": "NEUTRAL",
             "sentiment_score": 0.0,
             "is_high_impact": False,
             "impact_category": "NONE",
             "breaking_catalyst": None,
             "market_direction": "SIDEWAYS / STRUCTURAL FLOW",
-            "trading_verdict": "Macro background is calm. Follow Session VWAP and S&R boundaries.",
+            "trading_verdict": f"Macro background is calm in current session (since {session_start.strftime('%d %b, %I:%M %p')}). Follow Session VWAP and S&R boundaries.",
             "feed_count": 0,
             "high_impact_count": 0,
             "headlines": [],
@@ -162,6 +211,48 @@ class NewsSentimentEngine:
             logger.debug("Could not persist news cache: %s", e)
 
     # -------------------------------------------------------------
+    # Session Temp Storage Management (Empty at 4pm on Trading Days)
+    # -------------------------------------------------------------
+    def _load_session_store(self, current_session_start: datetime.datetime) -> Dict[str, Any]:
+        """
+        Loads the session news store from temp_storage/news_session_store.json.
+        If current_session_start > stored session_start (meaning a trading day 4:00 PM has passed),
+        it EMPTIES all old news storage and starts a fresh session!
+        """
+        curr_epoch = current_session_start.timestamp()
+        try:
+            if SESSION_STORE_FILE.exists():
+                data = json.loads(SESSION_STORE_FILE.read_text(encoding="utf-8"))
+                stored_epoch = data.get("session_start_epoch", 0.0)
+                if stored_epoch == curr_epoch and "articles" in data and isinstance(data["articles"], dict):
+                    return data["articles"]
+                else:
+                    logger.info(
+                        "4:00 PM Session Reset triggered! Cleared old news store (Stored: %s, Current: %s)",
+                        data.get("session_start_ist", "Unknown"),
+                        current_session_start.strftime("%d %b %Y, %I:%M %p IST"),
+                    )
+        except Exception as e:
+            logger.debug("Session store load exception: %s", e)
+
+        return {}
+
+    def _save_session_store(self, current_session_start: datetime.datetime, articles: Dict[str, Any]):
+        """Persists accumulated session news into temp_storage/news_session_store.json."""
+        try:
+            SESSION_STORE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            payload = {
+                "session_start_epoch": current_session_start.timestamp(),
+                "session_start_ist": current_session_start.strftime("%d %b %Y, %I:%M %p IST"),
+                "last_updated_ist": datetime.datetime.now(IST_TZ).strftime("%d %b %Y, %I:%M %p IST"),
+                "article_count": len(articles),
+                "articles": articles,
+            }
+            SESSION_STORE_FILE.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        except Exception as e:
+            logger.debug("Session store save exception: %s", e)
+
+    # -------------------------------------------------------------
     # Noise Filtering & Heuristic Classification
     # -------------------------------------------------------------
     @staticmethod
@@ -169,7 +260,6 @@ class NewsSentimentEngine:
         """
         Converts any international GMT / UTC / RFC-2822 date to Indian Standard Time (IST).
         Returns: (formatted_ist, epoch_seconds, time_ago, full_display_str)
-        Example: ('01 Nov, 12:07 PM IST', 1730460442.0, '5h 10m ago', '01 Nov, 12:07 PM IST (5h 10m ago)')
         """
         if not pub_date_str:
             return "Recently", 0.0, "Recently", "Recently"
@@ -177,8 +267,7 @@ class NewsSentimentEngine:
             dt_utc = email.utils.parsedate_to_datetime(pub_date_str)
             if dt_utc.tzinfo is None:
                 dt_utc = dt_utc.replace(tzinfo=datetime.timezone.utc)
-            ist_tz = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
-            dt_ist = dt_utc.astimezone(ist_tz)
+            dt_ist = dt_utc.astimezone(IST_TZ)
             epoch = dt_utc.timestamp()
 
             utc_now = datetime.datetime.now(datetime.timezone.utc)
@@ -250,7 +339,6 @@ class NewsSentimentEngine:
         # 2. High-Impact Category Classifications (Strictly require active catalyst conditions)
 
         # A. Central Bank / Monetary Policy (Impact: 9.0)
-        # Must be interest rates, rate cuts/hikes, MPC decisions, or inflation breach
         cb_rate_trigger = (
             bool(re.search(r"\b(rbi|repo rate|monetary policy|mpc)\b", t_lower)) and
             any(w in t_lower for w in ["cut", "cuts", "slash", "slashes", "hike", "hikes", "raises", "rate decision", "repo rate by"])
@@ -262,10 +350,9 @@ class NewsSentimentEngine:
             any(w in t_lower for w in ["spikes", "surges to", "jumps to", "cools to", "falls to", "eases to"])
         )
 
-        # Exclude administrative routine announcements
         is_admin_cb = any(w in t_lower for w in ["recruitment", "exam", "calendar", "jobs", "vacancy", "cyber", "advisory", "circular", "credit trend"])
 
-        if cb_rate_trigger and not is_admin_cb:
+        if cb_rate_trigger and not is_admin_cb and not is_preview:
             category = "CENTRAL_BANK"
             impact_score = 9.0
             if any(w in t_lower for w in ["cut", "cuts", "slash", "easing", "dovish", "cools", "falls", "drop", "lower", "tamed"]):
@@ -286,8 +373,7 @@ class NewsSentimentEngine:
                 trading_verdict = "Status quo RBI / Fed policy stance. Price likely to consolidate within VWAP Bands."
 
         # B. Crude Oil & Energy Shocks (Impact: 8.0)
-        # Must be an actual price spike or plunge
-        elif bool(re.search(r"\b(crude oil|brent crude|oil prices?)\b", t_lower)) and any(w in t_lower for w in ["surge", "surges", "spike", "spikes", "jump 3", "jump 4", "jump 5", "plunge", "plunges", "slump", "crashes", "tumbles", "slide"]):
+        elif bool(re.search(r"\b(crude oil|brent crude|oil prices?)\b", t_lower)) and any(w in t_lower for w in ["surge", "surges", "spike", "spikes", "jump 3", "jump 4", "jump 5", "plunge", "plunges", "slump", "crashes", "tumbles", "slide"]) and not is_preview:
             category = "CRUDE_SHOCK"
             impact_score = 8.0
             if any(w in t_lower for w in ["surge", "surges", "spike", "spikes", "jump", "climbs"]):
@@ -307,7 +393,7 @@ class NewsSentimentEngine:
                 market_direction = "BALANCED"
                 trading_verdict = "Crude holding steady. No macro shock to Indian equity valuations."
 
-        # C. Geopolitics & War (Impact: 9.2 - Strict Word Boundaries to avoid false positives like "Warren Buffett")
+        # C. Geopolitics & War (Impact: 9.2)
         elif (
             bool(re.search(r"\b(airstrikes?|missile attack|missiles? strike|military invasion|military attack|war escalation|red sea attack)\b", t_lower)) and
             (bool(re.search(r"\b(iran|israel|russia|ukraine|middle east|gaza|red sea|hormuz|gulf)\b", t_lower)) or bool(re.search(r"\b(war|wars)\b", t_lower)))
@@ -346,7 +432,7 @@ class NewsSentimentEngine:
                 market_direction = "OBSERVATIONAL"
                 trading_verdict = "Regulatory announcement monitored; wait for institutional confirmation before reacting."
 
-        # E. Top-5 Heavyweight Corporate Disruptions (Reliance, HDFC Bank, ICICI Bank, Infosys, TCS) (Impact: 7.5)
+        # E. Top-5 Heavyweight Corporate Disruptions (Impact: 7.5)
         elif bool(re.search(r"\b(reliance industries|hdfc bank|icici bank|infosys|tcs)\b", t_lower)) and any(w in t_lower for w in ["profit jumps", "profit beats", "net profit up 2", "q2 net profit jumps", "profit falls", "profit misses", "slumps"]):
             category = "HEAVYWEIGHT_EARNINGS"
             impact_score = 7.5
@@ -361,7 +447,7 @@ class NewsSentimentEngine:
                 market_direction = "HEAVYWEIGHT DRAG"
                 trading_verdict = "Top index constituent drag weighing heavily on NIFTY index. Avoid aggressive call buying."
 
-        # Noise & Analyst Preview override: if headline is an analyst preview or routine chatter, demote impact
+        # Noise & Analyst Preview override
         if is_routine_noise or is_preview:
             category = "MARKET_NOISE"
             impact_score = min(impact_score, 3.0)
@@ -371,12 +457,7 @@ class NewsSentimentEngine:
             trading_verdict = "Routine analyst commentary; rely on technical Session VWAP."
 
         formatted_ist, pub_epoch, time_ago, display_pub = NewsSentimentEngine.format_pub_date_ist(pub_date)
-
-        # Freshness Check: Only news within the last 6 hours can qualify as Grade-A breaking catalyst!
-        utc_now = datetime.datetime.now(datetime.timezone.utc)
-        age_hours = (utc_now.timestamp() - pub_epoch) / 3600.0 if pub_epoch > 0 else 0.0
-        is_stale_by_time = (age_hours > MAX_CATALYST_AGE_HOURS)
-        is_high_impact = (impact_score >= 7.5) and not is_stale_by_time and not is_routine_noise and not is_preview
+        is_high_impact = (impact_score >= 7.5) and not is_routine_noise and not is_preview
 
         return {
             "title": t_clean,
@@ -396,12 +477,13 @@ class NewsSentimentEngine:
         }
 
     # -------------------------------------------------------------
-    # Live RSS Fetching & Processing
+    # Live RSS Fetching & Session Accumulation
     # -------------------------------------------------------------
     def fetch_latest_news(self, force: bool = False) -> Dict[str, Any]:
         """
-        Fetches live Google News RSS, filters noise, classifies catalysts,
-        and updates internal cache thread-safely.
+        Fetches live news, maintains persistent temp storage for the current session window
+        (24H on weekdays, 72H on Mondays/weekends, multi-day on holidays), empties at 4:00 PM
+        on every working trading day, and determines market behavior using all stored news.
         """
         now_ts = time.time()
         # Respect a 30s cache interval unless forced
@@ -409,8 +491,25 @@ class NewsSentimentEngine:
             with self._cache_lock:
                 return dict(self._cached_summary)
 
+        now_ist = datetime.datetime.now(IST_TZ)
+        current_session_start = get_session_start_ist(now_ist)
+        session_start_epoch = current_session_start.timestamp()
+        hours_in_session = max(1.0, (now_ist - current_session_start).total_seconds() / 3600.0)
+
+        # Load session news from temp storage (clears automatically if 4:00 PM on trading day has passed!)
+        session_articles = self._load_session_store(current_session_start)
+
+        # Dynamic query duration matching the active session length
+        query_hours = max(24, min(120, int(hours_in_session) + 2))
+        query_url = (
+            f"https://news.google.com/rss/search?q=(NIFTY+OR+Sensex+OR+RBI+OR+SEBI+OR+\"stock+market\"+OR+\"crude+oil\")+when:{query_hours}h&hl=en-IN&gl=IN&ceid=IN:en"
+        )
+        backup_url = (
+            f"https://news.google.com/rss/search?q=(NIFTY+OR+Sensex+OR+RBI+OR+SEBI+OR+\"Indian+economy\")+when:{query_hours}h&hl=en-IN&gl=IN&ceid=IN:en"
+        )
+
         headlines_raw: List[Dict[str, str]] = []
-        target_urls = [RSS_PRIMARY_URL, RSS_BACKUP_URL]
+        target_urls = [query_url, backup_url]
 
         for url in target_urls:
             try:
@@ -424,7 +523,7 @@ class NewsSentimentEngine:
                         )
                     },
                 )
-                with urllib.request.urlopen(req, timeout=6) as resp:
+                with urllib.request.urlopen(req, timeout=8) as resp:
                     xml_content = resp.read()
                 root = ET.fromstring(xml_content)
                 items = root.findall(".//item")
@@ -437,7 +536,7 @@ class NewsSentimentEngine:
                     pub = pub_elem.text if pub_elem is not None and pub_elem.text else ""
                     src = src_elem.text if src_elem is not None and src_elem.text else ""
                     link = link_elem.text if link_elem is not None and link_elem.text else ""
-                    if title:
+                    if title and pub:
                         src_lower = (src or "").lower().strip()
                         if not any(b in src_lower for b in BLOCKED_SCRAPERS):
                             headlines_raw.append({"title": title, "pub": pub, "src": src, "link": link})
@@ -446,44 +545,44 @@ class NewsSentimentEngine:
             except Exception as e:
                 logger.debug("RSS fetch exception from %s: %s", url, e)
 
-        # If network failed or feed empty, return existing cached data
-        if not headlines_raw:
-            with self._cache_lock:
-                return dict(self._cached_summary)
-
-        # Classify all headlines with strict 8-hour freshness cap and Indian market relevance
-        utc_now = datetime.datetime.now(datetime.timezone.utc)
-        classified_items: List[Dict[str, Any]] = []
-        high_impact_items: List[Dict[str, Any]] = []
-
+        # Ingest new articles into session temp storage
         for h in headlines_raw:
             title_text = h["title"]
-            # Strict Indian Market Relevance
+            pub_str = h["pub"]
             if not is_indian_market_relevant(title_text):
                 continue
-            # Filter noise patterns
             if any(re.search(p, title_text.lower()) for p in NOISE_PATTERNS):
                 continue
+            if any(re.search(p, title_text.lower()) for p in STALE_ANACHRONISMS):
+                continue
 
-            res = self.classify_headline(title=title_text, source=h.get("src", ""), pub_date=h.get("pub", ""), link=h.get("link", ""))
-            epoch = res.get("pub_epoch", 0.0)
-            age_h = (utc_now.timestamp() - epoch) / 3600.0 if epoch > 0 else 0.0
+            try:
+                dt_utc = email.utils.parsedate_to_datetime(pub_str)
+                # Strictly discard anything published before the current session started!
+                if dt_utc.timestamp() < session_start_epoch:
+                    continue
+            except Exception:
+                continue
 
-            # Strictly retain headlines from today (<= 8 hours) so users only see fresh news
-            if age_h <= MAX_HEADLINE_AGE_HOURS and res.get("time_ago") != "Filtered":
-                classified_items.append(res)
-                if res["is_high_impact"]:
-                    high_impact_items.append(res)
+            res = self.classify_headline(title=title_text, source=h.get("src", ""), pub_date=pub_str, link=h.get("link", ""))
+            if res.get("time_ago") != "Filtered":
+                key = h.get("link") or title_text
+                session_articles[key] = res
 
-        # Sort high impact items by impact_score descending, then recency
-        high_impact_items.sort(key=lambda x: (x["impact_score"], x.get("pub_epoch", 0.0)), reverse=True)
-        # Sort all headlines chronologically (newest news at the top!)
-        classified_items.sort(key=lambda x: (x.get("is_high_impact", False), x.get("pub_epoch", 0.0)), reverse=True)
+        # Persist updated session store
+        self._save_session_store(current_session_start, session_articles)
 
-        # Determine overall market sentiment
+        # Extract all stored session headlines
+        all_session_items = list(session_articles.values())
+        all_session_items.sort(key=lambda x: x.get("pub_epoch", 0.0), reverse=True)
+
+        high_impact_items = [item for item in all_session_items if item.get("is_high_impact")]
+        high_impact_items.sort(key=lambda x: (x.get("impact_score", 0.0), x.get("pub_epoch", 0.0)), reverse=True)
+
+        # Determine market behavior according to ALL news in session temp storage
+        session_start_disp = current_session_start.strftime("%d %b, %I:%M %p")
         if high_impact_items:
             top_catalyst = high_impact_items[0]
-            # Weighted average score of high impact catalysts
             weights = [item["impact_score"] for item in high_impact_items]
             total_w = sum(weights) or 1.0
             sentiment_score = round(sum(item["score"] * w for item, w in zip(high_impact_items, weights)) / total_w, 2)
@@ -494,12 +593,26 @@ class NewsSentimentEngine:
             breaking_catalyst = top_catalyst
         else:
             top_catalyst = None
-            sentiment_score = 0.0
             is_high_impact = False
             impact_category = "NONE"
-            market_direction = "SIDEWAYS / STRUCTURAL FLOW"
-            trading_verdict = "Macro background is calm (no Grade-A catalysts). Trade standard Session VWAP & S&R structural setups."
             breaking_catalyst = None
+
+            # Calculate net aggregate sentiment from all accumulated headlines
+            if all_session_items:
+                avg_score = round(sum(item["score"] for item in all_session_items) / len(all_session_items), 2)
+            else:
+                avg_score = 0.0
+            sentiment_score = avg_score
+
+            if sentiment_score >= 0.25:
+                market_direction = "BULLISH BIAS"
+                trading_verdict = f"Net bullish sentiment across {len(all_session_items)} session headlines (since {session_start_disp}). Favor buying on VWAP retests."
+            elif sentiment_score <= -0.25:
+                market_direction = "BEARISH BIAS"
+                trading_verdict = f"Net bearish sentiment across {len(all_session_items)} session headlines (since {session_start_disp}). Caution on fresh longs; watch VWAP breakdown levels."
+            else:
+                market_direction = "SIDEWAYS / STRUCTURAL FLOW"
+                trading_verdict = f"Macro background is calm across {len(all_session_items)} session headlines (since {session_start_disp}). Trade standard Session VWAP & S&R structural setups."
 
         if sentiment_score >= 0.5:
             overall_sentiment = "STRONG BULLISH"
@@ -512,11 +625,12 @@ class NewsSentimentEngine:
         else:
             overall_sentiment = "NEUTRAL"
 
-        ist_tz = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
-        now_str = datetime.datetime.now(ist_tz).strftime("%d %b %Y, %I:%M %p IST")
+        now_str = now_ist.strftime("%d %b %Y, %I:%M %p IST")
         new_summary: Dict[str, Any] = {
             "status": "ok",
             "last_updated": now_str,
+            "session_start_ist": current_session_start.strftime("%d %b %Y, %I:%M %p IST"),
+            "session_hours": round(hours_in_session, 1),
             "overall_sentiment": overall_sentiment,
             "sentiment_score": sentiment_score,
             "is_high_impact": is_high_impact,
@@ -524,9 +638,9 @@ class NewsSentimentEngine:
             "breaking_catalyst": breaking_catalyst,
             "market_direction": market_direction,
             "trading_verdict": trading_verdict,
-            "feed_count": len(headlines_raw),
+            "feed_count": len(all_session_items),
             "high_impact_count": len(high_impact_items),
-            "headlines": classified_items[:20],
+            "headlines": all_session_items[:50],  # Display all accumulated session news (up to 50 items)
         }
 
         # Optional Gemini enrichment for top high-impact catalyst
@@ -598,7 +712,7 @@ class NewsSentimentEngine:
         with self._cache_lock:
             return self._cached_summary.get("breaking_catalyst")
 
-    def get_headlines(self, limit: int = 15) -> List[Dict[str, Any]]:
+    def get_headlines(self, limit: int = 50) -> List[Dict[str, Any]]:
         with self._cache_lock:
             return list(self._cached_summary.get("headlines", []))[:limit]
 

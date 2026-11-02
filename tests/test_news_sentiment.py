@@ -147,3 +147,30 @@ class TestNewsSentimentEngine:
             source="Gaadiwaadi.com"
         )
         assert res_auto["is_high_impact"] is False
+
+    def test_08_trading_session_4pm_reset_and_weekend_hold(self):
+        import datetime
+        from RAG.news_sentiment_engine import get_session_start_ist, is_trading_day, IST_TZ
+
+        # 1. Monday morning 8:53 AM -> Must accumulate from Friday 4:00 PM IST (72h)
+        mon_morning = datetime.datetime(2026, 11, 2, 8, 53, tzinfo=IST_TZ)
+        mon_start = get_session_start_ist(mon_morning)
+        assert mon_start == datetime.datetime(2026, 10, 30, 16, 0, tzinfo=IST_TZ)
+
+        # 2. Weekend hold: Saturday 2:00 PM and Sunday 6:00 PM -> Never reset, hold Friday 4:00 PM
+        sat = datetime.datetime(2026, 10, 31, 14, 0, tzinfo=IST_TZ)
+        sun = datetime.datetime(2026, 11, 1, 18, 0, tzinfo=IST_TZ)
+        assert get_session_start_ist(sat) == datetime.datetime(2026, 10, 30, 16, 0, tzinfo=IST_TZ)
+        assert get_session_start_ist(sun) == datetime.datetime(2026, 10, 30, 16, 0, tzinfo=IST_TZ)
+
+        # 3. Monday 4:05 PM -> Working trading day 4pm reset triggered! Session rolls to Monday 4:00 PM
+        mon_after_close = datetime.datetime(2026, 11, 2, 16, 5, tzinfo=IST_TZ)
+        assert get_session_start_ist(mon_after_close) == datetime.datetime(2026, 11, 2, 16, 0, tzinfo=IST_TZ)
+
+        # 4. Tuesday 10:00 AM -> Normal 24h weekday cycle from Monday 4:00 PM
+        tue_morning = datetime.datetime(2026, 11, 3, 10, 0, tzinfo=IST_TZ)
+        assert get_session_start_ist(tue_morning) == datetime.datetime(2026, 11, 2, 16, 0, tzinfo=IST_TZ)
+
+        # 5. Tuesday 4:01 PM -> Working trading day 4pm reset rolls to Tuesday 4:00 PM
+        tue_after_close = datetime.datetime(2026, 11, 3, 16, 1, tzinfo=IST_TZ)
+        assert get_session_start_ist(tue_after_close) == datetime.datetime(2026, 11, 3, 16, 0, tzinfo=IST_TZ)
