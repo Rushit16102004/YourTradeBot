@@ -2606,9 +2606,62 @@
                 display: block !important;
             }
 
-            /* Show Floating Mobile Drawing Toggle */
+            /* Mobile Drawing Toggle - positioned cleanly above the bottom action dock */
             .mobile-draw-toggle {
-                display: flex;
+                display: flex !important;
+                bottom: 72px !important;
+                left: 12px !important;
+                width: 38px !important;
+                height: 38px !important;
+                font-size: 16px !important;
+                z-index: 1050 !important;
+            }
+
+            /* Mobile Floating Terminal Action Dock (Centered & Non-overlapping) */
+            .floating-terminal-dock {
+                position: fixed !important;
+                bottom: 12px !important;
+                left: 50% !important;
+                top: auto !important;
+                right: auto !important;
+                transform: translateX(-50%) !important;
+                z-index: 1100 !important;
+                padding: 3px 5px !important;
+                gap: 4px !important;
+                max-width: calc(100vw - 16px) !important;
+                box-sizing: border-box !important;
+                border-radius: 9999px !important;
+            }
+
+            .floating-terminal-dock .dock-drag-handle {
+                display: none !important;
+            }
+
+            .floating-terminal-dock .dock-btn {
+                padding: 6px 10px !important;
+                font-size: 11.5px !important;
+                gap: 4px !important;
+                border-radius: 9999px !important;
+            }
+
+            .floating-terminal-dock .dock-btn span {
+                font-size: 11.5px !important;
+            }
+
+            .floating-terminal-dock .dock-minimize-btn {
+                width: 20px !important;
+                height: 20px !important;
+                font-size: 13px !important;
+                padding: 0 !important;
+            }
+
+            .floating-terminal-dock.minimized {
+                bottom: 12px !important;
+                left: 50% !important;
+                top: auto !important;
+                right: auto !important;
+                transform: translateX(-50%) !important;
+                padding: 6px 14px !important;
             }
 
             /* Chart Viewport: 100% Full Width Edge-to-Edge */
@@ -4557,7 +4610,7 @@
         </button>
         <button class="dock-btn copilot-btn" id="ai-copilot-trigger" onclick="toggleCopilot()" title="Open AI Strategy Copilot (RAG + Quantitative Engine)">
             <span class="copilot-pulse-dot" id="copilot-pulse-dot"></span>
-            <span>🤖 Strategy Copilot</span>
+            <span>🤖 <span class="hide-on-mobile">Strategy </span>Copilot</span>
         </button>
         <button class="dock-minimize-btn" onclick="toggleDockMinimize(event)" title="Minimize dock to tiny badge">−</button>
         <div class="dock-minimized-icon" onclick="toggleDockMinimize(event)" title="Click to Expand Dock">
@@ -15002,6 +15055,7 @@ function showIndicatorLineActionPill(ind, point) {
         }
 
         function openNewsModal() {
+            if (!requireAuth('view Real-Time Macro News Sentiment & Market Direction')) return;
             const overlay = document.getElementById('news-modal-overlay');
             if (overlay) overlay.style.display = 'flex';
             fetchNewsData();
@@ -15230,6 +15284,7 @@ function showIndicatorLineActionPill(ind, point) {
         let currentPreflightDir = null;
 
         function openPreFlightModal(dir = null) {
+            if (!requireAuth('access 1-Click Institutional Pre-Flight Confluence Check')) return;
             currentPreflightDir = dir;
             const overlay = document.getElementById('preflight-modal-overlay');
             if (overlay) overlay.style.display = 'flex';
