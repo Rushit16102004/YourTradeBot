@@ -4934,7 +4934,7 @@
                 <span class="copilot-badge" id="copilot-api-badge">AI Copilot (Active)</span>
             </div>
             <div class="copilot-controls">
-                <button class="copilot-btn-icon" onclick="openKeySettingsModal()" title="AI Engine Settings (100% Free Lifetime)">⚙️</button>
+                <button class="copilot-btn-icon" onclick="openKeySettingsModal()" title="AI Strategy Engine Access • Contact Developer">⚙️</button>
                 <button class="copilot-btn-icon" id="copilot-search-toggle-btn" onclick="toggleCopilotSearch()" title="Search Past Chat History">🔍</button>
                 <button class="copilot-btn-icon" onclick="clearCopilotChat()" title="Clear Chat Thread (Safely saved in Database)">🧹</button>
                 <button class="copilot-btn-icon" onclick="toggleCopilot()" title="Minimize Copilot">✕</button>
@@ -5012,46 +5012,43 @@
         <div class="copilot-resize-grip" id="copilot-resize-grip" title="Drag corner to resize window (Small or Big)">◢</div>
     </div>
 
-    <!-- ⚙️ AI Strategy Engine Configuration Modal -->
+    <!-- ⚙️ AI Strategy Engine Status & Developer Access Modal -->
     <div class="rag-key-modal-overlay" id="rag-key-modal" style="display: none;" onclick="handleKeyModalOverlayClick(event)">
         <div class="rag-key-modal-card" onclick="event.stopPropagation()">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
                 <div style="font-weight: 800; font-size: 16px; color: #ffffff; display: flex; align-items: center; gap: 8px;">
-                    <span>⚙️</span> Free AI Engine Setup
+                    <span>⚙️</span> AI Strategy Engine Access
                 </div>
-                <button class="copilot-btn-icon" onclick="closeKeySettingsModal()">✕</button>
+                <button class="copilot-btn-icon" onclick="closeKeySettingsModal()" title="Close">✕</button>
             </div>
-            
-            <p style="font-size: 12.5px; color: #94a3b8; line-height: 1.6; margin-bottom: 14px;">
-                The AI Engine Free Tier is <b>100% free lifetime</b> (15 requests/min, 1,500/day). No credit card required, and <b>0% GPU</b> is used on your laptop.
-            </p>
 
-            <div style="background: #11141d; border: 1px solid #273042; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
-                <div style="font-size: 11.5px; font-weight: 700; color: #60a5fa; margin-bottom: 4px;">
-                    Quick 1-Minute Instructions:
+            <!-- Feature Paused Notice -->
+            <div style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(239, 68, 68, 0.08)); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; text-align: center;">
+                <div style="font-size: 24px; margin-bottom: 6px;">⏸️</div>
+                <div style="font-size: 14px; font-weight: 800; color: #fbbf24; margin-bottom: 4px;">
+                    This feature is currently stopped
                 </div>
-                <ol style="margin: 0; padding-left: 18px; font-size: 11px; color: #cbd5e1; line-height: 1.6;">
-                    <li>Open <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #38bdf8; text-decoration: underline;">Google AI Studio API Keys</a> (sign in with any Google account).</li>
-                    <li>Click <b>"Create API key"</b>.</li>
-                    <li>Copy your key and paste it below.</li>
-                </ol>
+                <div style="font-size: 12px; color: #cbd5e1; line-height: 1.5;">
+                    Direct public API key configuration is temporarily paused.
+                </div>
             </div>
 
-            <div style="margin-bottom: 14px;">
-                <label style="display: block; font-size: 11px; font-weight: 700; color: #cbd5e1; margin-bottom: 6px;">
-                    AI Engine API Key:
-                </label>
-                <input type="password" id="ai-engine-key-input" class="copilot-input" style="width: 100%; box-sizing: border-box;" placeholder="AIzaSy...">
+            <!-- Contact Developer Callout Box -->
+            <div style="background: rgba(30, 41, 59, 0.7); border: 1px dashed #38bdf8; border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; text-align: center;">
+                <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+                    Dedicated AI Access
+                </div>
+                <div style="font-size: 15px; font-weight: 800; color: #38bdf8; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <span>💬 Contact developer for this feature</span>
+                </div>
+                <div style="font-size: 12px; color: #cbd5e1; line-height: 1.6;">
+                    Please contact the developer or administrator to enable or configure dedicated AI Strategy Copilot models for your account.
+                </div>
             </div>
 
-            <div id="ai-engine-key-status-msg" style="font-size: 12px; margin-bottom: 14px; min-height: 16px;"></div>
-
-            <div style="display: flex; justify-content: flex-end; gap: 8px;">
-                <button class="btn-action" onclick="closeKeySettingsModal()" style="padding: 7px 16px; background: #2a2e39; border: 1px solid #4a5568;">
-                    Cancel
-                </button>
-                <button class="btn-action" onclick="saveGeminiKey()" style="padding: 7px 20px; font-weight: 700; background: #2563eb; color: #fff; border: 1px solid #3b82f6;">
-                    💾 Save & Activate
+            <div style="display: flex; justify-content: flex-end;">
+                <button class="btn-action" onclick="closeKeySettingsModal()" style="padding: 8px 22px; font-weight: 700; background: #2563eb; color: #ffffff; border: 1px solid #3b82f6; border-radius: 8px; cursor: pointer; font-size: 13px;">
+                    Close
                 </button>
             </div>
         </div>
@@ -13546,7 +13543,7 @@ function showIndicatorLineActionPill(ind, point) {
                     if (badge) badge.textContent = 'AI Strategy Copilot (Active)';
                     if (pulseDot) pulseDot.style.background = '#00e676';
                 } else {
-                    if (badge) badge.textContent = 'Setup Key (Free AI)';
+                    if (badge) badge.textContent = 'Contact Developer';
                     if (pulseDot) pulseDot.style.background = '#f59e0b';
                 }
             } catch (e) {
@@ -14000,7 +13997,7 @@ function showIndicatorLineActionPill(ind, point) {
                 errEl.innerHTML = `
                     <div class="copilot-msg-bubble" style="border-color: #ef4444;">
                         ⚠️ <b>Failed to get response:</b> ${err.message}<br><br>
-                        Tip: Click the ⚙️ icon to configure your AI Strategy Engine key.
+                        Tip: Please contact developer for AI Copilot setup.
                     </div>
                     <div class="copilot-msg-meta"><span>Error</span></div>
                 `;
