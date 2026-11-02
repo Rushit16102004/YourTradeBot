@@ -443,6 +443,39 @@ def init_database():
         """)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_otp_phone ON otp_verification_codes(phone, created_at DESC);")
 
+        # 10. Visitor Identities Table (Unique device/browser tracking)
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS visitor_identities (
+            visitor_id TEXT PRIMARY KEY,
+            first_seen TIMESTAMP NOT NULL,
+            last_seen TIMESTAMP NOT NULL,
+            user_id TEXT DEFAULT NULL,
+            has_account INTEGER DEFAULT 0,
+            device_type TEXT DEFAULT 'Desktop',
+            browser TEXT DEFAULT 'Unknown',
+            ip_address TEXT DEFAULT '',
+            visit_count INTEGER DEFAULT 1,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+        );
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_vis_last_seen ON visitor_identities(last_seen DESC);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_vis_has_acc ON visitor_identities(has_account);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_vis_user_id ON visitor_identities(user_id);")
+
+        # 11. Site Pageviews Table (Granular page hit logs)
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS site_pageviews (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            visitor_id TEXT NOT NULL,
+            timestamp TIMESTAMP NOT NULL,
+            path TEXT DEFAULT '/',
+            referrer TEXT DEFAULT '',
+            FOREIGN KEY (visitor_id) REFERENCES visitor_identities(visitor_id) ON DELETE CASCADE
+        );
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_pageviews_ts ON site_pageviews(timestamp DESC);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_pageviews_vis ON site_pageviews(visitor_id);")
+
         # Seed master admin if not exists
         cursor.execute("SELECT id FROM users WHERE username = 'admin' OR email = 'admin@vwapterminal.com'")
         admin_row = cursor.fetchone()
@@ -1988,3 +2021,260 @@ def record_user_psychology_event(user_id: str, event_type: str, details: str) ->
 
 
 init_database()
+
+
+# ==============================================================
+# 📊 Real-Time Visitor Analytics & Conversion Tracking
+# ==============================================================
+
+def record_visitor_hit(
+    visitor_id: str,
+    ip: str = "",
+    user_agent: str = "",
+    path: str = "/",
+    referrer: str = "",
+    user_id: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Ingests a visitor pageview beacon.
+    Creates or updates the visitor identity and records the granular pageview.
+    """
+    if not visitor_id or not visitor_id.strip():
+        return {"status": "error", "message": "visitor_id required"}
+
+    visitor_id = visitor_id.strip()
+    ua_lower = (user_agent or "").lower()
+    if any(k in ua_lower for k in ["mobile", "android", "iphone", "ipod", "blackberry", "windows phone"]):
+        device_type = "Mobile"
+    elif "ipad" in ua_lower or "tablet" in ua_lower:
+        device_type = "Tablet"
+    else:
+        device_type = "Desktop"
+
+    # Browser detection
+    if "edg/" in ua_lower:
+        browser = "Edge"
+    elif "chrome" in ua_lower and "chromium" not in ua_lower:
+        browser = "Chrome"
+    elif "safari" in ua_lower and "chrome" not in ua_lower:
+        browser = "Safari"
+    elif "firefox" in ua_lower:
+        browser = "Firefox"
+    else:
+        browser = "Other"
+
+    now_utc = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+
+            # Verify if user_id exists in users table to prevent FK errors
+            valid_user_id = None
+            if user_id:
+                cursor.execute("SELECT id FROM users WHERE id = ?", (user_id,))
+                if cursor.fetchone():
+                    valid_user_id = user_id
+
+            has_acc = 1 if valid_user_id else 0
+
+            # Check if visitor exists
+            cursor.execute("SELECT visitor_id, has_account, user_id FROM visitor_identities WHERE visitor_id = ?", (visitor_id,))
+            row = cursor.fetchone()
+
+            if row:
+                new_has_acc = 1 if (row["has_account"] or valid_user_id) else 0
+                new_user_id = valid_user_id if valid_user_id else row["user_id"]
+                cursor.execute("""
+                    UPDATE visitor_identities 
+                    SET last_seen = ?, 
+                        visit_count = visit_count + 1, 
+                        has_account = ?, 
+                        user_id = ?,
+                        ip_address = CASE WHEN ? != '' THEN ? ELSE ip_address END
+                    WHERE visitor_id = ?
+                """, (now_utc, new_has_acc, new_user_id, ip, ip, visitor_id))
+            else:
+                cursor.execute("""
+                    INSERT INTO visitor_identities (visitor_id, first_seen, last_seen, user_id, has_account, device_type, browser, ip_address, visit_count)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+                """, (visitor_id, now_utc, now_utc, valid_user_id, has_acc, device_type, browser, ip))
+
+            # Record pageview
+            cursor.execute("""
+                INSERT INTO site_pageviews (visitor_id, timestamp, path, referrer)
+                VALUES (?, ?, ?, ?)
+            """, (visitor_id, now_utc, path, referrer[:255] if referrer else ""))
+
+            conn.commit()
+            return {"status": "ok", "visitor_id": visitor_id, "device_type": device_type}
+        except Exception as e:
+            logger.error("Error in record_visitor_hit: %s", e)
+            return {"status": "error", "message": str(e)}
+        finally:
+            conn.close()
+
+
+def record_visitor_heartbeat(visitor_id: str, user_id: Optional[str] = None) -> int:
+    """
+    Pulses active heartbeat for the visitor. Returns the active online count across the last 5 minutes.
+    """
+    if not visitor_id:
+        return 0
+    now_utc = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+
+            # Verify if user_id exists if provided
+            valid_user_id = None
+            if user_id:
+                cursor.execute("SELECT id FROM users WHERE id = ?", (user_id,))
+                if cursor.fetchone():
+                    valid_user_id = user_id
+
+            if valid_user_id:
+                cursor.execute("""
+                    UPDATE visitor_identities 
+                    SET last_seen = ?, user_id = ?, has_account = 1 
+                    WHERE visitor_id = ?
+                """, (now_utc, valid_user_id, visitor_id))
+            else:
+                cursor.execute("""
+                    UPDATE visitor_identities 
+                    SET last_seen = ? 
+                    WHERE visitor_id = ?
+                """, (now_utc, visitor_id))
+
+            # Count distinct active visitors in last 5 minutes
+            five_min_ago = (datetime.utcnow() - timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+            cursor.execute("SELECT count(*) as active_cnt FROM visitor_identities WHERE last_seen >= ?", (five_min_ago,))
+            row = cursor.fetchone()
+            active_cnt = row["active_cnt"] if row else 1
+
+            conn.commit()
+            return max(1, int(active_cnt))
+        except Exception as e:
+            logger.error("Error in record_visitor_heartbeat: %s", e)
+            return 1
+        finally:
+            conn.close()
+
+
+def link_visitor_to_account(visitor_id: str, user_id: str) -> bool:
+    """
+    Links a persistent anonymous visitor ID to an authenticated user ID upon registration or login.
+    """
+    if not visitor_id or not user_id:
+        return False
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM users WHERE id = ?", (user_id,))
+            if not cursor.fetchone():
+                return False
+
+            cursor.execute("""
+                UPDATE visitor_identities 
+                SET user_id = ?, has_account = 1 
+                WHERE visitor_id = ?
+            """, (user_id, visitor_id))
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error("Error in link_visitor_to_account: %s", e)
+            return False
+        finally:
+            conn.close()
+
+
+def get_visitor_analytics_summary() -> Dict[str, Any]:
+    """
+    Aggregates full executive visitor metrics:
+    - Active users right now (last 5 minutes)
+    - Total unique visitors
+    - Total registered users vs. guest visitors
+    - Signup conversion rate %
+    - Mobile vs. Desktop breakdown
+    - Total pageviews
+    """
+    five_min_ago = (datetime.utcnow() - timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+
+            # 1. Active Users (last 5 min)
+            cursor.execute("SELECT count(*) as active_all FROM visitor_identities WHERE last_seen >= ?", (five_min_ago,))
+            active_all = int(cursor.fetchone()["active_all"] or 0)
+
+            cursor.execute("SELECT count(*) as active_reg FROM visitor_identities WHERE last_seen >= ? AND has_account = 1", (five_min_ago,))
+            active_reg = int(cursor.fetchone()["active_reg"] or 0)
+            active_guest = max(0, active_all - active_reg)
+
+            # 2. Total Unique Visitors
+            cursor.execute("SELECT count(*) as total_unique FROM visitor_identities")
+            total_unique = int(cursor.fetchone()["total_unique"] or 0)
+
+            # 3. Unique Visitors with Account vs Without Account
+            cursor.execute("SELECT count(*) as reg_visitors FROM visitor_identities WHERE has_account = 1")
+            reg_visitors = int(cursor.fetchone()["reg_visitors"] or 0)
+            guest_visitors = max(0, total_unique - reg_visitors)
+
+            # 4. Total Pageviews
+            cursor.execute("SELECT count(*) as total_views FROM site_pageviews")
+            total_views = int(cursor.fetchone()["total_views"] or 0)
+
+            # 5. Total Registered Accounts in Database (Excluding system admin)
+            cursor.execute("SELECT count(*) as total_accounts FROM users WHERE role != 'admin'")
+            total_accounts = int(cursor.fetchone()["total_accounts"] or 0)
+
+            # 6. Device Breakdown
+            cursor.execute("SELECT device_type, count(*) as cnt FROM visitor_identities GROUP BY device_type")
+            dev_rows = cursor.fetchall()
+            devices = {r["device_type"]: int(r["cnt"]) for r in dev_rows}
+            total_dev = sum(devices.values()) or 1
+            mobile_pct = round((devices.get("Mobile", 0) / total_dev) * 100, 1)
+            desktop_pct = round((devices.get("Desktop", 0) / total_dev) * 100, 1)
+
+            conv_rate = round((reg_visitors / total_unique) * 100, 2) if total_unique > 0 else 0.0
+
+            return {
+                "status": "ok",
+                "active_online": max(1, active_all),
+                "active_registered": active_reg,
+                "active_guests": active_guest,
+                "total_unique_visitors": total_unique,
+                "registered_visitors": reg_visitors,
+                "guest_visitors": guest_visitors,
+                "total_registered_accounts": total_accounts,
+                "conversion_rate_pct": conv_rate,
+                "total_pageviews": total_views,
+                "device_breakdown": {
+                    "mobile_pct": mobile_pct,
+                    "desktop_pct": desktop_pct,
+                    "raw": devices
+                },
+                "timestamp": datetime.now().strftime("%I:%M:%S %p")
+            }
+        except Exception as e:
+            logger.error("Error in get_visitor_analytics_summary: %s", e)
+            return {
+                "status": "error",
+                "active_online": 1,
+                "active_registered": 0,
+                "active_guests": 1,
+                "total_unique_visitors": 0,
+                "registered_visitors": 0,
+                "guest_visitors": 0,
+                "total_registered_accounts": 0,
+                "conversion_rate_pct": 0.0,
+                "total_pageviews": 0,
+                "device_breakdown": {"mobile_pct": 50.0, "desktop_pct": 50.0, "raw": {}},
+                "timestamp": datetime.now().strftime("%I:%M:%S %p")
+            }
+        finally:
+            conn.close()

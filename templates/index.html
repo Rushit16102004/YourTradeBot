@@ -2606,6 +2606,36 @@
                 display: block !important;
             }
 
+            /* Admin Visitor Analytics Badge & Tooltip */
+            #admin-analytics-badge {
+                position: relative;
+                display: none;
+                align-items: center;
+                margin-right: 6px;
+            }
+            #btn-admin-stats {
+                background: rgba(168, 85, 247, 0.15) !important;
+                border: 1px solid rgba(168, 85, 247, 0.5) !important;
+                color: #c084fc !important;
+                font-weight: 700 !important;
+                padding: 4px 10px !important;
+                border-radius: 6px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                gap: 6px !important;
+                cursor: pointer !important;
+                transition: all 0.2s ease !important;
+            }
+            #btn-admin-stats:hover {
+                background: rgba(168, 85, 247, 0.28) !important;
+                border-color: #a855f7 !important;
+                transform: translateY(-1px);
+                box-shadow: 0 4px 14px rgba(168, 85, 247, 0.35);
+            }
+            #admin-analytics-badge:hover #admin-stats-tooltip {
+                display: block !important;
+            }
+
             /* Mobile Drawing Toggle - positioned cleanly above the bottom action dock */
             .mobile-draw-toggle {
                 display: flex !important;
@@ -4145,6 +4175,51 @@
 
                 <!-- 👤 Multi-User Authentication Widget -->
             <div id="auth-nav-container" style="position: relative; display: inline-flex; align-items: center; margin-left: 4px;">
+                <!-- 👑 Admin Visitor Analytics & 1-Click CSV Download Box (ONLY visible to Admin) -->
+                <div id="admin-analytics-badge" style="display: none; position: relative; margin-right: 6px;">
+                    <button id="btn-admin-stats" onclick="downloadUsersCSV(event)" title="👑 Admin Visitor Analytics - Click to download Registered Users CSV" style="background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.5); color: #c084fc; font-weight: 700; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s ease;">
+                        <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 8px #22c55e;"></span>
+                        <span id="admin-active-users-count" style="font-size: 11.5px; font-weight: 800; color: #22c55e;">1</span>
+                        <span style="font-size: 11px; color: #e2e8f0;" class="hide-on-mobile">Active</span>
+                        <span style="font-size: 10px; padding: 1px 5px; border-radius: 3px; background: rgba(168, 85, 247, 0.25); color: #e9d5ff; font-weight: 700;">📊 CSV ⬇</span>
+                    </button>
+                    <!-- Hover Card Tooltip (Visible on hover of #admin-analytics-badge) -->
+                    <div id="admin-stats-tooltip" style="display: none; position: absolute; right: 0; top: 34px; width: 285px; background: #0b1329; border: 1px solid #7c3aed; border-radius: 10px; box-shadow: 0 14px 35px rgba(0,0,0,0.85); z-index: 10000; padding: 14px; font-size: 11.5px; pointer-events: none; text-align: left;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 8px; margin-bottom: 10px;">
+                            <span style="font-size: 12px; font-weight: 800; color: #c084fc;">👑 Admin Traffic Center</span>
+                            <span style="font-size: 10px; font-weight: 700; color: #22c55e; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); padding: 1px 6px; border-radius: 4px;">● Live Now</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                            <div style="background: #131d37; padding: 8px; border-radius: 6px; border: 1px solid #1e293b;">
+                                <div style="color: #94a3b8; font-size: 10px;">👥 Total Unique Visitors</div>
+                                <div id="stat-unique-visitors" style="font-size: 15px; font-weight: 800; color: #38bdf8;">--</div>
+                            </div>
+                            <div style="background: #131d37; padding: 8px; border-radius: 6px; border: 1px solid #1e293b;">
+                                <div style="color: #94a3b8; font-size: 10px;">🟢 Active Right Now</div>
+                                <div id="stat-active-online" style="font-size: 15px; font-weight: 800; color: #22c55e;">--</div>
+                            </div>
+                            <div style="background: #131d37; padding: 8px; border-radius: 6px; border: 1px solid #1e293b;">
+                                <div style="color: #94a3b8; font-size: 10px;">👤 Registered Users</div>
+                                <div id="stat-reg-visitors" style="font-size: 13.5px; font-weight: 800; color: #a78bfa;">--</div>
+                            </div>
+                            <div style="background: #131d37; padding: 8px; border-radius: 6px; border: 1px solid #1e293b;">
+                                <div style="color: #94a3b8; font-size: 10px;">🕵️ Guest Visitors</div>
+                                <div id="stat-guest-visitors" style="font-size: 13.5px; font-weight: 800; color: #94a3b8;">--</div>
+                            </div>
+                        </div>
+                        <div style="background: rgba(30, 41, 59, 0.5); padding: 7px 10px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: #94a3b8; font-size: 10.5px;">Signup Conversion:</span>
+                            <span id="stat-conv-rate" style="font-weight: 800; color: #f59e0b; font-size: 11.5px;">--%</span>
+                        </div>
+                        <div style="background: rgba(30, 41, 59, 0.5); padding: 7px 10px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: #94a3b8; font-size: 10.5px;">Device Split:</span>
+                            <span id="stat-device-split" style="font-weight: 700; color: #cbd5e1; font-size: 11px;">📱 --% / 💻 --%</span>
+                        </div>
+                        <div style="background: rgba(168, 85, 247, 0.15); border: 1px dashed rgba(168, 85, 247, 0.4); padding: 7px 10px; border-radius: 6px; text-align: center; color: #e9d5ff; font-size: 10.5px; font-weight: 700;">
+                            📥 Click box to download registered users CSV
+                        </div>
+                    </div>
+                </div>
                 <!-- Guest Button -->
                 <button id="btn-guest-login" class="btn-action" onclick="openAuthModal('login')" title="Log In or Register to save drawings & access personalized AI Copilot" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: #ffffff; font-weight: 700; border: 1px solid #60a5fa; box-shadow: 0 0 10px rgba(37,99,235,0.35); padding: 4px 10px; border-radius: 6px;">
                     👤 <span class="hide-on-mobile">Log In</span><span class="show-on-mobile">Login</span>
@@ -13649,6 +13724,10 @@ function showIndicatorLineActionPill(ind, point) {
                 checkAuthState();
             } catch(e) {}
             try {
+                trackVisitorHit();
+                startVisitorHeartbeat();
+            } catch(e) {}
+            try {
                 updateMarketStatusAndCandleTimer();
                 setInterval(updateMarketStatusAndCandleTimer, 1000);
             } catch (e) {
@@ -14242,6 +14321,128 @@ function showIndicatorLineActionPill(ind, point) {
         // 🔐 Multi-User Authentication & Drawings Sync Engine
         // ==============================================================
         let currentUser = null;
+        let adminStatsTimer = null;
+
+        // --- 📊 Visitor Analytics & Live Online Tracking ---
+        function getOrInitVisitorId() {
+            let vid = localStorage.getItem('terminal_visitor_id');
+            if (!vid) {
+                vid = 'vis_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+                localStorage.setItem('terminal_visitor_id', vid);
+            }
+            return vid;
+        }
+
+        async function trackVisitorHit() {
+            const vid = getOrInitVisitorId();
+            const token = localStorage.getItem('auth_token');
+            try {
+                await fetch('/api/analytics/visit', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { 'Authorization': 'Bearer ' + token } : {})
+                    },
+                    body: JSON.stringify({
+                        visitor_id: vid,
+                        path: window.location.pathname || '/',
+                        referrer: document.referrer || ''
+                    })
+                });
+            } catch (e) {}
+        }
+
+        let heartbeatInterval = null;
+        function startVisitorHeartbeat() {
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            const pulse = async () => {
+                const vid = getOrInitVisitorId();
+                const token = localStorage.getItem('auth_token');
+                try {
+                    const res = await fetch('/api/analytics/heartbeat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...(token ? { 'Authorization': 'Bearer ' + token } : {})
+                        },
+                        body: JSON.stringify({ visitor_id: vid })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && data.active_online !== undefined) {
+                            const activeElem = document.getElementById('admin-active-users-count');
+                            if (activeElem) activeElem.innerText = data.active_online;
+                        }
+                    }
+                } catch (e) {}
+            };
+            heartbeatInterval = setInterval(pulse, 45000);
+        }
+
+        async function linkVisitorToUser() {
+            const vid = getOrInitVisitorId();
+            const token = localStorage.getItem('auth_token');
+            if (!token) return;
+            try {
+                await fetch('/api/analytics/link', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ visitor_id: vid })
+                });
+            } catch (e) {}
+        }
+
+        async function fetchAdminVisitorStats() {
+            const token = localStorage.getItem('auth_token');
+            if (!token || !currentUser || currentUser.role !== 'admin') return;
+
+            try {
+                const res = await fetch('/api/admin/visitor-stats?token=' + encodeURIComponent(token));
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.status === 'ok') {
+                        const activeEl = document.getElementById('admin-active-users-count');
+                        const uEl = document.getElementById('stat-unique-visitors');
+                        const onlEl = document.getElementById('stat-active-online');
+                        const regEl = document.getElementById('stat-reg-visitors');
+                        const gstEl = document.getElementById('stat-guest-visitors');
+                        const convEl = document.getElementById('stat-conv-rate');
+                        const devEl = document.getElementById('stat-device-split');
+
+                        if (activeEl) activeEl.innerText = data.active_online || 1;
+                        if (uEl) uEl.innerText = data.total_unique_visitors || 0;
+                        if (onlEl) onlEl.innerText = (data.active_online || 1) + ' (' + (data.active_registered || 0) + ' Reg / ' + (data.active_guests || 1) + ' Guest)';
+                        if (regEl) regEl.innerText = (data.registered_visitors || 0) + ' (Acc: ' + (data.total_registered_accounts || 0) + ')';
+                        if (gstEl) gstEl.innerText = data.guest_visitors || 0;
+                        if (convEl) convEl.innerText = (data.conversion_rate_pct || 0) + '%';
+                        if (devEl) {
+                            const mob = (data.device_breakdown && data.device_breakdown.mobile_pct) || 0;
+                            const dsk = (data.device_breakdown && data.device_breakdown.desktop_pct) || 0;
+                            devEl.innerText = '📱 ' + mob + '% / 💻 ' + dsk + '%';
+                        }
+                    }
+                }
+            } catch (e) {}
+        }
+
+        function downloadUsersCSV(e) {
+            if (e) e.stopPropagation();
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                alert('Please log in with your Admin account first.');
+                return;
+            }
+            const downloadUrl = '/api/admin/users/csv?token=' + encodeURIComponent(token);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = 'registered_users.csv';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
 
         
         // 🔒 Guest Gatekeeping: Prompts Auth Modal if unauthenticated
@@ -14280,10 +14481,13 @@ function showIndicatorLineActionPill(ind, point) {
             const menuEmail = document.getElementById('menu-user-email');
             const menuStyle = document.getElementById('menu-user-style');
 
+            const adminBadge = document.getElementById('admin-analytics-badge');
             if (!token) {
                 currentUser = null;
                 if (guestBtn) guestBtn.style.display = 'inline-flex';
                 if (userBadge) userBadge.style.display = 'none';
+                if (adminBadge) adminBadge.style.display = 'none';
+                if (adminStatsTimer) { clearInterval(adminStatsTimer); adminStatsTimer = null; }
                 return;
             }
 
@@ -14297,6 +14501,15 @@ function showIndicatorLineActionPill(ind, point) {
                         currentUser = data.user;
                         if (guestBtn) guestBtn.style.display = 'none';
                         if (userBadge) userBadge.style.display = 'inline-flex';
+                        if (currentUser.role === 'admin') {
+                            if (adminBadge) adminBadge.style.display = 'inline-flex';
+                            fetchAdminVisitorStats();
+                            if (!adminStatsTimer) adminStatsTimer = setInterval(fetchAdminVisitorStats, 30000);
+                        } else {
+                            if (adminBadge) adminBadge.style.display = 'none';
+                            if (adminStatsTimer) { clearInterval(adminStatsTimer); adminStatsTimer = null; }
+                        }
+                        linkVisitorToUser();
                         if (navUserDisplay) navUserDisplay.innerText = currentUser.username || 'Trader';
                         if (menuName) menuName.innerText = currentUser.username || 'Trader';
                         if (menuEmail) menuEmail.innerText = currentUser.email || '';
@@ -14319,6 +14532,8 @@ function showIndicatorLineActionPill(ind, point) {
                 currentUser = null;
                 if (guestBtn) guestBtn.style.display = 'inline-flex';
                 if (userBadge) userBadge.style.display = 'none';
+                if (adminBadge) adminBadge.style.display = 'none';
+                if (adminStatsTimer) { clearInterval(adminStatsTimer); adminStatsTimer = null; }
                 resetAllIndicatorsToDefaultOff();
             } catch (e) {
                 console.warn("Auth verify check failed:", e);

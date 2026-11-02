@@ -897,9 +897,11 @@ async def api_admin_users(admin_key: str = Query("")):
 
 
 @app.get("/api/admin/users/csv")
-async def api_download_users_csv(request: Request, admin_key: str = Query("")):
+async def api_download_users_csv(request: Request, admin_key: str = Query(""), token: str = Query("")):
     """Admin endpoint: exports and downloads the full registered users CSV file."""
     u = get_current_user_from_request(request)
+    if not u and token:
+        u = user_db.decode_access_token(token)
     is_admin_user = (u and u.get("role") == "admin")
     if admin_key != user_db.ADMIN_MASTER_KEY and not is_admin_user:
         return JSONResponse(status_code=403, content={"status": "error", "message": "Unauthorized: Admin access required"})
@@ -911,6 +913,72 @@ async def api_download_users_csv(request: Request, admin_key: str = Query("")):
             filename="registered_users.csv"
         )
     return JSONResponse(status_code=404, content={"status": "error", "message": "Users CSV not found"})
+
+# ==============================================================
+# 📊 Real-Time Visitor Analytics & Heartbeat Endpoints
+# ==============================================================
+
+@app.post("/api/analytics/visit")
+async def api_analytics_visit(request: Request, payload: dict = Body(...)):
+    """Records a visitor pageview beacon."""
+    visitor_id = payload.get("visitor_id") or ""
+    path = payload.get("path") or "/"
+    referrer = payload.get("referrer") or ""
+
+    # Extract real IP (handling reverse proxy headers)
+    x_forwarded_for = request.headers.get("x-forwarded-for") or ""
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(",")[0].strip()
+    else:
+        ip = request.client.host if request.client else "127.0.0.1"
+
+    ua = request.headers.get("user-agent") or ""
+    u = get_current_user_from_request(request)
+    user_id = u.get("sub") if u else None
+
+    res = user_db.record_visitor_hit(
+        visitor_id=visitor_id,
+        ip=ip,
+        user_agent=ua,
+        path=path,
+        referrer=referrer,
+        user_id=user_id
+    )
+    return JSONResponse(content=res)
+
+
+@app.post("/api/analytics/heartbeat")
+async def api_analytics_heartbeat(request: Request, payload: dict = Body(...)):
+    """Pulse heartbeat to keep active status fresh and return live active online count."""
+    visitor_id = payload.get("visitor_id") or ""
+    u = get_current_user_from_request(request)
+    user_id = u.get("sub") if u else None
+    active_cnt = user_db.record_visitor_heartbeat(visitor_id=visitor_id, user_id=user_id)
+    return JSONResponse(content={"status": "ok", "active_online": active_cnt})
+
+
+@app.post("/api/analytics/link")
+async def api_analytics_link(request: Request, payload: dict = Body(...)):
+    """Links visitor_id to logged in user upon login or register."""
+    visitor_id = payload.get("visitor_id") or ""
+    u = get_current_user_from_request(request)
+    if not u:
+        return JSONResponse(status_code=401, content={"status": "error", "message": "Unauthorized"})
+    ok = user_db.link_visitor_to_account(visitor_id=visitor_id, user_id=u["sub"])
+    return JSONResponse(content={"status": "ok" if ok else "error"})
+
+
+@app.get("/api/admin/visitor-stats")
+async def api_admin_visitor_stats(request: Request, admin_key: str = Query(""), token: str = Query("")):
+    """Admin-only endpoint: returns live executive visitor analytics."""
+    u = get_current_user_from_request(request)
+    if not u and token:
+        u = user_db.decode_access_token(token)
+    is_admin_user = (u and u.get("role") == "admin")
+    if admin_key != user_db.ADMIN_MASTER_KEY and not is_admin_user:
+        return JSONResponse(status_code=403, content={"status": "error", "message": "Unauthorized: Admin access required"})
+    stats = user_db.get_visitor_analytics_summary()
+    return JSONResponse(content=stats)
 
 
 @app.get("/api/admin/login-records/csv")
