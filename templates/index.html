@@ -2606,17 +2606,18 @@
                 display: block !important;
             }
 
-            /* Admin Visitor Analytics Badge & Tooltip */
+            /* Admin Visitor Analytics Badge & Modal/Tooltip */
             #admin-analytics-badge {
                 position: relative;
                 display: none;
                 align-items: center;
+                gap: 4px;
                 margin-right: 6px;
             }
             #btn-admin-stats {
                 background: rgba(168, 85, 247, 0.15) !important;
                 border: 1px solid rgba(168, 85, 247, 0.5) !important;
-                color: #c084fc !important;
+                color: #e9d5ff !important;
                 font-weight: 700 !important;
                 padding: 4px 10px !important;
                 border-radius: 6px !important;
@@ -2632,8 +2633,10 @@
                 transform: translateY(-1px);
                 box-shadow: 0 4px 14px rgba(168, 85, 247, 0.35);
             }
-            #admin-analytics-badge:hover #admin-stats-tooltip {
-                display: block !important;
+            #btn-admin-download-csv:hover {
+                background: rgba(37, 99, 235, 0.35) !important;
+                border-color: #60a5fa !important;
+                transform: translateY(-1px);
             }
 
             /* Mobile Drawing Toggle - positioned cleanly above the bottom action dock */
@@ -4177,34 +4180,50 @@
             <div id="auth-nav-container" style="position: relative; display: inline-flex; align-items: center; margin-left: 4px;">
                 <!-- 👑 Admin Visitor Analytics & 1-Click CSV Download Box (ONLY visible to Admin) -->
                 <div id="admin-analytics-badge" style="display: none; position: relative; margin-right: 6px;">
-                    <button id="btn-admin-stats" onclick="downloadUsersCSV(event)" title="👑 Admin Visitor Analytics - Click to download Registered Users CSV" style="background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.5); color: #c084fc; font-weight: 700; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s ease;">
-                        <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 8px #22c55e;"></span>
-                        <span id="admin-active-users-count" style="font-size: 11.5px; font-weight: 800; color: #22c55e;">1</span>
-                        <span style="font-size: 11px; color: #e2e8f0;" class="hide-on-mobile">Active</span>
-                        <span style="font-size: 10px; padding: 1px 5px; border-radius: 3px; background: rgba(168, 85, 247, 0.25); color: #e9d5ff; font-weight: 700;">📊 CSV ⬇</span>
+                    <!-- Direct Stats Pill: Displays BOTH Unique Visitors & Active Users -->
+                    <button id="btn-admin-stats" onclick="toggleAdminStatsModal(event)" title="Click to view full Unique Visitors & Traffic breakdown" style="background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.5); color: #e9d5ff; font-weight: 700; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s ease;">
+                        <span style="color: #38bdf8; font-size: 11.5px; display: inline-flex; align-items: center; gap: 3px;">
+                            👥 <span id="admin-badge-unique-count" style="font-weight: 800; color: #38bdf8;">--</span> <span class="hide-on-mobile" style="font-size: 10px; color: #94a3b8;">Unique</span>
+                        </span>
+                        <span style="color: #64748b; font-size: 10px;">•</span>
+                        <span style="color: #22c55e; font-size: 11.5px; display: inline-flex; align-items: center; gap: 3px;">
+                            <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 6px #22c55e;"></span>
+                            <span id="admin-active-users-count" style="font-weight: 800; color: #22c55e;">--</span> <span class="hide-on-mobile" style="font-size: 10px; color: #94a3b8;">Active</span>
+                        </span>
+                        <span style="font-size: 9.5px; opacity: 0.7; color: #c084fc;">▾</span>
                     </button>
-                    <!-- Hover Card Tooltip (Visible on hover of #admin-analytics-badge) -->
-                    <div id="admin-stats-tooltip" style="display: none; position: absolute; right: 0; top: 34px; width: 285px; background: #0b1329; border: 1px solid #7c3aed; border-radius: 10px; box-shadow: 0 14px 35px rgba(0,0,0,0.85); z-index: 10000; padding: 14px; font-size: 11.5px; pointer-events: none; text-align: left;">
+
+                    <!-- Dedicated 1-Click CSV Download Button -->
+                    <button id="btn-admin-download-csv" onclick="downloadUsersCSV(event)" title="Download Registered Users CSV directly to your Downloads folder" style="background: rgba(37, 99, 235, 0.2); border: 1px solid rgba(59, 130, 246, 0.5); color: #60a5fa; font-weight: 700; padding: 4px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 11px; transition: all 0.2s ease;">
+                        <span>📥</span>
+                        <span class="hide-on-mobile">Users CSV</span>
+                    </button>
+
+                    <!-- Interactive Traffic Card (Toggled on click or hover) -->
+                    <div id="admin-stats-tooltip" style="display: none; position: absolute; right: 0; top: 36px; width: 295px; background: #0b1329; border: 1px solid #7c3aed; border-radius: 10px; box-shadow: 0 16px 40px rgba(0,0,0,0.9); z-index: 10000; padding: 14px; font-size: 11.5px; text-align: left;">
                         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 8px; margin-bottom: 10px;">
-                            <span style="font-size: 12px; font-weight: 800; color: #c084fc;">👑 Admin Traffic Center</span>
-                            <span style="font-size: 10px; font-weight: 700; color: #22c55e; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); padding: 1px 6px; border-radius: 4px;">● Live Now</span>
+                            <span style="font-size: 12.5px; font-weight: 800; color: #c084fc;">👑 Admin Traffic Center</span>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 10px; font-weight: 700; color: #22c55e; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); padding: 1px 6px; border-radius: 4px;">● Live Now</span>
+                                <button onclick="closeAdminStatsModal(event)" style="background: transparent; border: none; color: #94a3b8; font-size: 13px; cursor: pointer; padding: 0 4px;" title="Close">✕</button>
+                            </div>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
-                            <div style="background: #131d37; padding: 8px; border-radius: 6px; border: 1px solid #1e293b;">
+                            <div style="background: #131d37; padding: 9px; border-radius: 7px; border: 1px solid #1e293b;">
                                 <div style="color: #94a3b8; font-size: 10px;">👥 Total Unique Visitors</div>
-                                <div id="stat-unique-visitors" style="font-size: 15px; font-weight: 800; color: #38bdf8;">--</div>
+                                <div id="stat-unique-visitors" style="font-size: 16px; font-weight: 800; color: #38bdf8; margin-top: 2px;">--</div>
                             </div>
-                            <div style="background: #131d37; padding: 8px; border-radius: 6px; border: 1px solid #1e293b;">
+                            <div style="background: #131d37; padding: 9px; border-radius: 7px; border: 1px solid #1e293b;">
                                 <div style="color: #94a3b8; font-size: 10px;">🟢 Active Right Now</div>
-                                <div id="stat-active-online" style="font-size: 15px; font-weight: 800; color: #22c55e;">--</div>
+                                <div id="stat-active-online" style="font-size: 16px; font-weight: 800; color: #22c55e; margin-top: 2px;">--</div>
                             </div>
-                            <div style="background: #131d37; padding: 8px; border-radius: 6px; border: 1px solid #1e293b;">
+                            <div style="background: #131d37; padding: 9px; border-radius: 7px; border: 1px solid #1e293b;">
                                 <div style="color: #94a3b8; font-size: 10px;">👤 Registered Users</div>
-                                <div id="stat-reg-visitors" style="font-size: 13.5px; font-weight: 800; color: #a78bfa;">--</div>
+                                <div id="stat-reg-visitors" style="font-size: 14px; font-weight: 800; color: #a78bfa; margin-top: 2px;">--</div>
                             </div>
-                            <div style="background: #131d37; padding: 8px; border-radius: 6px; border: 1px solid #1e293b;">
+                            <div style="background: #131d37; padding: 9px; border-radius: 7px; border: 1px solid #1e293b;">
                                 <div style="color: #94a3b8; font-size: 10px;">🕵️ Guest Visitors</div>
-                                <div id="stat-guest-visitors" style="font-size: 13.5px; font-weight: 800; color: #94a3b8;">--</div>
+                                <div id="stat-guest-visitors" style="font-size: 14px; font-weight: 800; color: #94a3b8; margin-top: 2px;">--</div>
                             </div>
                         </div>
                         <div style="background: rgba(30, 41, 59, 0.5); padding: 7px 10px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
@@ -4215,9 +4234,9 @@
                             <span style="color: #94a3b8; font-size: 10.5px;">Device Split:</span>
                             <span id="stat-device-split" style="font-weight: 700; color: #cbd5e1; font-size: 11px;">📱 --% / 💻 --%</span>
                         </div>
-                        <div style="background: rgba(168, 85, 247, 0.15); border: 1px dashed rgba(168, 85, 247, 0.4); padding: 7px 10px; border-radius: 6px; text-align: center; color: #e9d5ff; font-size: 10.5px; font-weight: 700;">
-                            📥 Click box to download registered users CSV
-                        </div>
+                        <button onclick="downloadUsersCSV(event)" style="width: 100%; background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); border: 1px solid #a855f7; color: #ffffff; padding: 8px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s ease;">
+                            <span>📥 Download Registered Users CSV</span>
+                        </button>
                     </div>
                 </div>
                 <!-- Guest Button -->
@@ -14412,6 +14431,8 @@ function showIndicatorLineActionPill(ind, point) {
                         const convEl = document.getElementById('stat-conv-rate');
                         const devEl = document.getElementById('stat-device-split');
 
+                        const badgeUniqueEl = document.getElementById('admin-badge-unique-count');
+                        if (badgeUniqueEl) badgeUniqueEl.innerText = data.total_unique_visitors || 0;
                         if (activeEl) activeEl.innerText = data.active_online || 1;
                         if (uEl) uEl.innerText = data.total_unique_visitors || 0;
                         if (onlEl) onlEl.innerText = (data.active_online || 1) + ' (' + (data.active_registered || 0) + ' Reg / ' + (data.active_guests || 1) + ' Guest)';
@@ -14427,6 +14448,31 @@ function showIndicatorLineActionPill(ind, point) {
                 }
             } catch (e) {}
         }
+
+        function toggleAdminStatsModal(e) {
+            if (e) e.stopPropagation();
+            const tooltip = document.getElementById('admin-stats-tooltip');
+            if (tooltip) {
+                const isOpen = tooltip.style.display === 'block';
+                tooltip.style.display = isOpen ? 'none' : 'block';
+                if (!isOpen) fetchAdminVisitorStats();
+            }
+        }
+
+        function closeAdminStatsModal(e) {
+            if (e) e.stopPropagation();
+            const tooltip = document.getElementById('admin-stats-tooltip');
+            if (tooltip) tooltip.style.display = 'none';
+        }
+
+        // Close admin tooltip when clicking outside
+        document.addEventListener('click', (e) => {
+            const badge = document.getElementById('admin-analytics-badge');
+            const tooltip = document.getElementById('admin-stats-tooltip');
+            if (tooltip && tooltip.style.display === 'block' && badge && !badge.contains(e.target)) {
+                tooltip.style.display = 'none';
+            }
+        });
 
         function downloadUsersCSV(e) {
             if (e) e.stopPropagation();
