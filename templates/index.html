@@ -1341,6 +1341,7 @@
             height: 100%;
             min-height: 400px;
             display: block;
+            background: #070a13;
         }
 
         /* Interactive Drawing Overlay SVG */
@@ -1646,6 +1647,43 @@
         .floating-terminal-dock.minimized .dock-minimized-icon {
             display: flex;
         }
+
+        /* 🌟 Unique 10-Second Attention Animation for Unregistered Guests */
+        @keyframes dockAttractGlow {
+            0% {
+                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), 0 0 0 0 rgba(56, 189, 248, 0);
+                border-color: rgba(255, 255, 255, 0.16);
+                transform: scale(1);
+            }
+            20% {
+                box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8), 0 0 25px 6px rgba(56, 189, 248, 0.85), 0 0 45px 8px rgba(16, 185, 129, 0.5);
+                border-color: #38bdf8;
+                transform: scale(1.05);
+            }
+            45% {
+                box-shadow: 0 10px 32px rgba(0, 0, 0, 0.7), 0 0 20px 4px rgba(16, 185, 129, 0.75), 0 0 35px 6px rgba(56, 189, 248, 0.45);
+                border-color: #10b981;
+                transform: scale(1.02);
+            }
+            70% {
+                box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8), 0 0 24px 5px rgba(56, 189, 248, 0.8), 0 0 45px 8px rgba(139, 92, 246, 0.5);
+                border-color: #818cf8;
+                transform: scale(1.04);
+            }
+            100% {
+                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), 0 0 0 0 rgba(56, 189, 248, 0);
+                border-color: rgba(255, 255, 255, 0.16);
+                transform: scale(1);
+            }
+        }
+        .floating-terminal-dock.guest-attract-pulse {
+            animation: dockAttractGlow 2.2s cubic-bezier(0.25, 1, 0.5, 1) !important;
+        }
+        .floating-terminal-dock.guest-attract-pulse .copilot-btn {
+            filter: brightness(1.25);
+            box-shadow: 0 0 18px rgba(56, 189, 248, 0.8);
+        }
+
         .dock-btn {
             display: flex;
             align-items: center;
@@ -1756,7 +1794,7 @@
         .ai-copilot-panel {
             position: fixed;
             bottom: 74px;
-            right: 24px;
+            right: 88px; /* Shifted left so right price scale and NIFTY index price axis remain 100% visible */
             width: 440px;
             min-width: 300px;
             max-width: 95vw;
@@ -2329,7 +2367,7 @@
             .ai-copilot-panel {
                 width: 380px;
                 height: 540px;
-                right: 14px;
+                right: 82px;
                 bottom: 68px;
             }
         }
@@ -4440,18 +4478,18 @@
             </div>
         </div>
     </header>
-    <!-- ✨ High-Converting Guest VIP Access Incentive Banner -->
+    <!-- ✨ High-Converting Guest Free Access Incentive Banner -->
     <div id="guest-vip-banner" class="guest-vip-banner">
         <div class="guest-vip-content">
-            <span class="guest-vip-badge">✨ 100% Free VIP Access</span>
+            <span class="guest-vip-badge">✨ 100% FREE</span>
             <div class="guest-vip-text">
-                Create a Free Account to unlock <b>AI Strategy Copilot</b>, <b>Real-Time Breaking Macro News</b>, and <b>Save Custom Chart Drawings</b>.
-                <span class="guest-vip-subtext hide-on-mobile">• Instant 10s Setup • Zero Subscription Fee • Built for NIFTY 50 Options & Scalping</span>
+                Create a Free Account to unlock <b>Real-Time AI Strategy Copilot</b> (Instant CE/PE Setups & Institutional Bias), <b>Algorithmic Auto S&R Levels</b> (Automatic Major High-Probability Swing Zones) & <b>Macro Catalysts</b>.
+                <span class="guest-vip-subtext hide-on-mobile">• 100% Free Forever • Instant 10s Setup • Precision VWAP & Auto S&R Confluence Engine</span>
             </div>
         </div>
         <div class="guest-vip-actions">
             <button class="guest-vip-btn" onclick="openAuthModal('register')">
-                <span>Unlock VIP Features Free 🚀</span>
+                <span>Unlock AI Copilot & Auto S&R 🚀</span>
             </button>
             <button class="guest-vip-close" onclick="dismissGuestBanner()" title="Dismiss banner">✕</button>
         </div>
@@ -4693,7 +4731,7 @@
             </div>
 
             <!-- Synchronized Sub-Pane for Oscillators (RSI / MACD / ATR / ADX) -->
-            <div id="sub-pane-container" style="display: none; height: 165px; min-height: 120px; width: 100%; border-top: 1px solid #2a2e39; position: relative; background: #131722; flex-shrink: 0;">
+            <div id="sub-pane-container" style="display: none; height: 165px; min-height: 120px; width: 100%; border-top: 1px solid #2a2e39; position: relative; background: #070a13; flex-shrink: 0;">
                 <div id="sub-pane-header">
                     <div class="sub-pane-tabs" id="sub-pane-tabs">
                         <button class="osc-tab-btn active" id="osc-tab-rsi" onclick="switchActiveOscillator('rsi')">RSI</button>
@@ -5565,14 +5603,14 @@
                 width: chartWidth,
                 height: chartHeight,
                 layout: {
-                    background: { type: 'solid', color: '#131722' },
-                    textColor: '#d1d4dc',
+                    background: { type: 'solid', color: '#070a13' },
+                    textColor: '#cbd5e1',
                     fontSize: 12,
                     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                 },
                 grid: {
-                    vertLines: { color: 'rgba(255, 255, 255, 0.04)' },
-                    horzLines: { color: 'rgba(255, 255, 255, 0.04)' }
+                    vertLines: { color: 'rgba(255, 255, 255, 0.025)' },
+                    horzLines: { color: 'rgba(255, 255, 255, 0.025)' }
                 },
                 crosshair: {
                     mode: LightweightCharts.CrosshairMode.Normal,
@@ -9231,12 +9269,12 @@ function showIndicatorLineActionPill(ind, point) {
                 width: el.clientWidth || 800,
                 height: el.clientHeight || 135,
                 layout: {
-                    background: { color: '#131722' },
+                    background: { color: '#070a13' },
                     textColor: '#94a3b8'
                 },
                 grid: {
-                    vertLines: { color: 'rgba(42, 46, 57, 0.4)' },
-                    horzLines: { color: 'rgba(42, 46, 57, 0.4)' }
+                    vertLines: { color: 'rgba(42, 46, 57, 0.25)' },
+                    horzLines: { color: 'rgba(42, 46, 57, 0.25)' }
                 },
                 timeScale: {
                     visible: true,
@@ -13379,8 +13417,48 @@ function showIndicatorLineActionPill(ind, point) {
         let isCopilotOpen = false;
         let isCopilotBusy = false;
 
+        function getGuestChatCount() {
+            return parseInt(localStorage.getItem('terminal_guest_chat_count') || '0', 10);
+        }
+
+        function incrementGuestChatCount() {
+            const cur = getGuestChatCount();
+            const nextVal = cur + 1;
+            localStorage.setItem('terminal_guest_chat_count', nextVal.toString());
+            return nextVal;
+        }
+
+        function updateGuestCopilotPlaceholder(count = null) {
+            const token = localStorage.getItem('auth_token');
+            const inp = document.getElementById('copilot-user-input');
+            if (!inp) return;
+            if (token) {
+                inp.placeholder = "Ask about setups, VWAP ±2σ, S&R confluence...";
+            } else {
+                const c = count !== null ? count : getGuestChatCount();
+                const rem = Math.max(0, 2 - c);
+                if (rem > 0) {
+                    inp.placeholder = `Ask about setups... (${rem} free guest prompt${rem === 1 ? '' : 's'} available)`;
+                } else {
+                    inp.placeholder = `2/2 free chats used - Register for unlimited AI`;
+                }
+            }
+        }
+
         function toggleCopilot() {
-            if (!requireAuth('chat with the AI Strategy Copilot')) return;
+            const token = localStorage.getItem('auth_token');
+            if (!token && getGuestChatCount() >= 2) {
+                const errBox = document.getElementById('auth-error-box');
+                if (errBox) {
+                    errBox.innerHTML = `🚀 <strong>Free Guest Prompts Completed (2/2)</strong><br>Create a Free Account to continue unlimited AI Strategy Copilot chats, Macro News Sentiment & Pre-Flight checks.`;
+                    errBox.style.display = 'block';
+                    errBox.style.background = 'rgba(56, 189, 248, 0.12)';
+                    errBox.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                    errBox.style.color = '#38bdf8';
+                }
+                openAuthModal('register');
+                return;
+            }
             initCopilotDragAndResize();
             const panel = document.getElementById('ai-copilot-panel');
             if (!panel) return;
@@ -13392,6 +13470,7 @@ function showIndicatorLineActionPill(ind, point) {
                 scrollCopilotToBottom();
                 checkRagStatus();
                 loadCopilotHistory();
+                updateGuestCopilotPlaceholder();
             } else {
                 panel.classList.add('collapsed');
             }
@@ -13728,7 +13807,36 @@ function showIndicatorLineActionPill(ind, point) {
         }
 
         async function sendCopilotMessage(promptOverride = null) {
-            if (!requireAuth('chat with the AI Strategy Copilot')) return;
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                const count = getGuestChatCount();
+                if (count >= 2) {
+                    const errBox = document.getElementById('auth-error-box');
+                    if (errBox) {
+                        errBox.innerHTML = `🚀 <strong>Free Guest Prompts Completed (2/2)</strong><br>You have used your 2 free AI questions. Create a Free Account to unlock unlimited AI Strategy Copilot, Breaking Macro News & Pre-Flight checks.`;
+                        errBox.style.display = 'block';
+                        errBox.style.background = 'rgba(56, 189, 248, 0.12)';
+                        errBox.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                        errBox.style.color = '#38bdf8';
+                    }
+                    openAuthModal('register');
+
+                    const messages = document.getElementById('copilot-messages');
+                    if (messages) {
+                        const guestNotice = document.createElement('div');
+                        guestNotice.className = 'copilot-msg assistant';
+                        guestNotice.innerHTML = `
+                            <div class="copilot-msg-bubble" style="border-left: 3px solid #38bdf8; background: rgba(56, 189, 248, 0.12); color: #e2e8f0;">
+                                🔒 <strong>Guest Limit Reached (2/2 Free Prompts Used):</strong><br>
+                                You have used your 2 free AI preview questions! To continue asking questions and receive real-time institutional setups, please <a href="javascript:void(0)" onclick="openAuthModal('register')" style="color: #38bdf8; font-weight: 700; text-decoration: underline;">Create a Free Account</a> (100% Free Forever).
+                            </div>
+                        `;
+                        messages.appendChild(guestNotice);
+                        scrollCopilotToBottom();
+                    }
+                    return;
+                }
+            }
             if (isCopilotBusy) return;
             const input = document.getElementById('copilot-user-input');
             const sendBtn = document.getElementById('copilot-send-btn');
@@ -13741,6 +13849,12 @@ function showIndicatorLineActionPill(ind, point) {
             input.value = '';
             isCopilotBusy = true;
             if (sendBtn) sendBtn.disabled = true;
+
+            // Increment guest count immediately on prompt submission
+            if (!token) {
+                const newCount = incrementGuestChatCount();
+                updateGuestCopilotPlaceholder(newCount);
+            }
 
             const nowTime = new Date().toLocaleTimeString('en-US', { hour12: false });
 
@@ -13861,6 +13975,21 @@ function showIndicatorLineActionPill(ind, point) {
                     </div>
                 `;
                 messages.appendChild(botMsgEl);
+
+                // Show guest prompt status banner
+                if (!token) {
+                    const currentGuestCount = getGuestChatCount();
+                    const rem = Math.max(0, 2 - currentGuestCount);
+                    const guestPill = document.createElement('div');
+                    if (rem > 0) {
+                        guestPill.style.cssText = 'text-align: center; margin: 4px 0 8px 0; font-size: 11px; color: #38bdf8;';
+                        guestPill.innerHTML = `✨ <i>Free Guest Preview: ${rem} prompt remaining • <a href="javascript:void(0)" onclick="openAuthModal('register')" style="color: #10b981; font-weight: 700; text-decoration: underline;">Register Free</a> for unlimited chats</i>`;
+                    } else {
+                        guestPill.style.cssText = 'text-align: center; margin: 6px 0 10px 0; font-size: 11.5px; color: #f59e0b; background: rgba(245, 158, 11, 0.1); border: 1px dashed rgba(245, 158, 11, 0.35); border-radius: 8px; padding: 6px 10px;';
+                        guestPill.innerHTML = `🚀 <b>2 of 2 Free Chats Used!</b> Next prompt requires a free account: <a href="javascript:void(0)" onclick="openAuthModal('register')" style="color: #38bdf8; font-weight: 800; text-decoration: underline;">Create 100% Free Account Now</a>`;
+                    }
+                    messages.appendChild(guestPill);
+                }
 
             } catch (err) {
                 const typingNode = document.getElementById('copilot-typing-bubble');
@@ -14132,15 +14261,15 @@ function showIndicatorLineActionPill(ind, point) {
 
             <!-- Modal Body (Scrollable with Momentum & Containment) -->
             <div id="auth-modal-body">
-                <!-- VIP Privileges Highlight Box -->
-                <div style="background: linear-gradient(135deg, rgba(37,99,235,0.18), rgba(16,185,129,0.14)); border: 1px solid rgba(56,189,248,0.35); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 11.5px; line-height: 1.5; color: #cbd5e1;">
+                <!-- Institutional Privileges Highlight Box (Visible exclusively on Registration tab, hidden on Login tab) -->
+                <div id="auth-privileges-box" style="display: none; background: linear-gradient(135deg, rgba(37,99,235,0.18), rgba(16,185,129,0.14)); border: 1px solid rgba(56,189,248,0.35); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 11.5px; line-height: 1.5; color: #cbd5e1;">
                     <div style="font-weight: 800; color: #38bdf8; margin-bottom: 5px; display: flex; align-items: center; gap: 6px;">
                         <span>✨ Free Institutional Pro Privileges Included:</span>
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; color: #94a3b8; font-size: 11px;">
                         <div>🤖 <b style="color: #f1f5f9;">AI Strategy Copilot</b></div>
+                        <div>🏛️ <b style="color: #f1f5f9;">Auto S&R Levels</b></div>
                         <div>📰 <b style="color: #f1f5f9;">Breaking Macro News</b></div>
-                        <div>🎨 <b style="color: #f1f5f9;">Cloud Drawings Sync</b></div>
                         <div>🚀 <b style="color: #f1f5f9;">Pre-Flight Confluence</b></div>
                     </div>
                 </div>
@@ -14849,6 +14978,7 @@ function showIndicatorLineActionPill(ind, point) {
             const tabReg = document.getElementById('auth-tab-register');
             const formLogin = document.getElementById('form-auth-login');
             const formReg = document.getElementById('form-auth-register');
+            const privBox = document.getElementById('auth-privileges-box');
             const errBox = document.getElementById('auth-error-box');
             const modalBody = document.getElementById('auth-modal-body');
             const overlay = document.getElementById('auth-modal-overlay');
@@ -14863,11 +14993,13 @@ function showIndicatorLineActionPill(ind, point) {
                 if (tabLogin) { tabLogin.style.color = '#64748b'; tabLogin.style.borderBottomColor = 'transparent'; }
                 if (formLogin) formLogin.style.display = 'none';
                 if (formReg) formReg.style.display = 'block';
+                if (privBox) privBox.style.display = 'block'; // Only visible on Register tab!
             } else {
                 if (tabLogin) { tabLogin.style.color = '#38bdf8'; tabLogin.style.borderBottomColor = '#38bdf8'; }
                 if (tabReg) { tabReg.style.color = '#64748b'; tabReg.style.borderBottomColor = 'transparent'; }
                 if (formLogin) formLogin.style.display = 'block';
                 if (formReg) formReg.style.display = 'none';
+                if (privBox) privBox.style.display = 'none'; // Completely hidden on Login tab!
             }
         }
 
@@ -15527,7 +15659,19 @@ function showIndicatorLineActionPill(ind, point) {
         }
 
         function openNewsModal() {
-            if (!requireAuth('view Real-Time Macro News Sentiment & Market Direction')) return;
+            const token = localStorage.getItem('auth_token');
+            if (!token && getGuestChatCount() >= 2) {
+                const errBox = document.getElementById('auth-error-box');
+                if (errBox) {
+                    errBox.innerHTML = `🔒 <strong>Account Required</strong><br>Your 2 free guest preview chats are completed. Please <strong>Create a Free Account</strong> to continue accessing Real-Time Macro News Sentiment.`;
+                    errBox.style.display = 'block';
+                    errBox.style.background = 'rgba(56, 189, 248, 0.12)';
+                    errBox.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                    errBox.style.color = '#38bdf8';
+                }
+                openAuthModal('register');
+                return;
+            }
             const overlay = document.getElementById('news-modal-overlay');
             if (overlay) overlay.style.display = 'flex';
             fetchNewsData();
@@ -15758,7 +15902,19 @@ function showIndicatorLineActionPill(ind, point) {
         let currentPreflightDir = null;
 
         function openPreFlightModal(dir = null) {
-            if (!requireAuth('access 1-Click Institutional Pre-Flight Confluence Check')) return;
+            const token = localStorage.getItem('auth_token');
+            if (!token && getGuestChatCount() >= 2) {
+                const errBox = document.getElementById('auth-error-box');
+                if (errBox) {
+                    errBox.innerHTML = `🔒 <strong>Account Required</strong><br>Your 2 free guest preview chats are completed. Please <strong>Create a Free Account</strong> to continue running 1-Click Institutional Pre-Flight Confluence checks.`;
+                    errBox.style.display = 'block';
+                    errBox.style.background = 'rgba(56, 189, 248, 0.12)';
+                    errBox.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                    errBox.style.color = '#38bdf8';
+                }
+                openAuthModal('register');
+                return;
+            }
             currentPreflightDir = dir;
             const overlay = document.getElementById('preflight-modal-overlay');
             if (overlay) overlay.style.display = 'flex';
@@ -16013,8 +16169,36 @@ function showIndicatorLineActionPill(ind, point) {
         }
 
         // Draggable floating terminal action dock
+        function startGuestDockAttractLoop() {
+            setInterval(() => {
+                // Strictly run in guest mode (unauthenticated visitor)
+                const token = localStorage.getItem('auth_token');
+                if (token) return;
+
+                // Do not animate if user has auth modal opened
+                const authModal = document.getElementById('auth-modal-overlay');
+                if (authModal && authModal.style.display === 'flex') return;
+
+                const dock = document.getElementById('floating-terminal-dock');
+                if (!dock || dock.classList.contains('minimized')) return;
+
+                dock.classList.remove('guest-attract-pulse');
+                void dock.offsetWidth; // Trigger DOM reflow to restart CSS animation cleanly
+                dock.classList.add('guest-attract-pulse');
+
+                setTimeout(() => {
+                    if (dock) dock.classList.remove('guest-attract-pulse');
+                }, 2300);
+            }, 10000);
+        }
+
         (function initDockDraggable() {
             window.addEventListener('DOMContentLoaded', () => {
+                try {
+                    startGuestDockAttractLoop();
+                    updateGuestCopilotPlaceholder();
+                } catch (e) {}
+
                 const dock = document.getElementById('floating-terminal-dock');
                 const handle = document.getElementById('dock-drag-handle');
                 if (!dock || !handle) return;
