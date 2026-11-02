@@ -174,3 +174,23 @@ class TestNewsSentimentEngine:
         # 5. Tuesday 4:01 PM -> Working trading day 4pm reset rolls to Tuesday 4:00 PM
         tue_after_close = datetime.datetime(2026, 11, 3, 16, 1, tzinfo=IST_TZ)
         assert get_session_start_ist(tue_after_close) == datetime.datetime(2026, 11, 3, 16, 0, tzinfo=IST_TZ)
+
+    def test_09_full_article_content_analysis(self):
+        # Even if a headline has broad wording, the full article text provides the true catalyst decision
+        headline = 'Oil and geopolitical developments impact D-Street morning trade'
+        body = (
+            'The Indian stock market opened with sharp gains as Brent crude prices plunged 3.8% '
+            'to  per barrel following a diplomatic breakthrough. Officials confirmed a ceasefire peace deal signed '
+            'between regional powers, bringing relief to energy import costs and boosting Nifty 50.'
+        )
+        res = NewsSentimentEngine.classify_headline(
+            title=headline,
+            source='The Economic Times',
+            content=body
+        )
+        # Should detect the ceasefire peace deal or crude plunge from full body
+        assert res['is_high_impact'] is True
+        assert res['polarity'] in ('STRONG BULLISH', 'BULLISH')
+        assert res['score'] > 0
+        assert len(res['snippet']) > 0
+        assert len(res['content']) > 0

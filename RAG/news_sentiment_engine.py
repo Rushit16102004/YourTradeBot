@@ -34,6 +34,7 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 import xml.etree.ElementTree as ET
 
 from RAG.config import RAGConfig
@@ -252,6 +253,53 @@ class NewsSentimentEngine:
         except Exception as e:
             logger.debug("Session store save exception: %s", e)
 
+    @staticmethod
+    def scrape_full_article(gnews_link: str) -> tuple[str, str, str]:
+        """
+        Decodes a Google News RSS link to the canonical publisher URL and scrapes the full article body.
+        Returns: (canonical_url, full_body_text, snippet)
+        """
+        if not gnews_link:
+            return "", "", ""
+        real_url = gnews_link
+        try:
+            from googlenewsdecoder import gnewsdecoder
+            dec_res = gnewsdecoder(gnews_link)
+            if isinstance(dec_res, dict) and dec_res.get("success"):
+                real_url = dec_res.get("decoded_url", gnews_link)
+        except Exception as e:
+            logger.debug("Google news decoder exception: %s", e)
+
+        article_text = ""
+        try:
+            from curl_cffi import requests
+            resp = requests.get(
+                real_url,
+                impersonate="chrome124",
+                timeout=7,
+                headers={
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9",
+                }
+            )
+            if resp.status_code == 200 and resp.text:
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(resp.text, "html.parser")
+                for tag in soup(["script", "style", "nav", "footer", "header", "noscript", "aside", "form"]):
+                    tag.extract()
+                paragraphs = [p.get_text().strip() for p in soup.find_all("p") if len(p.get_text().strip()) > 30]
+                article_text = " ".join(paragraphs)
+                article_text = re.sub(r'\s+', ' ', article_text).strip()
+        except Exception as e:
+            logger.debug("Article scrape exception for %s: %s", real_url, e)
+
+        snippet = ""
+        if article_text:
+            cleaned = re.sub(r'\s+', ' ', article_text).strip()
+            snippet = cleaned[:240].rsplit(' ', 1)[0] + "..." if len(cleaned) > 240 else cleaned
+
+        return real_url, article_text, snippet
+
     # -------------------------------------------------------------
     # Noise Filtering & Heuristic Classification
     # -------------------------------------------------------------
@@ -293,13 +341,20 @@ class NewsSentimentEngine:
             return pub_date_str, 0.0, "Recently", pub_date_str
 
     @staticmethod
-    def classify_headline(title: str, source: str = "", pub_date: str = "", link: str = "") -> Dict[str, Any]:
+    def classify_headline(title: str, source: str = "", pub_date: str = "", link: str = "", content: str = "") -> Dict[str, Any]:
         """
-        Classifies individual headline into high-impact macro categories vs routine noise,
-        assigning impact score (1 to 10), polarity (-1.0 to 1.0), and directional trade bias.
+        Classifies individual article (headline + full body content) into high-impact macro categories
+        vs routine noise, assigning impact score (1 to 10), polarity (-1.0 to 1.0), and directional trade bias.
         """
         t_clean = title.strip()
-        t_lower = t_clean.lower()
+        # Analyze BOTH the headline and the full article text for true catalyst detection
+        combined_text = f"{t_clean}. {content}".strip() if content else t_clean
+        t_lower = combined_text.lower()
+
+        snippet = ""
+        if content:
+            cleaned_c = re.sub(r'\s+', ' ', content).strip()
+            snippet = cleaned_c[:240].rsplit(' ', 1)[0] + "..." if len(cleaned_c) > 240 else cleaned_c
 
         # 0. Reject non-Indian market news, low-tier scrapers, and stale recycled articles
         s_lower = source.lower().strip()
@@ -463,6 +518,8 @@ class NewsSentimentEngine:
             "title": t_clean,
             "source": source or "Financial Media",
             "link": link or "",
+            "content": content[:4000] if content else "",
+            "snippet": snippet,
             "published_at": display_pub,
             "published_ist": formatted_ist,
             "time_ago": time_ago,
@@ -545,7 +602,8 @@ class NewsSentimentEngine:
             except Exception as e:
                 logger.debug("RSS fetch exception from %s: %s", url, e)
 
-        # Ingest new articles into session temp storage
+        # Filter candidates matching the session window and relevance criteria
+        valid_candidates = []
         for h in headlines_raw:
             title_text = h["title"]
             pub_str = h["pub"]
@@ -558,16 +616,59 @@ class NewsSentimentEngine:
 
             try:
                 dt_utc = email.utils.parsedate_to_datetime(pub_str)
-                # Strictly discard anything published before the current session started!
                 if dt_utc.timestamp() < session_start_epoch:
                     continue
             except Exception:
                 continue
 
-            res = self.classify_headline(title=title_text, source=h.get("src", ""), pub_date=pub_str, link=h.get("link", ""))
-            if res.get("time_ago") != "Filtered":
-                key = h.get("link") or title_text
-                session_articles[key] = res
+            valid_candidates.append(h)
+
+        # Separate items needing full article body scraping
+        items_to_scrape = []
+        for cand in valid_candidates:
+            key = cand.get("link") or cand["title"]
+            # If already cached with scraped content, keep it
+            if key in session_articles and session_articles[key].get("content"):
+                continue
+            items_to_scrape.append(cand)
+
+        # Concurrently decode and scrape full articles for fresh items (max 10 to keep latency low)
+        if items_to_scrape:
+            def scrape_worker(item_dict):
+                raw_link = item_dict.get("link", "")
+                real_url, body_text, snippet = NewsSentimentEngine.scrape_full_article(raw_link)
+                return item_dict, real_url, body_text, snippet
+
+            target_scrape = items_to_scrape[:12]
+            try:
+                with ThreadPoolExecutor(max_workers=5) as pool:
+                    scrape_results = list(pool.map(scrape_worker, target_scrape))
+                for item_dict, real_url, body_text, snippet in scrape_results:
+                    key = item_dict.get("link") or item_dict["title"]
+                    res = self.classify_headline(
+                        title=item_dict["title"],
+                        source=item_dict.get("src", ""),
+                        pub_date=item_dict.get("pub", ""),
+                        link=real_url or item_dict.get("link", ""),
+                        content=body_text
+                    )
+                    if res.get("time_ago") != "Filtered":
+                        session_articles[key] = res
+            except Exception as e_sc:
+                logger.debug("Concurrent scrape error: %s", e_sc)
+
+        # For remaining candidates already cached or not needing re-scrape
+        for cand in valid_candidates:
+            key = cand.get("link") or cand["title"]
+            if key not in session_articles:
+                res = self.classify_headline(
+                    title=cand["title"],
+                    source=cand.get("src", ""),
+                    pub_date=cand.get("pub", ""),
+                    link=cand.get("link", "")
+                )
+                if res.get("time_ago") != "Filtered":
+                    session_articles[key] = res
 
         # Persist updated session store
         self._save_session_store(current_session_start, session_articles)
@@ -666,15 +767,18 @@ class NewsSentimentEngine:
         if not api_key:
             return None
 
+        article_body_sample = (catalyst.get("content", "")[:2500] or catalyst.get("snippet", "")).strip()
         prompt = (
             f"You are a Senior Quantitative Macro Prop Trader at NSE India.\n"
-            f"Analyze this breaking news headline for NIFTY 50 intraday impact:\n"
+            f"Analyze this breaking news story for NIFTY 50 intraday impact based on the full article details:\n"
             f"Headline: '{catalyst['title']}'\n"
             f"Source: {catalyst.get('source', 'Media')}\n"
             f"Category: {catalyst['category']}\n\n"
+            f"Full Article Content (Context):\n"
+            f"\"\"\"\n{article_body_sample}\n\"\"\"\n\n"
             f"Respond STRICTLY in valid JSON with two fields:\n"
             f"1. 'direction': Brief 2-4 word market trend (e.g. 'BULLISH MOMENTUM RALLY', 'BEARISH SELLOFF DRAG')\n"
-            f"2. 'verdict': Exact tactical advice for NIFTY options traders regarding CE Calls vs PE Puts and Session VWAP.\n"
+            f"2. 'verdict': Exact tactical advice for NIFTY options traders regarding CE Calls vs PE Puts and Session VWAP based on the article's numbers and facts.\n"
             f"JSON:"
         )
 
