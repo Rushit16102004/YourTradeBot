@@ -3768,6 +3768,37 @@
             color: #f87171;
         }
 
+        .guest-connect-dev-btn {
+            background: rgba(30, 41, 59, 0.85);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.45);
+            font-weight: 700;
+            font-size: 11.5px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .guest-connect-dev-btn:hover {
+            background: rgba(56, 189, 248, 0.18);
+            border-color: #38bdf8;
+            color: #ffffff;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+        }
+        .btn-connect-dev {
+            transition: all 0.2s ease;
+        }
+        .btn-connect-dev:hover {
+            background: rgba(56, 189, 248, 0.16) !important;
+            border-color: #38bdf8 !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+        }
         @media (max-width: 768px) {
             .guest-vip-banner {
                 padding: 6px 10px;
@@ -3780,6 +3811,10 @@
                 font-size: 11px;
             }
             .guest-vip-btn {
+                padding: 4px 9px;
+                font-size: 10.5px;
+            }
+            .guest-connect-dev-btn {
                 padding: 4px 9px;
                 font-size: 10.5px;
             }
@@ -4433,6 +4468,9 @@
                 <button id="btn-guest-login" class="btn-action" onclick="openAuthModal('login')" title="Log In or Register to save drawings & access personalized AI Copilot" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: #ffffff; font-weight: 700; border: 1px solid #60a5fa; box-shadow: 0 0 10px rgba(37,99,235,0.35); padding: 4px 10px; border-radius: 6px;">
                     👤 <span class="hide-on-mobile">Log In</span><span class="show-on-mobile">Login</span>
                 </button>
+                <button id="btn-header-connect-dev" class="btn-action" onclick="openDeveloperContactModal()" title="Connect with Developer or Webpage Provider" style="background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-weight: 700; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s ease;">
+                    💬 <span class="hide-on-mobile">Connect with Developer or Webpage Provider</span><span class="show-on-mobile">Contact</span>
+                </button>
 
                 <!-- Logged-In User Profile Badge -->
                 <div id="user-profile-badge" style="display: none; position: relative;">
@@ -4453,6 +4491,9 @@
                         <div style="margin-bottom: 10px; font-size: 11px; color: #64748b; line-height: 1.4;">
                             Drawings and AI Copilot memory are securely saved to your account.
                         </div>
+                        <button onclick="openDeveloperContactModal()" style="width: 100%; text-align: left; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; transition: all 0.2s ease;">
+                            💬 Connect with Developer or Webpage Provider
+                        </button>
                         <button onclick="logoutUser()" style="width: 100%; text-align: left; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); color: #ef4444; padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
                             🚪 Log Out
                         </button>
@@ -4490,6 +4531,9 @@
         <div class="guest-vip-actions">
             <button class="guest-vip-btn" onclick="openAuthModal('register')">
                 <span>Unlock AI Copilot & Auto S&R 🚀</span>
+            </button>
+            <button type="button" class="guest-connect-dev-btn" onclick="openDeveloperContactModal()" title="Connect with Developer or Webpage Provider">
+                <span>💬 <span class="hide-on-mobile">Connect with Developer or Webpage Provider</span><span class="show-on-mobile">Developer Help</span></span>
             </button>
         </div>
     </div>
@@ -5040,9 +5084,12 @@
                 <div style="font-size: 15px; font-weight: 800; color: #38bdf8; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 6px;">
                     <span>💬 Contact developer for this feature</span>
                 </div>
-                <div style="font-size: 12px; color: #cbd5e1; line-height: 1.6;">
+                <div style="font-size: 12px; color: #cbd5e1; line-height: 1.6; margin-bottom: 12px;">
                     Please contact the developer or administrator to enable or configure dedicated AI Strategy Copilot models for your account.
                 </div>
+                <button type="button" onclick="openDeveloperContactModal()" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: #ffffff; border: 1px solid #38bdf8; border-radius: 8px; padding: 8px 16px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);">
+                    💬 Connect with Developer or Webpage Provider
+                </button>
             </div>
 
             <div style="display: flex; justify-content: flex-end;">
@@ -9870,6 +9917,7 @@ function showIndicatorLineActionPill(ind, point) {
         // Close on ESC key
         window.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
+                closeDeveloperContactModal();
                 closeSignalHistoryModal();
                 closeSRAlertPopup();
                 hideShapeActionPill();
@@ -14293,6 +14341,15 @@ function showIndicatorLineActionPill(ind, point) {
                     <div style="margin-top: 16px; margin-bottom: 8px; text-align: center; font-size: 12px; color: #64748b;">
                         Don't have an account? <a href="javascript:void(0)" onclick="switchAuthTab('register')" style="color: #10b981; font-weight: 700; text-decoration: underline;">Create New Account ✨</a>
                     </div>
+                    <!-- Connect with Developer or Webpage Provider -->
+                    <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(148, 163, 184, 0.2); text-align: center;">
+                        <button type="button" class="btn-connect-dev" onclick="openDeveloperContactModal()" style="width: 100%; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; padding: 10px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                            <span>💬 Connect with Developer or Webpage Provider</span>
+                        </button>
+                        <div style="font-size: 11px; color: #64748b; margin-top: 6px;">
+                            Facing any login issues? Contact developer directly
+                        </div>
+                    </div>
                 </form>
 
                 <!-- Form: Register -->
@@ -14370,7 +14427,130 @@ function showIndicatorLineActionPill(ind, point) {
                     <div style="margin-top: 14px; margin-bottom: 12px; text-align: center; font-size: 12px; color: #64748b;">
                         Already registered? <a href="javascript:void(0)" onclick="switchAuthTab('login')" style="color: #38bdf8; font-weight: 700; text-decoration: underline;">Log In Here 🔑</a>
                     </div>
+                    <!-- Connect with Developer or Webpage Provider -->
+                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed rgba(148, 163, 184, 0.2); text-align: center;">
+                        <button type="button" class="btn-connect-dev" onclick="openDeveloperContactModal()" style="width: 100%; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; padding: 10px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                            <span>💬 Connect with Developer or Webpage Provider</span>
+                        </button>
+                        <div style="font-size: 11px; color: #64748b; margin-top: 6px;">
+                            Need help with account creation? Connect with provider
+                        </div>
+                    </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- 💬 Developer & Webpage Provider Contact Modal               -->
+    <!-- ============================================================ -->
+    <div id="developer-contact-modal-overlay" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85); z-index: 100001; align-items: center; justify-content: center; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); padding: 12px; box-sizing: border-box;" onclick="handleDevContactOverlayClick(event)">
+        <div id="developer-contact-modal-card" style="background: #0f172a; border: 1px solid #1e293b; border-radius: 14px; width: 100%; max-width: 480px; max-height: 92vh; display: flex; flex-direction: column; box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9); overflow: hidden; animation: authFadeIn 0.2s ease-out; position: relative;">
+            
+            <!-- Modal Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid #1e293b; background: #0b1120; flex-shrink: 0;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 18px;">👨‍💻</span>
+                    <span style="font-weight: 700; color: #f8fafc; font-size: 15px;">Connect with Developer or Webpage Provider</span>
+                </div>
+                <button type="button" onclick="closeDeveloperContactModal()" aria-label="Close" style="background: transparent; border: none; color: #94a3b8; font-size: 18px; cursor: pointer; padding: 4px 8px; line-height: 1; border-radius: 6px; transition: color 0.15s ease;">✕</button>
+            </div>
+
+            <!-- Modal Body -->
+            <div style="padding: 18px; overflow-y: auto; max-height: calc(92vh - 120px); font-size: 13px; line-height: 1.5; color: #cbd5e1;">
+                
+                <!-- Status Banner -->
+                <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(56, 189, 248, 0.1)); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
+                    <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #10b981; box-shadow: 0 0 10px #10b981; flex-shrink: 0;"></span>
+                    <div style="font-size: 12px; color: #e2e8f0;">
+                        <b style="color: #34d399;">Direct Developer Support Active:</b> If you experience any technical glitch, login problem, account inquiry, or custom setup request, reach out directly.
+                    </div>
+                </div>
+
+                <!-- Provider Profile Info -->
+                <div style="background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                        <div>
+                            <div style="font-size: 16px; font-weight: 800; color: #f8fafc; display: flex; align-items: center; gap: 6px;">
+                                <span>Rushit Bodra</span>
+                                <span style="font-size: 11px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 1px 6px; border-radius: 4px; font-weight: 600;">Developer</span>
+                            </div>
+                            <div style="font-size: 11.5px; color: #94a3b8; margin-top: 2px;">
+                                Lead Developer & Webpage Provider • NIFTY 50 Terminal
+                            </div>
+                        </div>
+                        <div style="font-size: 11px; color: #10b981; font-weight: 700; background: rgba(16, 185, 129, 0.12); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                            Online
+                        </div>
+                    </div>
+                    <div style="font-size: 11.5px; color: #64748b; line-height: 1.4;">
+                        Dedicated support for terminal charting, algorithmic VWAP / Auto S&R levels, AI Strategy Copilot, and user accounts.
+                    </div>
+                </div>
+
+                <!-- Contact Channel Cards -->
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
+                    
+                    <!-- WhatsApp Card -->
+                    <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 38px; height: 38px; border-radius: 8px; background: rgba(16, 185, 129, 0.2); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">
+                                💬
+                            </div>
+                            <div>
+                                <div style="font-weight: 700; color: #f8fafc; font-size: 12.5px;">WhatsApp & Mobile</div>
+                                <div style="font-size: 13px; color: #34d399; font-weight: 700; letter-spacing: 0.5px;">+91 81600 34453</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <a href="https://wa.me/918160034453?text=Hi%20Rushit,%20I%20am%20using%20the%20NIFTY%2050%20Terminal%20and%20need%20assistance" target="_blank" rel="noopener noreferrer" style="text-decoration: none; background: #059669; color: #ffffff; padding: 7px 12px; border-radius: 6px; font-weight: 700; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #10b981; transition: all 0.2s ease;">
+                                <span>WhatsApp 💬</span>
+                            </a>
+                            <a href="tel:+918160034453" style="text-decoration: none; background: rgba(30, 41, 59, 0.9); color: #cbd5e1; padding: 7px 10px; border-radius: 6px; font-weight: 700; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #334155; transition: all 0.2s ease;">
+                                <span>Call 📞</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Email Card -->
+                    <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 38px; height: 38px; border-radius: 8px; background: rgba(56, 189, 248, 0.2); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">
+                                ✉️
+                            </div>
+                            <div>
+                                <div style="font-weight: 700; color: #f8fafc; font-size: 12.5px;">Developer Email</div>
+                                <div style="font-size: 12px; color: #38bdf8; font-weight: 600;">rushitbodra@gmail.com</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <a href="mailto:rushitbodra@gmail.com?subject=NIFTY%2050%20Terminal%20-%20Support%20Inquiry" style="text-decoration: none; background: #0284c7; color: #ffffff; padding: 7px 12px; border-radius: 6px; font-weight: 700; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #38bdf8; transition: all 0.2s ease;">
+                                <span>Email ✉️</span>
+                            </a>
+                            <button type="button" id="btn-copy-dev-email" onclick="copyDevContactEmail()" style="background: rgba(30, 41, 59, 0.9); color: #cbd5e1; padding: 7px 10px; border-radius: 6px; font-weight: 700; font-size: 11.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #334155; transition: all 0.2s ease;">
+                                <span id="copy-dev-email-text">Copy 📋</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Instant Assistance Points -->
+                <div style="background: #0b1120; border: 1px solid #1e293b; border-radius: 8px; padding: 10px 14px; font-size: 11.5px; color: #94a3b8;">
+                    <div style="font-weight: 700; color: #e2e8f0; margin-bottom: 4px;">⚡ Instant Support For:</div>
+                    <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
+                        <li>Account login issues, password reset, or registration help</li>
+                        <li>Live candlestick data feed, scale, or layout questions</li>
+                        <li>Dedicated AI Strategy Copilot activation</li>
+                        <li>Bug reporting, feedback, or custom feature requests</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div style="padding: 12px 18px; border-top: 1px solid #1e293b; background: #0b1120; display: flex; justify-content: flex-end; flex-shrink: 0;">
+                <button type="button" onclick="closeDeveloperContactModal()" style="padding: 8px 20px; background: #1e293b; color: #cbd5e1; border: 1px solid #334155; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 12px; transition: all 0.15s ease;">
+                    Close
+                </button>
             </div>
         </div>
     </div>
@@ -14833,6 +15013,7 @@ function showIndicatorLineActionPill(ind, point) {
         async function checkAuthState() {
             const token = localStorage.getItem('auth_token');
             const guestBtn = document.getElementById('btn-guest-login');
+            const devBtn = document.getElementById('btn-header-connect-dev');
             const userBadge = document.getElementById('user-profile-badge');
             const navUserDisplay = document.getElementById('nav-username-display');
             const menuName = document.getElementById('menu-user-name');
@@ -14843,6 +15024,7 @@ function showIndicatorLineActionPill(ind, point) {
             if (!token) {
                 currentUser = null;
                 if (guestBtn) guestBtn.style.display = 'inline-flex';
+                if (devBtn) devBtn.style.display = 'inline-flex';
                 if (userBadge) userBadge.style.display = 'none';
                 if (adminBadge) adminBadge.style.display = 'none';
                 if (adminStatsTimer) { clearInterval(adminStatsTimer); adminStatsTimer = null; }
@@ -14859,6 +15041,7 @@ function showIndicatorLineActionPill(ind, point) {
                     if (data && data.is_authenticated && data.user) {
                         currentUser = data.user;
                         if (guestBtn) guestBtn.style.display = 'none';
+                        if (devBtn) devBtn.style.display = 'none';
                         if (userBadge) userBadge.style.display = 'inline-flex';
                         const vipBanner = document.getElementById('guest-vip-banner');
                         if (vipBanner) vipBanner.style.display = 'none';
@@ -14936,6 +15119,39 @@ function showIndicatorLineActionPill(ind, point) {
                 setTimeout(() => { if (passInput) passInput.value = ''; }, 200);
                 setTimeout(() => { if (passInput) passInput.value = ''; }, 450);
                 passInput.focus();
+            }
+        }
+
+        function openDeveloperContactModal() {
+            const overlay = document.getElementById('developer-contact-modal-overlay');
+            if (overlay) overlay.style.display = 'flex';
+        }
+
+        function closeDeveloperContactModal() {
+            const overlay = document.getElementById('developer-contact-modal-overlay');
+            if (overlay) overlay.style.display = 'none';
+        }
+
+        function handleDevContactOverlayClick(event) {
+            if (event.target && event.target.id === 'developer-contact-modal-overlay') {
+                closeDeveloperContactModal();
+            }
+        }
+
+        function copyDevContactEmail() {
+            const email = 'rushitbodra@gmail.com';
+            const textEl = document.getElementById('copy-dev-email-text');
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(email).then(() => {
+                    if (textEl) {
+                        textEl.textContent = 'Copied! ✅';
+                        setTimeout(() => { if (textEl) textEl.textContent = 'Copy 📋'; }, 2000);
+                    }
+                }).catch(() => {
+                    prompt('Developer Email:', email);
+                });
+            } else {
+                prompt('Developer Email:', email);
             }
         }
 
