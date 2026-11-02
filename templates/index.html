@@ -3629,6 +3629,124 @@
             }
         }
 
+
+        /* ═══════════════════════════════════════════════════════════
+           ✨ Guest VIP Registration Incentive Banner
+           ═══════════════════════════════════════════════════════════ */
+        .guest-vip-banner {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(90deg, #0b1528 0%, #0f2744 45%, #064e3b 100%);
+            border-bottom: 1px solid rgba(56, 189, 248, 0.4);
+            padding: 8px 16px;
+            color: #f8fafc;
+            font-size: 12.5px;
+            z-index: 900;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+            animation: vipBannerGlow 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes vipBannerGlow {
+            0% { border-bottom-color: rgba(56, 189, 248, 0.3); }
+            100% { border-bottom-color: rgba(16, 185, 129, 0.7); }
+        }
+
+        .guest-vip-content {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            line-height: 1.4;
+        }
+
+        .guest-vip-badge {
+            background: linear-gradient(135deg, #2563eb, #10b981);
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 3px 8px;
+            border-radius: 9999px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+            white-space: nowrap;
+        }
+
+        .guest-vip-text {
+            color: #e2e8f0;
+            font-size: 12.5px;
+        }
+
+        .guest-vip-text b {
+            color: #38bdf8;
+        }
+
+        .guest-vip-subtext {
+            color: #94a3b8;
+            font-size: 11.5px;
+            margin-left: 4px;
+        }
+
+        .guest-vip-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .guest-vip-btn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #ffffff;
+            border: 1px solid #34d399;
+            font-weight: 700;
+            font-size: 11.5px;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(16, 185, 129, 0.4);
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .guest-vip-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.6);
+            background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+        }
+
+        .guest-vip-close {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px 6px;
+            line-height: 1;
+            transition: color 0.15s ease;
+        }
+
+        .guest-vip-close:hover {
+            color: #f87171;
+        }
+
+        @media (max-width: 768px) {
+            .guest-vip-banner {
+                padding: 6px 10px;
+                font-size: 11px;
+            }
+            .guest-vip-content {
+                gap: 6px;
+            }
+            .guest-vip-text {
+                font-size: 11px;
+            }
+            .guest-vip-btn {
+                padding: 4px 9px;
+                font-size: 10.5px;
+            }
+        }
+
 </style>
 
 </head>
@@ -4322,6 +4440,23 @@
             </div>
         </div>
     </header>
+    <!-- ✨ High-Converting Guest VIP Access Incentive Banner -->
+    <div id="guest-vip-banner" class="guest-vip-banner">
+        <div class="guest-vip-content">
+            <span class="guest-vip-badge">✨ 100% Free VIP Access</span>
+            <div class="guest-vip-text">
+                Create a Free Account to unlock <b>AI Strategy Copilot</b>, <b>Real-Time Breaking Macro News</b>, and <b>Save Custom Chart Drawings</b>.
+                <span class="guest-vip-subtext hide-on-mobile">• Instant 10s Setup • Zero Subscription Fee • Built for NIFTY 50 Options & Scalping</span>
+            </div>
+        </div>
+        <div class="guest-vip-actions">
+            <button class="guest-vip-btn" onclick="openAuthModal('register')">
+                <span>Unlock VIP Features Free 🚀</span>
+            </button>
+            <button class="guest-vip-close" onclick="dismissGuestBanner()" title="Dismiss banner">✕</button>
+        </div>
+    </div>
+
 
     <!-- Subheader Bar with Live Feed Indicator & Axis Tips -->
     <div class="sub-bar">
@@ -13997,6 +14132,18 @@ function showIndicatorLineActionPill(ind, point) {
 
             <!-- Modal Body (Scrollable with Momentum & Containment) -->
             <div id="auth-modal-body">
+                <!-- VIP Privileges Highlight Box -->
+                <div style="background: linear-gradient(135deg, rgba(37,99,235,0.18), rgba(16,185,129,0.14)); border: 1px solid rgba(56,189,248,0.35); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 11.5px; line-height: 1.5; color: #cbd5e1;">
+                    <div style="font-weight: 800; color: #38bdf8; margin-bottom: 5px; display: flex; align-items: center; gap: 6px;">
+                        <span>✨ Free Institutional Pro Privileges Included:</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; color: #94a3b8; font-size: 11px;">
+                        <div>🤖 <b style="color: #f1f5f9;">AI Strategy Copilot</b></div>
+                        <div>📰 <b style="color: #f1f5f9;">Breaking Macro News</b></div>
+                        <div>🎨 <b style="color: #f1f5f9;">Cloud Drawings Sync</b></div>
+                        <div>🚀 <b style="color: #f1f5f9;">Pre-Flight Confluence</b></div>
+                    </div>
+                </div>
                 <!-- Error / Status Box -->
                 <div id="auth-error-box" style="display: none; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; padding: 10px 12px; border-radius: 8px; font-size: 12px; margin-bottom: 14px; line-height: 1.4;"></div>
 
@@ -14058,7 +14205,7 @@ function showIndicatorLineActionPill(ind, point) {
                     <!-- 5. Mobile Number (India) -->
                     <div style="margin-bottom: 12px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                            <label style="font-size: 12px; color: #94a3b8; font-weight: 600;">Mobile Number (India) <span style="color: #ef4444;">*</span></label>
+                            <label style="font-size: 12px; color: #94a3b8; font-weight: 600;">Mobile Number (India) <span style="font-size: 11px; color: #64748b; font-weight: 500;">(Optional)</span></label>
                             <span id="reg-phone-status" style="font-size: 11px;"></span>
                         </div>
                         <div style="display: flex; gap: 8px;">
@@ -14574,6 +14721,7 @@ function showIndicatorLineActionPill(ind, point) {
                 if (userBadge) userBadge.style.display = 'none';
                 if (adminBadge) adminBadge.style.display = 'none';
                 if (adminStatsTimer) { clearInterval(adminStatsTimer); adminStatsTimer = null; }
+                showGuestVipBannerIfNeeded();
                 return;
             }
 
@@ -14587,6 +14735,8 @@ function showIndicatorLineActionPill(ind, point) {
                         currentUser = data.user;
                         if (guestBtn) guestBtn.style.display = 'none';
                         if (userBadge) userBadge.style.display = 'inline-flex';
+                        const vipBanner = document.getElementById('guest-vip-banner');
+                        if (vipBanner) vipBanner.style.display = 'none';
                         if (currentUser.role === 'admin') {
                             if (adminBadge) adminBadge.style.display = 'inline-flex';
                             fetchAdminVisitorStats();
@@ -14627,6 +14777,25 @@ function showIndicatorLineActionPill(ind, point) {
         }
 
         
+
+        function showGuestVipBannerIfNeeded() {
+            const banner = document.getElementById('guest-vip-banner');
+            if (!banner) return;
+            const token = localStorage.getItem('auth_token');
+            const dismissed = sessionStorage.getItem('dismissed_vip_banner');
+            if (!token && !dismissed) {
+                banner.style.display = 'flex';
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
+        function dismissGuestBanner() {
+            const banner = document.getElementById('guest-vip-banner');
+            if (banner) banner.style.display = 'none';
+            sessionStorage.setItem('dismissed_vip_banner', '1');
+        }
+
         function fillAdminLogin() {
             const identInput = document.getElementById('login-identifier');
             const passInput = document.getElementById('login-password');
@@ -14938,22 +15107,24 @@ function showIndicatorLineActionPill(ind, point) {
                 return;
             }
 
-            // 5. Indian Mobile Number validation (10 digits starting with 6, 7, 8, 9)
-            if (!phone || phone.length !== 10 || !['6', '7', '8', '9'].includes(phone[0])) {
-                if (errBox) {
-                    errBox.innerText = 'Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.';
-                    errBox.style.display = 'block';
+            // 5. Indian Mobile Number validation (Optional; if entered, must be 10 digits starting with 6, 7, 8, 9)
+            if (phone) {
+                if (phone.length !== 10 || !['6', '7', '8', '9'].includes(phone[0])) {
+                    if (errBox) {
+                        errBox.innerText = 'Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9 (or leave blank).';
+                        errBox.style.display = 'block';
+                    }
+                    phoneInput && phoneInput.focus();
+                    return;
                 }
-                phoneInput && phoneInput.focus();
-                return;
-            }
-            if (isPhoneAvailable === false) {
-                if (errBox) {
-                    errBox.innerText = 'This mobile number is already registered to another account. Please Log In.';
-                    errBox.style.display = 'block';
+                if (isPhoneAvailable === false) {
+                    if (errBox) {
+                        errBox.innerText = 'This mobile number is already registered to another account. Please Log In.';
+                        errBox.style.display = 'block';
+                    }
+                    phoneInput && phoneInput.focus();
+                    return;
                 }
-                phoneInput && phoneInput.focus();
-                return;
             }
 
             // 6. Terms & Conditions Checkbox (User Request: "if t&C is click so register is complet other vise show remain process in massage")
