@@ -4491,7 +4491,6 @@
             <button class="guest-vip-btn" onclick="openAuthModal('register')">
                 <span>Unlock AI Copilot & Auto S&R 🚀</span>
             </button>
-            <button class="guest-vip-close" onclick="dismissGuestBanner()" title="Dismiss banner">✕</button>
         </div>
     </div>
 
@@ -14908,8 +14907,8 @@ function showIndicatorLineActionPill(ind, point) {
             const banner = document.getElementById('guest-vip-banner');
             if (!banner) return;
             const token = localStorage.getItem('auth_token');
-            const dismissed = sessionStorage.getItem('dismissed_vip_banner');
-            if (!token && !dismissed) {
+            if (!token) {
+                // AOD: Always On Display in Guest Mode (Cannot be dismissed)
                 banner.style.display = 'flex';
             } else {
                 banner.style.display = 'none';
@@ -14917,9 +14916,8 @@ function showIndicatorLineActionPill(ind, point) {
         }
 
         function dismissGuestBanner() {
-            const banner = document.getElementById('guest-vip-banner');
-            if (banner) banner.style.display = 'none';
-            sessionStorage.setItem('dismissed_vip_banner', '1');
+            // AOD: Banner remains on display for guests until account registration
+            return;
         }
 
         function fillAdminLogin() {
@@ -16077,6 +16075,7 @@ function showIndicatorLineActionPill(ind, point) {
         // 🎯 Smart Money & Trap Radar Controller
         // ==============================================================
         function openTrapRadarModal() {
+            if (!requireAuth('access Institutional Smart Money Trap Radar')) return;
             const overlay = document.getElementById('trap-radar-modal-overlay');
             if (overlay) overlay.style.display = 'flex';
             fetchTrapRadarData();

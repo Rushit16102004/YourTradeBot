@@ -1742,7 +1742,14 @@ async def get_trap_radar_endpoint(request: Request):
     Returns active institutional smart-money traps:
     Bull Traps into Call OI walls, Bear Traps into Put floors,
     Weak S&R (<5 touches), VWAP Exhaustion, and Lunch Chop traps.
+    Protected: Blocked in guest mode (authentication required).
     """
+    u = get_current_user_from_request(request)
+    if not u:
+        return JSONResponse(
+            status_code=401,
+            content={"status": "error", "message": "Authentication required to access Institutional Smart Money Trap Radar"}
+        )
     snap = engine.get_snapshot()
     df_5m = snap.get("df", pd.DataFrame())
     indicators = {}

@@ -1405,6 +1405,55 @@ def _sanitize_table_username(username: str) -> str:
     return clean[:40]
 
 
+def cleanup_expired_guest_chats(retention_days: int = 15) -> int:
+    """
+    Cleans up temporary guest chats older than retention_days (15 days).
+    Registered user chats remain permanently stored.
+    Returns: total rows deleted across guest tables.
+    """
+    with _db_lock:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        total_deleted = 0
+        try:
+            cutoff_clause = f"-{int(retention_days)} days"
+
+            # 1. Prune temporary guest table (copilot_user_guest)
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='copilot_user_guest'")
+            if cursor.fetchone():
+                cursor.execute(
+                    "DELETE FROM copilot_user_guest WHERE created_at < datetime('now', ?)",
+                    (cutoff_clause,)
+                )
+                total_deleted += cursor.rowcount
+
+            # 2. Prune guest records from central review table
+            cursor.execute("""
+            DELETE FROM copilot_queries_review
+            WHERE (LOWER(username) = 'guest' OR LOWER(user_id) LIKE 'guest%')
+              AND created_at < datetime('now', ?)
+            """, (cutoff_clause,))
+            total_deleted += cursor.rowcount
+
+            # 3. Prune guest records from conversational memory table
+            cursor.execute("""
+            DELETE FROM chat_history
+            WHERE (LOWER(user_id) = 'guest' OR LOWER(user_id) LIKE 'guest%')
+              AND created_at < datetime('now', ?)
+            """, (cutoff_clause,))
+            total_deleted += cursor.rowcount
+
+            conn.commit()
+            if total_deleted > 0:
+                logger.info("Cleaned up %d temporary guest chat rows older than %d days.", total_deleted, retention_days)
+            return total_deleted
+        except Exception as e:
+            logger.error("Error cleaning up expired guest chats: %s", e)
+            return 0
+        finally:
+            conn.close()
+
+
 def save_copilot_query_record(
     user_id: str,
     username: str,
@@ -1423,6 +1472,14 @@ def save_copilot_query_record(
     """
     safe_uname = _sanitize_table_username(username)
     user_table_name = f"copilot_user_{safe_uname}"
+
+    # Temporary storage rule: Guest chats stored for max 15 days; prune expired records
+    is_guest_query = (username or "").strip().lower() == "guest" or (user_id or "").strip().lower().startswith("guest")
+    if is_guest_query:
+        try:
+            cleanup_expired_guest_chats(retention_days=15)
+        except Exception:
+            pass
     meta_str = json.dumps(metadata or {})
 
     with _db_lock:
