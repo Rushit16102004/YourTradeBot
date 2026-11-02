@@ -3801,22 +3801,51 @@
         }
         @media (max-width: 768px) {
             .guest-vip-banner {
-                padding: 6px 10px;
+                padding: 4px 8px;
                 font-size: 11px;
+                gap: 6px;
+                flex-wrap: nowrap;
+                align-items: center;
+                box-sizing: border-box;
+                max-height: 42px;
+                overflow: hidden;
             }
             .guest-vip-content {
-                gap: 6px;
+                gap: 5px;
+                flex: 1;
+                min-width: 0;
+                flex-wrap: nowrap;
+                align-items: center;
+                overflow: hidden;
+            }
+            .guest-vip-badge {
+                font-size: 9px;
+                padding: 2px 5px;
+                flex-shrink: 0;
             }
             .guest-vip-text {
                 font-size: 11px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                min-width: 0;
+                flex: 1;
+                line-height: 1.2;
+            }
+            .guest-vip-actions {
+                gap: 4px;
+                flex-shrink: 0;
+                flex-wrap: nowrap;
             }
             .guest-vip-btn {
-                padding: 4px 9px;
-                font-size: 10.5px;
+                padding: 4px 8px;
+                font-size: 10px;
+                white-space: nowrap;
             }
             .guest-connect-dev-btn {
-                padding: 4px 9px;
-                font-size: 10.5px;
+                padding: 4px 7px;
+                font-size: 10px;
+                white-space: nowrap;
             }
         }
 
@@ -4521,16 +4550,18 @@
         <div class="guest-vip-content">
             <span class="guest-vip-badge">✨ 100% FREE</span>
             <div class="guest-vip-text">
-                Create a Free Account to unlock <b>Real-Time AI Strategy Copilot</b> (Instant CE/PE Setups & Institutional Bias), <b>Algorithmic Auto S&R Levels</b> (Automatic Major High-Probability Swing Zones) & <b>Macro Catalysts</b>.
+                <span class="hide-on-mobile">Create a Free Account to unlock <b>Real-Time AI Strategy Copilot</b> (Instant CE/PE Setups & Institutional Bias), <b>Algorithmic Auto S&R Levels</b> (Automatic Major High-Probability Swing Zones) & <b>Macro Catalysts</b>.</span>
+                <span class="show-on-mobile" style="display: none;">Unlock <b>AI Strategy Copilot & Auto S&R</b></span>
                 <span class="guest-vip-subtext hide-on-mobile">• 100% Free Forever • Instant 10s Setup • Precision VWAP & Auto S&R Confluence Engine</span>
             </div>
         </div>
         <div class="guest-vip-actions">
             <button class="guest-vip-btn" onclick="openAuthModal('register')">
-                <span>Unlock AI Copilot & Auto S&R 🚀</span>
+                <span class="hide-on-mobile">Unlock AI Copilot & Auto S&R 🚀</span>
+                <span class="show-on-mobile">Register 🚀</span>
             </button>
             <button type="button" class="guest-connect-dev-btn" onclick="openDeveloperContactModal()" title="Connect with Developer or Webpage Provider">
-                <span>💬 <span class="hide-on-mobile">Connect with Developer or Webpage Provider</span><span class="show-on-mobile">Developer Help</span></span>
+                <span>💬 <span class="hide-on-mobile">Connect with Developer or Webpage Provider</span><span class="show-on-mobile">Help</span></span>
             </button>
         </div>
     </div>
@@ -15080,15 +15111,53 @@ function showIndicatorLineActionPill(ind, point) {
 
         
 
+        let guestMobileBannerTimer = null;
+
         function showGuestVipBannerIfNeeded() {
             const banner = document.getElementById('guest-vip-banner');
             if (!banner) return;
             const token = localStorage.getItem('auth_token');
             if (!token) {
-                // AOD: Always On Display in Guest Mode (Cannot be dismissed)
                 banner.style.display = 'flex';
+                banner.style.opacity = '1';
+                banner.style.maxHeight = '';
+                banner.style.transition = 'opacity 0.6s ease, max-height 0.6s ease, padding 0.6s ease, margin 0.6s ease';
+
+                // Mobile screen rule: automatically remove banner after 15 seconds to maximize chart space
+                // Big screen rule: keep permanently on display (do not remove)
+                const isMobile = window.innerWidth <= 768;
+                if (isMobile) {
+                    if (guestMobileBannerTimer) clearTimeout(guestMobileBannerTimer);
+                    guestMobileBannerTimer = setTimeout(() => {
+                        const b = document.getElementById('guest-vip-banner');
+                        if (b && window.innerWidth <= 768) {
+                            b.style.opacity = '0';
+                            b.style.maxHeight = '0px';
+                            b.style.paddingTop = '0px';
+                            b.style.paddingBottom = '0px';
+                            b.style.marginTop = '0px';
+                            b.style.marginBottom = '0px';
+                            b.style.border = 'none';
+                            b.style.overflow = 'hidden';
+                            setTimeout(() => {
+                                if (b && window.innerWidth <= 768) {
+                                    b.style.display = 'none';
+                                }
+                            }, 600);
+                        }
+                    }, 15000);
+                } else {
+                    if (guestMobileBannerTimer) {
+                        clearTimeout(guestMobileBannerTimer);
+                        guestMobileBannerTimer = null;
+                    }
+                }
             } else {
                 banner.style.display = 'none';
+                if (guestMobileBannerTimer) {
+                    clearTimeout(guestMobileBannerTimer);
+                    guestMobileBannerTimer = null;
+                }
             }
         }
 
