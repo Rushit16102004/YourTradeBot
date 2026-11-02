@@ -428,25 +428,31 @@ class NewsSentimentEngine:
                 trading_verdict = "Status quo RBI / Fed policy stance. Price likely to consolidate within VWAP Bands."
 
         # B. Crude Oil & Energy Shocks (Impact: 8.0)
-        elif bool(re.search(r"\b(crude oil|brent crude|oil prices?)\b", t_lower)) and any(w in t_lower for w in ["surge", "surges", "spike", "spikes", "jump 3", "jump 4", "jump 5", "plunge", "plunges", "slump", "crashes", "tumbles", "slide"]) and not is_preview:
-            category = "CRUDE_SHOCK"
-            impact_score = 8.0
-            if any(w in t_lower for w in ["surge", "surges", "spike", "spikes", "jump", "climbs"]):
-                polarity = "BEARISH"
-                score = -0.70
-                market_direction = "BEARISH DRAG"
-                trading_verdict = "Rising crude pressures Indian import bill, OMC, paint, and tyre margins. Caution on fresh CE longs."
-            elif any(w in t_lower for w in ["slide", "slides", "plunge", "plunges", "slump", "drops", "falls", "tumbles", "eases"]):
-                polarity = "BULLISH"
-                score = 0.70
-                market_direction = "BULLISH TAILWIND"
-                trading_verdict = "Falling crude lowers import deficit and inflation pressure. Macro tailwind favoring CE Call buying."
+        elif bool(re.search(r"\b(crude oil|brent crude|oil prices?|crude)\b", t_lower)) and not is_preview:
+            crude_falling = any(re.search(p, t_lower) for p in [
+                r"(?:crude|oil|brent)[^\.\,\;]{0,35}(?:fall|falls|drop|drops|decline|declines|plunge|plunges|slump|slumps|tumbles?|slides?|eases?|cools?)",
+                r"(?:fall|falls|drop|drops|decline|declines|plunge|plunges|slump|slumps|tumbles?|slides?|eases?|cools?)[^\.\,\;]{0,35}(?:in|of)?\s*(?:crude|oil|brent)"
+            ])
+            crude_rising = any(re.search(p, t_lower) for p in [
+                r"(?:crude|oil|brent)[^\.\,\;]{0,35}(?:surge|surges|spike|spikes|jump|jumps|climbs?|rises?|rallies|soars?)",
+                r"(?:surge|surges|spike|spikes|jump|jumps|climbs?|rises?|rallies|soars?)[^\.\,\;]{0,35}(?:in|of)?\s*(?:crude|oil|brent)"
+            ])
+            if crude_falling or crude_rising:
+                category = "CRUDE_SHOCK"
+                impact_score = 8.0
+                if crude_falling:
+                    polarity = "BULLISH"
+                    score = 0.70
+                    market_direction = "BULLISH TAILWIND"
+                    trading_verdict = "Falling crude oil lowers import deficit and inflation pressure. Macro tailwind favoring CE Call buying on VWAP retests."
+                elif crude_rising:
+                    polarity = "BEARISH"
+                    score = -0.70
+                    market_direction = "BEARISH DRAG"
+                    trading_verdict = "Rising crude pressures Indian import bill, OMC, paint, and tyre margins. Caution on fresh CE longs."
             else:
-                polarity = "NEUTRAL"
-                score = 0.0
-                impact_score = 6.0
-                market_direction = "BALANCED"
-                trading_verdict = "Crude holding steady. No macro shock to Indian equity valuations."
+                category = "MARKET_NOISE"
+                impact_score = 3.0
 
         # C. Geopolitics & War (Impact: 9.2)
         elif (
