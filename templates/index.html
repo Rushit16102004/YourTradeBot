@@ -6270,10 +6270,24 @@
         }
 
         function resetThemeSettingsToDefault() {
-            currentThemeSettings = Object.assign({}, DEFAULT_THEME_SETTINGS);
+            if (confirm('Reset all terminal canvas colors and preferences back to default?')) {
+                currentThemeSettings = Object.assign({}, DEFAULT_THEME_SETTINGS);
+                saveThemeSettings();
+                applyThemeSettingsToChart();
+                syncSettingsUI();
+                if (typeof showDrawingToast === 'function') {
+                    showDrawingToast('↺ Colors & preferences reset to default!');
+                }
+            }
+        }
+
+        function applyAndCloseTerminalSettings() {
             saveThemeSettings();
             applyThemeSettingsToChart();
-            syncSettingsUI();
+            closeTerminalSettingsModal();
+            if (typeof showDrawingToast === 'function') {
+                showDrawingToast('✅ Settings applied successfully!');
+            }
         }
 
         function syncSettingsUI() {
@@ -16002,15 +16016,12 @@ function showIndicatorLineActionPill(ind, point) {
                 </div>
             </div>
 
-                </div>
-            </div>
-
             <!-- Footer -->
             <div class="settings-modal-footer">
                 <button type="button" class="settings-btn-reset" onclick="resetThemeSettingsToDefault()">↺ Reset Colors to Default</button>
                 <div style="display: flex; gap: 8px;">
                     <button type="button" class="settings-btn-close" onclick="closeTerminalSettingsModal()">Close</button>
-                    <button type="button" class="settings-btn-save" onclick="closeTerminalSettingsModal()">Apply & Done</button>
+                    <button type="button" class="settings-btn-save" onclick="applyAndCloseTerminalSettings()">Apply & Done</button>
                 </div>
             </div>
         </div>
