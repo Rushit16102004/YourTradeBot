@@ -3891,44 +3891,53 @@
             align-items: flex-start;
             gap: 2px;
         }
-        .candle-timer-downside-row {
-            display: flex;
+        /* ⏳ TradingView-Style Candle Countdown Badge (Pinned to Y-Axis Live Price) */
+        .yaxis-candle-timer {
+            position: absolute;
+            right: 70px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 25;
+            display: none;
             align-items: center;
-            margin-top: 1px;
-        }
-        .candle-timer-downside {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 10.5px;
-            font-weight: 700;
-            padding: 1px 7px;
+            gap: 4px;
+            padding: 2.5px 7px;
+            background: rgba(13, 17, 28, 0.94);
+            border: 1px solid rgba(56, 189, 248, 0.7);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.65), 0 0 10px rgba(56, 189, 248, 0.25);
             border-radius: 4px;
-            background: rgba(15, 23, 42, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            color: #94a3b8;
-            letter-spacing: 0.2px;
-            line-height: 1.3;
-            transition: all 0.2s ease;
-        }
-        .candle-timer-downside .timer-tf-label {
-            background: rgba(56, 189, 248, 0.15);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+            font-size: 11px;
+            font-weight: 700;
             color: #38bdf8;
-            padding: 0 4px;
-            border-radius: 3px;
-            font-weight: 800;
-            font-size: 9.5px;
+            pointer-events: none;
+            white-space: nowrap;
+            transition: top 0.08s ease-out;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
         }
-        .candle-timer-downside .candle-timer-desc {
-            color: #64748b;
+        .yaxis-candle-timer .timer-icon {
             font-size: 10px;
-            font-weight: 500;
         }
-        .candle-timer-downside.urgent {
-            background: rgba(239, 68, 68, 0.18);
-            border-color: rgba(239, 68, 68, 0.45);
-            color: #f87171;
+        .yaxis-candle-timer .timer-tf {
+            background: rgba(56, 189, 248, 0.2);
+            color: #7dd3fc;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 0.5px 4px;
+            border-radius: 3px;
+            letter-spacing: 0.3px;
+        }
+        .yaxis-candle-timer.urgent {
+            border-color: #ef4444 !important;
+            color: #f87171 !important;
+            background: rgba(30, 10, 15, 0.96) !important;
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.5) !important;
             animation: urgentPulse 1s infinite alternate;
+        }
+        .yaxis-candle-timer.urgent .timer-tf {
+            background: rgba(239, 68, 68, 0.25) !important;
+            color: #fca5a5 !important;
         }
 
         /* ══════════════════════════════════════════════════════════ */
@@ -4310,29 +4319,19 @@
                             <span class="macro-item hide-on-mobile">OI <b id="macro-oi-val">--</b></span>
                         </div>
                     </div>
-                    <!-- ⏳ Candle Countdown Clock (Moved directly to downside of candle live price) -->
-                    <div class="candle-timer-downside-row">
-                        <div id="candle-timer-pill" class="candle-timer-pill candle-timer-downside" title="Current candle remaining time until close">
-                            <span>⏳</span>
-                            <span id="candle-timer-val">--:--</span>
-                            <span id="candle-timer-tf" class="timer-tf-label">5M</span>
-                            <span class="candle-timer-desc hide-on-mobile">• Candle Close</span>
-                        </div>
-                    </div>
                 </div>
             </div>
 
             <div class="header-line-right">
-                <!-- 📰 Real-Time Macro News Sentiment Pill -->
-                <div id="news-sentiment-pill" class="news-sentiment-pill" onclick="openNewsModal()" title="Real-Time Macro News & Market Direction Engine (Click to inspect)">
-                    <span class="news-dot" id="news-dot"></span>
-                    <span id="news-label">📰 News: Syncing...</span>
-                </div>
                 <!-- 🟢 Market Session Status Pill -->
                 <div id="market-status-pill" class="market-status-pill market-status-closed" title="National Stock Exchange (NSE) Session Status">
                     <span class="status-dot"></span>
                     <span id="market-status-text">Market Closed</span>
                 </div>
+                <!-- ⚙️ Platform Settings & Preferences (Colors, Profile, Developer Support) -->
+                <button class="btn-action" id="btn-open-terminal-settings" onclick="openTerminalSettingsModal()" title="Platform Settings & Customization (Colors, Profile, Developer Support)" style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-weight: 700; padding: 4px 10px;">
+                    ⚙️ <span class="hide-on-mobile">Settings</span>
+                </button>
             </div>
         </div>
 
@@ -4841,10 +4840,7 @@
                 <button class="btn-action" onclick="fetchData(true)" title="Force live sync with NSE feed">
                     🔄<span class="hide-on-mobile"> Sync</span>
                 </button>
-                <!-- ⚙️ Platform Settings & Preferences (Colors, Profile, Developer Support) -->
-                <button class="btn-action" id="btn-open-terminal-settings" onclick="openTerminalSettingsModal()" title="Platform Settings & Customization (Colors, Profile, Developer Support)" style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-weight: 700;">
-                    ⚙️ <span class="hide-on-mobile">Settings</span>
-                </button>
+
 
                 <!-- 👤 Multi-User Authentication Widget -->
             <div id="auth-nav-container" style="position: relative; display: inline-flex; align-items: center; margin-left: 4px;">
@@ -5137,6 +5133,13 @@
             <!-- Main Price Chart Wrapper -->
             <div id="main-chart-wrapper" style="flex: 1; position: relative; width: 100%; height: 100%; min-height: 250px; overflow: hidden;">
                 <div id="chart-container" style="width: 100%; height: 100%;"></div>
+
+                <!-- ⏳ TradingView-Style Candle Countdown Badge (Pinned to Y-Axis Live Price) -->
+                <div id="yaxis-candle-timer" class="yaxis-candle-timer" title="Time remaining until candle close">
+                    <span class="timer-icon">⏳</span>
+                    <span id="yaxis-candle-timer-val">--:--</span>
+                    <span id="yaxis-candle-timer-tf" class="timer-tf">5M</span>
+                </div>
 
                 <!-- ⏭️ Floating Jump to Latest Candle Button (Displayed strictly when current candle is outside display) -->
                 <button id="btn-jump-latest-candle" class="btn-jump-latest" onclick="scrollToLatestCandle()" title="Return to Current Real-Time Candle">
@@ -5588,6 +5591,7 @@
         let vwapSeries = null;
         let vwapUpper2Series = null;
         let vwapLower2Series = null;
+        let futureWhitespaceSeries = null;
 
         // Advanced Overlay Series
         let ema9Series = null;
@@ -6385,12 +6389,17 @@
         }
 
         function scrollToLatestCandle() {
-            if (!chart) return;
+            if (!chart || !activeCandles || activeCandles.length === 0) return;
             try {
-                chart.timeScale().scrollToRealTime();
-                chart.timeScale().applyOptions({ rightOffset: Number(currentThemeSettings.rightOffset || 18) });
+                const count = activeCandles.length;
+                const visibleBars = Math.min(count, 100);
+                chart.timeScale().setVisibleLogicalRange({
+                    from: Math.max(0, count - visibleBars),
+                    to: count + 15
+                });
                 const btn = document.getElementById('btn-jump-latest-candle');
                 if (btn) btn.style.display = 'none';
+                updateYAxisCandleTimerPosition();
             } catch (e) {
                 console.debug("Scroll to latest candle error:", e);
             }
@@ -6585,6 +6594,16 @@
                 visible: isBandsEnabled,
             });
 
+            // 5.1 Future Timeline Whitespace Series (Populates future hours/timestamps along bottom X-axis)
+            futureWhitespaceSeries = chart.addLineSeries({
+                color: 'transparent',
+                lineWidth: 0,
+                priceLineVisible: false,
+                lastValueVisible: false,
+                crosshairMarkerVisible: false,
+                autoscaleInfoProvider: () => null
+            });
+
             // 6. EMA 1 (Fast Scalp EMA 9)
             ema9Series = chart.addLineSeries({
                 color: '#06b6d4',
@@ -6714,10 +6733,12 @@
             chart.timeScale().subscribeVisibleTimeRangeChange(() => {
                 hideAICandlePill();
                 scheduleRenderDrawings();
+                updateYAxisCandleTimerPosition();
             });
             chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
                 scheduleRenderDrawings();
                 checkLatestCandleVisibility();
+                updateYAxisCandleTimerPosition();
             });
 
             // Right Price Scale drag, time scale drag, mouse wheel, and general interaction sync
@@ -6726,6 +6747,7 @@
                 viewport.addEventListener('mousemove', e => {
                     if (e.buttons > 0) {
                         scheduleRenderDrawings();
+                        updateYAxisCandleTimerPosition();
                     }
                 });
                 viewport.addEventListener('mouseup', () => {
@@ -6760,6 +6782,116 @@
         // ========================================================
 
         let savedVisibleTimeRange = null;
+
+        // 📅 Generates future whitespace data points for TradingView-style timeline projection on bottom X-axis
+        function generateFutureWhitespaceData(lastCandleTime, timeframeStr, minBars = 35) {
+            if (!lastCandleTime || typeof lastCandleTime !== 'number') return [];
+            const stepSeconds = timeframeStr === '15m' ? 900 : timeframeStr === '1h' ? 3600 : timeframeStr === '1d' ? 86400 : 300;
+            const futureBars = [];
+
+            if (timeframeStr === '1d') {
+                let cur = lastCandleTime;
+                while (futureBars.length < minBars) {
+                    cur += 86400;
+                    const d = new Date((cur + 19800) * 1000);
+                    const day = d.getUTCDay();
+                    if (day !== 0 && day !== 6) { // Skip Sat, Sun
+                        futureBars.push({ time: cur });
+                    }
+                }
+                return futureBars;
+            }
+
+            // Intraday (5m, 15m, 1h) - Indian NIFTY 50 Market Sessions (09:15 to 15:30 IST)
+            let cur = lastCandleTime;
+            let iterations = 0;
+            while (futureBars.length < minBars && iterations < 350) {
+                iterations++;
+                cur += stepSeconds;
+                const d = new Date((cur + 19800) * 1000); // Convert to IST Date representation
+                const day = d.getUTCDay();
+                const hour = d.getUTCHours();
+                const min = d.getUTCMinutes();
+                const totalMin = hour * 60 + min;
+
+                // Weekend handling: Sunday (0) -> Monday 09:15; Saturday (6) -> Monday 09:15
+                if (day === 0) {
+                    cur += 86400 - (totalMin * 60) + (9 * 3600 + 15 * 60) - stepSeconds;
+                    continue;
+                } else if (day === 6) {
+                    cur += 2 * 86400 - (totalMin * 60) + (9 * 3600 + 15 * 60) - stepSeconds;
+                    continue;
+                }
+
+                // Before NSE opening (09:15)
+                if (totalMin < 555) {
+                    cur += (555 - totalMin) * 60 - stepSeconds;
+                    continue;
+                }
+                // After NSE closing (15:30) -> Roll forward to 09:15 next trading day
+                else if (totalMin > 930) {
+                    const daysToJump = (day === 5 ? 3 : 1);
+                    cur += daysToJump * 86400 - (totalMin * 60) + (9 * 3600 + 15 * 60) - stepSeconds;
+                    continue;
+                } else {
+                    futureBars.push({ time: cur });
+                }
+            }
+            return futureBars;
+        }
+
+        function updateFutureWhitespaceSeries() {
+            if (!chart || !futureWhitespaceSeries || !activeCandles || activeCandles.length === 0) return;
+            const lastCandle = activeCandles[activeCandles.length - 1];
+            if (!lastCandle) return;
+            const futureBars = generateFutureWhitespaceData(lastCandle.time, currentTimeframe, 35);
+            if (futureBars && futureBars.length > 0) {
+                try {
+                    futureWhitespaceSeries.setData(futureBars);
+                } catch (e) {
+                    console.debug("futureWhitespaceSeries setData:", e);
+                }
+            }
+        }
+
+        // ⏳ Positions Candle Countdown Badge dynamically adjacent to live price scale (Y-Axis)
+        function updateYAxisCandleTimerPosition() {
+            const timerBadge = document.getElementById('yaxis-candle-timer');
+            if (!timerBadge || !chart || !candleSeries) return;
+
+            if (!activeCandles || activeCandles.length === 0) {
+                timerBadge.style.display = 'none';
+                return;
+            }
+
+            const lastCandle = activeCandles[activeCandles.length - 1];
+            if (!lastCandle) {
+                timerBadge.style.display = 'none';
+                return;
+            }
+
+            const currentPrice = (typeof lastKnownLtp === 'number' && lastKnownLtp > 0) ? lastKnownLtp : lastCandle.close;
+            const y = candleSeries.priceToCoordinate(currentPrice);
+            const container = document.getElementById('chart-container');
+            if (!container || y === null || isNaN(y)) {
+                timerBadge.style.display = 'none';
+                return;
+            }
+
+            const chartHeight = container.clientHeight;
+            // Hide if off-screen vertically
+            if (y < 4 || y > chartHeight - 20) {
+                timerBadge.style.display = 'none';
+                return;
+            }
+
+            const rightScale = chart.priceScale('right');
+            const scaleWidth = rightScale ? rightScale.width() : 65;
+
+            timerBadge.style.display = 'inline-flex';
+            timerBadge.style.top = `${Math.round(y)}px`;
+            timerBadge.style.right = `${scaleWidth + 4}px`;
+        }
 
         function getTimeframeSeconds() {
             if (currentTimeframe === '15m') return 900;
@@ -7120,6 +7252,7 @@
                 } catch (e) {}
             }
 
+            updateFutureWhitespaceSeries();
             fetchData(false);
         }
 
@@ -7213,6 +7346,7 @@
                         close: lastC.close,
                     });
                     if (activeCandlesMap) activeCandlesMap.set(lastC.time, lastC);
+                    updateYAxisCandleTimerPosition();
 
                     // Dynamic live forming volume bar update
                     if (Array.isArray(dynamicIndicators) && live.volume != null && live.volume > 0) {
@@ -7266,6 +7400,8 @@
                         low: newBar.low,
                         close: newBar.close,
                     });
+                    updateFutureWhitespaceSeries();
+                    updateYAxisCandleTimerPosition();
 
                     // 🎯 5-MINUTE CANDLE CLOSE COMMIT: Update indicator lines ONLY on candle close!
                     if (smaSeries && live.mean != null) smaSeries.update({ time: lastC.time, value: live.mean });
@@ -7374,6 +7510,7 @@
 
             if (isFullReload) {
                 candleSeries.setData(activeCandles);
+                updateFutureWhitespaceSeries();
                 smaSeries.setData(sortedSma);
                 if (vwapSeries) vwapSeries.setData(sortedVwap);
                 if (vwapUpper2Series) vwapUpper2Series.setData(sortedVwapUpper);
@@ -7394,7 +7531,7 @@
                         try {
                             chart.timeScale().setVisibleLogicalRange({
                                 from: fromIdx,
-                                to: count + 5
+                                to: count + 15
                             });
                         } catch (e) {
                             chart.timeScale().fitContent();
@@ -7424,6 +7561,7 @@
                     candleSeries.update(lastCandle);
                     activeCandlesMap.set(lastCandle.time, lastCandle);
                 }
+                updateFutureWhitespaceSeries();
 
                 // If a new candle was added, dynamically update indicators without resetting view or zoom!
                 if (activeCandles.length !== lastRenderedCandlesCount) {
@@ -7454,6 +7592,7 @@
                 }
             }
             checkLatestCandleVisibility();
+            updateYAxisCandleTimerPosition();
         }
 
         // Dedicated Zoom Controls (+, -, Reset)
@@ -9401,6 +9540,7 @@ function showIndicatorLineActionPill(ind, point) {
                     const w = Math.max(260, c.clientWidth || window.innerWidth);
                     const h = Math.max(200, c.clientHeight || (window.innerHeight - 90));
                     chart.applyOptions({ width: w, height: h });
+                    setTimeout(updateYAxisCandleTimerPosition, 50);
                 }
             }
             if (typeof subChart !== 'undefined' && subChart) {
@@ -14143,28 +14283,38 @@ function showIndicatorLineActionPill(ind, point) {
                 }
             }
 
-            // 3. ⏳ Candle Countdown Clock Pill
+            // 3. ⏳ Candle Countdown Clock (Pinned directly near Y-Axis Live Price)
+            const yaxisTimer = document.getElementById('yaxis-candle-timer');
+            const yaxisTimerVal = document.getElementById('yaxis-candle-timer-val');
+            const yaxisTimerTf = document.getElementById('yaxis-candle-timer-tf');
+
             const timerPill = document.getElementById('candle-timer-pill');
             const timerVal = document.getElementById('candle-timer-val');
             const timerTf = document.getElementById('candle-timer-tf');
 
-            if (!timerVal || !timerTf) return;
-
             const tf = (currentTimeframe || '5m').toLowerCase();
-            timerTf.textContent = tf.toUpperCase();
+            const tfUpper = tf.toUpperCase();
+
+            if (yaxisTimerTf) yaxisTimerTf.textContent = tfUpper;
+            if (timerTf) timerTf.textContent = tfUpper;
 
             if (!ist.isLiveMarket) {
+                if (yaxisTimer) yaxisTimer.classList.remove('urgent');
                 if (timerPill) timerPill.classList.remove('urgent');
                 if (ist.isPreMarket) {
                     const secToOpen = (9 * 3600 + 15 * 60) - ist.totalSeconds;
                     const m = Math.floor(secToOpen / 60);
                     const s = secToOpen % 60;
-                    timerVal.textContent = `Opens ${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-                    timerPill.title = `Pre-Market: Trading begins in ${m}m ${s}s at 09:15 AM IST`;
+                    const str = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                    if (yaxisTimerVal) yaxisTimerVal.textContent = str;
+                    if (timerVal) timerVal.textContent = `Opens ${str}`;
+                    if (yaxisTimer) yaxisTimer.title = `Pre-Market: Trading begins in ${m}m ${s}s at 09:15 AM IST`;
                 } else {
-                    timerVal.textContent = 'Closed';
-                    timerPill.title = ist.isWeekend ? 'Market Closed for the weekend' : 'Market Closed (Next session at 09:15 AM IST)';
+                    if (yaxisTimerVal) yaxisTimerVal.textContent = 'Closed';
+                    if (timerVal) timerVal.textContent = 'Closed';
+                    if (yaxisTimer) yaxisTimer.title = ist.isWeekend ? 'Market Closed for the weekend' : 'Market Closed (Next session at 09:15 AM IST)';
                 }
+                updateYAxisCandleTimerPosition();
                 return;
             }
 
@@ -14177,13 +14327,13 @@ function showIndicatorLineActionPill(ind, point) {
                 remSec = 300 - secInCandle;
                 if (remSec <= 0 || remSec > 300) remSec = 300;
                 isUrgent = remSec <= 30; // Final 30 seconds alert!
-                timerPill.title = `5-Minute candle closes in ${remSec}s (at :${String(Math.ceil((ist.minute + 1) / 5) * 5 % 60).padStart(2, '0')}:00)`;
+                if (yaxisTimer) yaxisTimer.title = `5-Minute candle closes in ${remSec}s (at :${String(Math.ceil((ist.minute + 1) / 5) * 5 % 60).padStart(2, '0')}:00)`;
             } else if (tf === '15m') {
                 const secInCandle = (ist.minute % 15) * 60 + ist.second;
                 remSec = 900 - secInCandle;
                 if (remSec <= 0 || remSec > 900) remSec = 900;
                 isUrgent = remSec <= 60; // Final 60 seconds alert!
-                timerPill.title = `15-Minute candle closes in ${Math.floor(remSec / 60)}m ${remSec % 60}s`;
+                if (yaxisTimer) yaxisTimer.title = `15-Minute candle closes in ${Math.floor(remSec / 60)}m ${remSec % 60}s`;
             } else if (tf === '1h') {
                 // Hourly candles start at 09:15 IST and close at :15 after each hour, ending at 15:30:00
                 if (ist.totalSeconds >= (15 * 3600 + 15 * 60)) {
@@ -14194,27 +14344,38 @@ function showIndicatorLineActionPill(ind, point) {
                 }
                 if (remSec <= 0) remSec = 3600;
                 isUrgent = remSec <= 120; // Final 2 minutes alert!
-                timerPill.title = `1-Hour candle closes in ${Math.floor(remSec / 60)}m ${remSec % 60}s`;
+                if (yaxisTimer) yaxisTimer.title = `1-Hour candle closes in ${Math.floor(remSec / 60)}m ${remSec % 60}s`;
             } else if (tf === '1d') {
                 // Daily candle closes at 15:30:00 IST
                 remSec = (15 * 3600 + 30 * 60) - ist.totalSeconds;
                 if (remSec <= 0) remSec = 0;
                 isUrgent = remSec <= 300; // Final 5 minutes of trading session!
-                timerPill.title = `Daily session closes at 15:30:00 IST`;
+                if (yaxisTimer) yaxisTimer.title = `Daily session closes at 15:30:00 IST`;
             }
 
             // Format display
+            let timeFormatted = '';
             if (tf === '1d') {
                 const h = Math.floor(remSec / 3600);
                 const m = Math.floor((remSec % 3600) / 60);
                 const s = remSec % 60;
-                timerVal.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                timeFormatted = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
             } else {
                 const m = Math.floor(remSec / 60);
                 const s = remSec % 60;
-                timerVal.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                timeFormatted = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
             }
 
+            if (yaxisTimerVal) yaxisTimerVal.textContent = timeFormatted;
+            if (timerVal) timerVal.textContent = timeFormatted;
+
+            if (yaxisTimer) {
+                if (isUrgent) {
+                    yaxisTimer.classList.add('urgent');
+                } else {
+                    yaxisTimer.classList.remove('urgent');
+                }
+            }
             if (timerPill) {
                 if (isUrgent) {
                     timerPill.classList.add('urgent');
@@ -14222,6 +14383,7 @@ function showIndicatorLineActionPill(ind, point) {
                     timerPill.classList.remove('urgent');
                 }
             }
+            updateYAxisCandleTimerPosition();
         }
 
         let isCopilotDragInit = false;
