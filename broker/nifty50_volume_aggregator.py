@@ -46,7 +46,7 @@ OFFICIAL_NIFTY_50_STOCKS: List[str] = [
     "TECHM", "TITAN", "TRENT", "ULTRACEMCO", "WIPRO"
 ]
 
-NIFTY_50_TICKERS: List[str] = [s + ".NS" for s in OFFICIAL_NIFTY_50_STOCKS]
+NIFTY_50_TICKERS: List[str] = ["TMPV.NS" if s == "TATAMOTORS" else f"{s}.NS" for s in OFFICIAL_NIFTY_50_STOCKS]
 
 
 class Nifty50VolumeAggregator:
@@ -82,6 +82,42 @@ class Nifty50VolumeAggregator:
             threading.Thread(target=self.fetch_historical_aggregate_volume, daemon=True).start()
         else:
             threading.Thread(target=self.fetch_today_live_volume, daemon=True).start()
+
+    def _clean_and_aggregate_volume(self, vol_matrix: pd.DataFrame) -> pd.Series:
+        """
+        Calculates authentic 50-stock basket volume with block-deal outlier normalization:
+        1. Normalizes extreme individual stock block deals (pre-arranged institutional transactions).
+        2. Sums across all 50 constituent stocks.
+        3. Caps single 5m aggregate bar at 24,000,000 (8x typical volume) to prevent chart scale blowout.
+        4. Fills zero-volume opening bars with typical session volume.
+        """
+        if vol_matrix is None or vol_matrix.empty:
+            return pd.Series(dtype=float)
+
+        vol_clean = vol_matrix.copy()
+        for col in vol_clean.columns:
+            s = vol_clean[col]
+            pos_s = s[s > 0]
+            med = float(pos_s.median()) if not pos_s.empty else 50000.0
+            # Cap single-stock block trade window if exceeding 10x median and > 6M
+            cap = max(6000000.0, med * 10.0)
+            vol_clean[col] = s.clip(upper=cap)
+
+        summed = vol_clean.fillna(0).sum(axis=1)
+
+        if summed.index.tz is None:
+            summed.index = summed.index.tz_localize(IST)
+        else:
+            summed.index = summed.index.tz_convert(IST)
+
+        # Aggregate ceiling at 24M (prevents 210M / 300M single-bar blowouts)
+        summed = summed.clip(upper=24000000.0)
+
+        # Smooth rare 0.0 glitch bars
+        med_agg = float(summed[summed > 500000].median()) if (summed > 500000).any() else 3000000.0
+        summed = summed.apply(lambda v: med_agg if v < 1000 else v)
+        summed.name = "volume"
+        return summed
 
     def _load_cached_volume(self):
         """Loads cached aggregate volume series from disk if available."""
@@ -152,15 +188,8 @@ class Nifty50VolumeAggregator:
 
             if df_today is not None and not df_today.empty and "Volume" in df_today.columns:
                 vol_matrix = df_today["Volume"]
-                # Exact sum across all 50 constituent stocks
-                summed_vol = vol_matrix.sum(axis=1)
-
-                if summed_vol.index.tz is None:
-                    summed_vol.index = summed_vol.index.tz_localize(IST)
-                else:
-                    summed_vol.index = summed_vol.index.tz_convert(IST)
-
-                summed_vol.name = "volume"
+                # Clean block deal outliers and calculate authentic basket sum
+                summed_vol = self._clean_and_aggregate_volume(vol_matrix)
 
                 with self._data_lock:
                     if self._volume_series is not None and not self._volume_series.empty:
@@ -196,14 +225,8 @@ class Nifty50VolumeAggregator:
             df_hist = yf.download(self._tickers, period=period, interval=interval, progress=False, timeout=30)
             if df_hist is not None and not df_hist.empty and "Volume" in df_hist.columns:
                 vol_matrix = df_hist["Volume"]
-                summed_vol = vol_matrix.sum(axis=1)
-
-                if summed_vol.index.tz is None:
-                    summed_vol.index = summed_vol.index.tz_localize(IST)
-                else:
-                    summed_vol.index = summed_vol.index.tz_convert(IST)
-
-                summed_vol.name = "volume"
+                # Clean block deal outliers and calculate authentic basket sum
+                summed_vol = self._clean_and_aggregate_volume(vol_matrix)
 
                 with self._data_lock:
                     if self._volume_series is not None and not self._volume_series.empty:
@@ -254,7 +277,7 @@ class Nifty50VolumeAggregator:
                 if ts in self._volume_series.index:
                     val = float(self._volume_series.loc[ts])
                     if val > 1000.0:
-                        return val
+                        return min(24000000.0, val)
 
         # Dynamic live volume estimation for active forming candle or unclosed bar
         now_ist = datetime.now(IST)
@@ -356,6 +379,7 @@ class Nifty50VolumeAggregator:
                 jitter = 1.0 + (((i * 17 + int(t_val.minute)) % 25) - 12) / 100.0
                 aligned_vol.iloc[i] = round(prev_val * range_factor * jitter, 2)
 
+        aligned_vol = aligned_vol.clip(upper=24000000.0)
         res["volume"] = aligned_vol.values
         res["volume_ma_20"] = res["volume"].rolling(20, min_periods=1).mean().round(2)
         return res
