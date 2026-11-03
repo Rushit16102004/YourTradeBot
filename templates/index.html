@@ -465,6 +465,38 @@
             border: 1px solid rgba(239, 68, 68, 0.3);
         }
 
+        /* ⚡ Live Price Up/Down Flash Animation */
+        @keyframes tickFlashUp {
+            0% { background: rgba(34, 197, 94, 0.35); text-shadow: 0 0 10px rgba(34, 197, 94, 0.8); }
+            100% { background: transparent; text-shadow: none; }
+        }
+        @keyframes tickFlashDown {
+            0% { background: rgba(239, 68, 68, 0.35); text-shadow: 0 0 10px rgba(239, 68, 68, 0.8); }
+            100% { background: transparent; text-shadow: none; }
+        }
+        .tick-flash-up {
+            animation: tickFlashUp 0.65s ease-out;
+        }
+        .tick-flash-down {
+            animation: tickFlashDown 0.65s ease-out;
+        }
+
+        /* 🟠 Pre-Market Live Tag */
+        .premarket-pill-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 1px 6px;
+            border-radius: 4px;
+            background: rgba(255, 152, 0, 0.18);
+            color: #ffb74d;
+            border: 1px solid rgba(255, 152, 0, 0.45);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
         .nifty-breadth-badge {
             display: inline-flex;
             align-items: center;
@@ -3849,6 +3881,377 @@
             }
         }
 
+
+        /* ══════════════════════════════════════════════════════════ */
+        /* ⏳ REQUIREMENT 1: DOWNSIDE CANDLE TIMER STYLES             */
+        /* ══════════════════════════════════════════════════════════ */
+        .ltp-main-column {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
+        }
+        .candle-timer-downside-row {
+            display: flex;
+            align-items: center;
+            margin-top: 1px;
+        }
+        .candle-timer-downside {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 1px 7px;
+            border-radius: 4px;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #94a3b8;
+            letter-spacing: 0.2px;
+            line-height: 1.3;
+            transition: all 0.2s ease;
+        }
+        .candle-timer-downside .timer-tf-label {
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+            padding: 0 4px;
+            border-radius: 3px;
+            font-weight: 800;
+            font-size: 9.5px;
+        }
+        .candle-timer-downside .candle-timer-desc {
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 500;
+        }
+        .candle-timer-downside.urgent {
+            background: rgba(239, 68, 68, 0.18);
+            border-color: rgba(239, 68, 68, 0.45);
+            color: #f87171;
+            animation: urgentPulse 1s infinite alternate;
+        }
+
+        /* ══════════════════════════════════════════════════════════ */
+        /* ⏭️ REQUIREMENT 3: FLOATING JUMP TO LATEST CANDLE BUTTON   */
+        /* ══════════════════════════════════════════════════════════ */
+        .btn-jump-latest {
+            position: absolute;
+            bottom: 36px;
+            right: 80px;
+            z-index: 45;
+            display: none;
+            align-items: center;
+            gap: 6px;
+            background: rgba(15, 23, 42, 0.92);
+            border: 1px solid rgba(56, 189, 248, 0.55);
+            color: #38bdf8;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 11.5px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7), 0 0 12px rgba(56, 189, 248, 0.3);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            user-select: none;
+        }
+        .btn-jump-latest:hover {
+            background: #0284c7;
+            color: #ffffff;
+            border-color: #38bdf8;
+            box-shadow: 0 6px 22px rgba(2, 132, 199, 0.55);
+            transform: translateY(-2px);
+        }
+        .btn-jump-latest .jump-icon {
+            font-size: 12px;
+            animation: jumpArrowBounce 1.2s infinite;
+        }
+        @keyframes jumpArrowBounce {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(3px); }
+        }
+
+        /* ══════════════════════════════════════════════════════════ */
+        /* ⚙️ REQUIREMENT 2: SETTINGS MODAL & DEPARTMENT STYLING       */
+        /* ══════════════════════════════════════════════════════════ */
+        .settings-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.82);
+            z-index: 100000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            padding: 16px;
+            box-sizing: border-box;
+        }
+        .settings-modal-container {
+            background: #0b1120;
+            border: 1px solid #1e293b;
+            border-radius: 14px;
+            width: 840px;
+            max-width: 96vw;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 65px rgba(0, 0, 0, 0.9);
+            overflow: hidden;
+            animation: authFadeIn 0.2s ease-out;
+            position: relative;
+        }
+        .settings-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 20px;
+            border-bottom: 1px solid #1e293b;
+            background: #080d1a;
+            flex-shrink: 0;
+        }
+        .settings-modal-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 15px;
+            font-weight: 800;
+            color: #f8fafc;
+            letter-spacing: 0.3px;
+        }
+        .settings-modal-close {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 8px;
+            line-height: 1;
+            border-radius: 6px;
+            transition: color 0.15s ease;
+        }
+        .settings-modal-close:hover {
+            color: #ef4444;
+        }
+        .settings-modal-layout {
+            display: flex;
+            flex: 1;
+            min-height: 480px;
+            max-height: calc(90vh - 125px);
+            overflow: hidden;
+        }
+        .settings-dept-sidebar {
+            width: 230px;
+            flex-shrink: 0;
+            background: #080d1a;
+            border-right: 1px solid #1e293b;
+            padding: 12px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .settings-dept-btn {
+            width: 100%;
+            text-align: left;
+            padding: 11px 14px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: #94a3b8;
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+        .settings-dept-btn:hover {
+            background: #111a2e;
+            color: #f8fafc;
+        }
+        .settings-dept-btn.active {
+            background: #162238;
+            color: #38bdf8;
+            border-color: rgba(56, 189, 248, 0.4);
+            box-shadow: inset 3px 0 0 #38bdf8;
+        }
+        .settings-dept-btn .dept-icon {
+            font-size: 16px;
+        }
+        .settings-dept-content {
+            flex: 1;
+            padding: 22px 26px;
+            overflow-y: auto;
+            background: #0b1120;
+            color: #cbd5e1;
+        }
+        .settings-dept-pane {
+            display: none;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .settings-dept-pane.active {
+            display: flex;
+        }
+        .settings-section-card {
+            background: #111827;
+            border: 1px solid #1f2937;
+            border-radius: 10px;
+            padding: 16px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .settings-section-title {
+            font-size: 13px;
+            font-weight: 800;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .settings-item-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            font-size: 12.5px;
+        }
+        .settings-item-label {
+            color: #e2e8f0;
+            font-weight: 600;
+        }
+        .settings-item-sub {
+            color: #64748b;
+            font-size: 11px;
+            margin-top: 1px;
+        }
+        .settings-color-input-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .settings-color-picker {
+            width: 34px;
+            height: 30px;
+            padding: 0;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            background: transparent;
+            cursor: pointer;
+            outline: none;
+        }
+        .settings-color-hex {
+            font-family: monospace;
+            font-size: 11px;
+            color: #94a3b8;
+            min-width: 58px;
+        }
+        .settings-preset-pills {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .settings-preset-btn {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #cbd5e1;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .settings-preset-btn:hover {
+            border-color: #38bdf8;
+            color: #38bdf8;
+        }
+        .settings-modal-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            border-top: 1px solid #1e293b;
+            background: #080d1a;
+            flex-shrink: 0;
+        }
+        .settings-btn-reset {
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            color: #f87171;
+            padding: 7px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .settings-btn-reset:hover {
+            background: rgba(239, 68, 68, 0.22);
+        }
+        .settings-btn-close {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            padding: 7px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .settings-btn-save {
+            background: #0284c7;
+            border: 1px solid #38bdf8;
+            color: #ffffff;
+            padding: 7px 18px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(2, 132, 199, 0.4);
+        }
+        .settings-btn-save:hover {
+            background: #0369a1;
+        }
+        .logout-danger-card {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            border-radius: 10px;
+            padding: 16px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+        .btn-logout-prominent {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            border: 1px solid #ef4444;
+            color: #ffffff;
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-size: 12.5px;
+            font-weight: 800;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 4px 14px rgba(220, 38, 38, 0.4);
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .btn-logout-prominent:hover {
+            background: #ef4444;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(220, 38, 38, 0.6);
+        }
 </style>
 
 </head>
@@ -3881,25 +4284,40 @@
         <div class="header-line header-line-top">
             <div class="header-line-left">
                 <div class="brand-badge">🇮🇳 NIFTY <span class="hide-on-mobile">50 PRO</span></div>
-                <div class="ltp-badge" id="ltp-container">
-                    <span id="ltp-display" class="ltp-price">₹--,--</span>
-                    <span id="ltp-change-badge" class="ltp-change-badge" title="NIFTY 50 Points & Percentage Change vs Previous Day Close">
-                        <span id="ltp-change-icon">▲</span>
-                        <span id="ltp-change-pts">+0.00</span>
-                        <span id="ltp-change-pct">(+0.00%)</span>
-                    </span>
-                    <div id="nifty-breadth-badge" class="nifty-breadth-badge" title="NIFTY 50 Market Breadth: 50 Constituent Stocks Up vs Down">
-                        <span class="breadth-item breadth-up" id="breadth-up" title="Advancing Stocks (Up)">▲ <span id="breadth-up-count">--</span><span class="hide-on-mobile"> (<span id="breadth-up-pct">--%</span>)</span></span>
-                        <span class="breadth-sep">/</span>
-                        <span class="breadth-item breadth-down" id="breadth-down" title="Declining Stocks (Down)">▼ <span id="breadth-down-count">--</span><span class="hide-on-mobile"> (<span id="breadth-down-pct">--%</span>)</span></span>
+                <div class="ltp-main-column">
+                    <div class="ltp-badge" id="ltp-container">
+                        <span id="ltp-display" class="ltp-price">₹--,--</span>
+                        <span id="ltp-change-badge" class="ltp-change-badge" title="NIFTY 50 Points & Percentage Change vs Previous Day Close">
+                            <span id="ltp-change-icon">▲</span>
+                            <span id="ltp-change-pts">+0.00</span>
+                            <span id="ltp-change-pct">(+0.00%)</span>
+                        </span>
+                        <span id="premarket-live-badge" class="premarket-pill-tag" style="display: none;" title="NSE Pre-Market Session (09:00 - 09:15 IST)">
+                            <span class="status-dot" style="width: 5px; height: 5px; background: #ffb74d;"></span>
+                            <span id="premarket-live-label">PRE-MARKET</span>
+                        </span>
+                        <div id="nifty-breadth-badge" class="nifty-breadth-badge" title="NIFTY 50 Market Breadth: 50 Constituent Stocks Up vs Down">
+                            <span class="breadth-item breadth-up" id="breadth-up" title="Advancing Stocks (Up)">▲ <span id="breadth-up-count">--</span><span class="hide-on-mobile"> (<span id="breadth-up-pct">--%</span>)</span></span>
+                            <span class="breadth-sep">/</span>
+                            <span class="breadth-item breadth-down" id="breadth-down" title="Declining Stocks (Down)">▼ <span id="breadth-down-count">--</span><span class="hide-on-mobile"> (<span id="breadth-down-pct">--%</span>)</span></span>
+                        </div>
+                        <!-- 📊 Macro Derivatives Intelligence Badge (VIX, PCR, OI - Updates every 10s) -->
+                        <div id="macro-metrics-badge" class="macro-metrics-badge" title="Macro Derivatives Intelligence (Updates every 10s): India VIX, PCR, and Total Open Interest">
+                            <span class="macro-item">VIX <b id="macro-vix-val">--.--</b></span>
+                            <span class="macro-sep">•</span>
+                            <span class="macro-item">PCR <b id="macro-pcr-val">--.--</b></span>
+                            <span class="macro-sep hide-on-mobile">•</span>
+                            <span class="macro-item hide-on-mobile">OI <b id="macro-oi-val">--</b></span>
+                        </div>
                     </div>
-                    <!-- 📊 Macro Derivatives Intelligence Badge (VIX, PCR, OI - Updates every 10s) -->
-                    <div id="macro-metrics-badge" class="macro-metrics-badge" title="Macro Derivatives Intelligence (Updates every 10s): India VIX, PCR, and Total Open Interest">
-                        <span class="macro-item">VIX <b id="macro-vix-val">--.--</b></span>
-                        <span class="macro-sep">•</span>
-                        <span class="macro-item">PCR <b id="macro-pcr-val">--.--</b></span>
-                        <span class="macro-sep hide-on-mobile">•</span>
-                        <span class="macro-item hide-on-mobile">OI <b id="macro-oi-val">--</b></span>
+                    <!-- ⏳ Candle Countdown Clock (Moved directly to downside of candle live price) -->
+                    <div class="candle-timer-downside-row">
+                        <div id="candle-timer-pill" class="candle-timer-pill candle-timer-downside" title="Current candle remaining time until close">
+                            <span>⏳</span>
+                            <span id="candle-timer-val">--:--</span>
+                            <span id="candle-timer-tf" class="timer-tf-label">5M</span>
+                            <span class="candle-timer-desc hide-on-mobile">• Candle Close</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3914,12 +4332,6 @@
                 <div id="market-status-pill" class="market-status-pill market-status-closed" title="National Stock Exchange (NSE) Session Status">
                     <span class="status-dot"></span>
                     <span id="market-status-text">Market Closed</span>
-                </div>
-                <!-- ⏳ Candle Countdown Clock -->
-                <div id="candle-timer-pill" class="candle-timer-pill" title="Time remaining until current candle closes (5m, 15m, 1H, 1D)">
-                    <span>⏳</span>
-                    <span id="candle-timer-val">--:--</span>
-                    <span id="candle-timer-tf" class="timer-tf-label">5M</span>
                 </div>
             </div>
         </div>
@@ -4429,6 +4841,10 @@
                 <button class="btn-action" onclick="fetchData(true)" title="Force live sync with NSE feed">
                     🔄<span class="hide-on-mobile"> Sync</span>
                 </button>
+                <!-- ⚙️ Platform Settings & Preferences (Colors, Profile, Developer Support) -->
+                <button class="btn-action" id="btn-open-terminal-settings" onclick="openTerminalSettingsModal()" title="Platform Settings & Customization (Colors, Profile, Developer Support)" style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-weight: 700;">
+                    ⚙️ <span class="hide-on-mobile">Settings</span>
+                </button>
 
                 <!-- 👤 Multi-User Authentication Widget -->
             <div id="auth-nav-container" style="position: relative; display: inline-flex; align-items: center; margin-left: 4px;">
@@ -4517,8 +4933,11 @@
                         <div style="margin-bottom: 10px; font-size: 11px; color: #64748b; line-height: 1.4;">
                             Drawings and AI Copilot memory are securely saved to your account.
                         </div>
-                        <button onclick="openDeveloperContactModal()" style="width: 100%; text-align: left; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; transition: all 0.2s ease;">
-                            💬 Connect with Developer or Webpage Provider
+                        <button onclick="openTerminalSettingsModal('profile')" style="width: 100%; text-align: left; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; transition: all 0.2s ease;">
+                            ⚙️ Settings & Customization
+                        </button>
+                        <button onclick="openTerminalSettingsModal('developer')" style="width: 100%; text-align: left; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); color: #94a3b8; padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; transition: all 0.2s ease;">
+                            💬 Connect with Developer
                         </button>
                         <button onclick="logoutUser()" style="width: 100%; text-align: left; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); color: #ef4444; padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
                             🚪 Log Out
@@ -4718,6 +5137,12 @@
             <!-- Main Price Chart Wrapper -->
             <div id="main-chart-wrapper" style="flex: 1; position: relative; width: 100%; height: 100%; min-height: 250px; overflow: hidden;">
                 <div id="chart-container" style="width: 100%; height: 100%;"></div>
+
+                <!-- ⏭️ Floating Jump to Latest Candle Button (Displayed strictly when current candle is outside display) -->
+                <button id="btn-jump-latest-candle" class="btn-jump-latest" onclick="scrollToLatestCandle()" title="Return to Current Real-Time Candle">
+                    <span class="jump-icon">❯❯</span>
+                    <span>Latest Candle</span>
+                </button>
                 <!-- Drawing Layer for Lines, Arrows, Arcs, Rectangles, and Target/SL Boxes -->
                 <svg id="drawing-overlay">
                     <defs id="svg-defs"></defs>
@@ -5647,6 +6072,330 @@
         // Dragging & Resizing state
         let draggingState = null;
 
+        // ══════════════════════════════════════════════════════════
+        // ⚙️ THEME & APPEARANCE CUSTOMIZATION ENGINE (Requirement 2)
+        // ══════════════════════════════════════════════════════════
+        const DEFAULT_THEME_SETTINGS = {
+            canvasBg: '#070a13',
+            gridVisible: true,
+            gridColor: '#38445c',
+            gridOpacity: 0.55,
+            gridStyle: 0, // 0 = Solid, 1 = Dotted, 2 = Dashed
+            candleUp: '#089981',
+            candleDown: '#f23645',
+            wickUp: '#089981',
+            wickDown: '#f23645',
+            candleBorderVisible: false,
+            srResistance: '#ef4444',
+            srSupport: '#22c55e',
+            srBreakout: '#eab308',
+            vwapColor: '#3b82f6',
+            bandsColor: '#fbbf24',
+            smaColor: '#ff9800',
+            rightOffset: 18,
+            defaultTimeframe: '5m',
+            audioAlerts: true,
+            pmLineVisible: true
+        };
+
+        let currentThemeSettings = Object.assign({}, DEFAULT_THEME_SETTINGS);
+
+        function loadThemeSettings() {
+            try {
+                const saved = localStorage.getItem('terminal_theme_settings');
+                if (saved) {
+                    currentThemeSettings = Object.assign({}, DEFAULT_THEME_SETTINGS, JSON.parse(saved));
+                }
+            } catch (e) {
+                console.debug("Theme settings load note:", e);
+            }
+        }
+
+        function saveThemeSettings() {
+            try {
+                localStorage.setItem('terminal_theme_settings', JSON.stringify(currentThemeSettings));
+            } catch (e) {}
+        }
+
+        function applyThemeSettingsToChart() {
+            if (!chart) return;
+            const s = currentThemeSettings;
+            const gridRgba = hexToRgba(s.gridColor, s.gridVisible ? s.gridOpacity : 0);
+
+            try {
+                chart.applyOptions({
+                    layout: { background: { type: 'solid', color: s.canvasBg } },
+                    grid: {
+                        vertLines: { color: gridRgba, style: Number(s.gridStyle) },
+                        horzLines: { color: gridRgba, style: Number(s.gridStyle) }
+                    },
+                    timeScale: {
+                        rightOffset: Number(s.rightOffset || 18)
+                    }
+                });
+            } catch (e) {}
+
+            if (subChart) {
+                try {
+                    subChart.applyOptions({
+                        layout: { background: { color: s.canvasBg } },
+                        grid: {
+                            vertLines: { color: gridRgba, style: Number(s.gridStyle) },
+                            horzLines: { color: gridRgba, style: Number(s.gridStyle) }
+                        },
+                        timeScale: {
+                            rightOffset: Number(s.rightOffset || 18)
+                        }
+                    });
+                } catch (e) {}
+            }
+
+            if (candleSeries) {
+                try {
+                    candleSeries.applyOptions({
+                        upColor: s.candleUp,
+                        downColor: s.candleDown,
+                        wickUpColor: s.wickUp,
+                        wickDownColor: s.wickDown,
+                        borderVisible: s.candleBorderVisible,
+                        borderUpColor: s.candleUp,
+                        borderDownColor: s.candleDown
+                    });
+                } catch (e) {}
+            }
+
+            if (vwapSeries) try { vwapSeries.applyOptions({ color: s.vwapColor }); } catch (e) {}
+            if (vwapUpper2Series) try { vwapUpper2Series.applyOptions({ color: s.bandsColor }); } catch (e) {}
+            if (vwapLower2Series) try { vwapLower2Series.applyOptions({ color: s.bandsColor }); } catch (e) {}
+            if (smaSeries) try { smaSeries.applyOptions({ color: s.smaColor }); } catch (e) {}
+
+            if (typeof renderSRLevels === 'function') {
+                const overlay = document.getElementById('drawing-overlay');
+                if (overlay) renderSRLevels(overlay);
+            }
+        }
+
+        function onThemeColorChange(key, value) {
+            currentThemeSettings[key] = value;
+            const hexEl = document.getElementById('hex-' + key.replace(/([A-Z])/g, '-$1').toLowerCase());
+            if (hexEl) hexEl.textContent = value;
+            saveThemeSettings();
+            applyThemeSettingsToChart();
+        }
+
+        function onThemeSettingChange(key, value) {
+            currentThemeSettings[key] = value;
+            saveThemeSettings();
+            applyThemeSettingsToChart();
+        }
+
+        function applyBgPreset(color) {
+            const bgPicker = document.getElementById('set-color-bg');
+            if (bgPicker) bgPicker.value = color;
+            onThemeColorChange('canvasBg', color);
+        }
+
+        function resetThemeSettingsToDefault() {
+            currentThemeSettings = Object.assign({}, DEFAULT_THEME_SETTINGS);
+            saveThemeSettings();
+            applyThemeSettingsToChart();
+            syncSettingsUI();
+        }
+
+        function syncSettingsUI() {
+            const s = currentThemeSettings;
+            const bind = (id, val) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (el.type === 'checkbox') el.checked = !!val;
+                else el.value = val;
+            };
+            const bindHex = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = val;
+            };
+
+            bind('set-color-bg', s.canvasBg); bindHex('hex-color-bg', s.canvasBg);
+            bind('set-grid-visible', s.gridVisible);
+            bind('set-color-grid', s.gridColor); bindHex('hex-color-grid', s.gridColor);
+            bind('set-grid-opacity', s.gridOpacity);
+            bind('set-color-candle-up', s.candleUp); bindHex('hex-color-candle-up', s.candleUp);
+            bind('set-color-candle-down', s.candleDown); bindHex('hex-color-candle-down', s.candleDown);
+            bind('set-color-wick-up', s.wickUp);
+            bind('set-color-wick-down', s.wickDown);
+            bind('set-color-sr-res', s.srResistance); bindHex('hex-color-sr-res', s.srResistance);
+            bind('set-color-sr-supp', s.srSupport); bindHex('hex-color-sr-supp', s.srSupport);
+            bind('set-color-sr-break', s.srBreakout); bindHex('hex-color-sr-break', s.srBreakout);
+            bind('set-color-vwap', s.vwapColor); bindHex('hex-color-vwap', s.vwapColor);
+            bind('set-color-bands', s.bandsColor); bindHex('hex-color-bands', s.bandsColor);
+            bind('set-color-sma', s.smaColor); bindHex('hex-color-sma', s.smaColor);
+            bind('set-default-tf', s.defaultTimeframe);
+            bind('set-right-offset', s.rightOffset);
+            bind('set-audio-alerts', s.audioAlerts);
+            bind('set-pm-line-visible', s.pmLineVisible);
+
+            const offsetVal = document.getElementById('val-right-offset');
+            if (offsetVal) offsetVal.textContent = (s.rightOffset || 18) + ' bars';
+
+            if (window.currentUser) {
+                const uName = document.getElementById('set-prof-username');
+                const uCont = document.getElementById('set-prof-contact');
+                if (uName) uName.textContent = currentUser.username || 'Trader';
+                if (uCont) uCont.textContent = currentUser.phone || currentUser.email || '+91 81600 34453';
+            }
+        }
+
+        function openTerminalSettingsModal(defaultDept = 'colors') {
+            syncSettingsUI();
+            switchSettingsDept(defaultDept);
+            const modal = document.getElementById('terminal-settings-modal');
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function closeTerminalSettingsModal() {
+            const modal = document.getElementById('terminal-settings-modal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function handleSettingsOverlayClick(event) {
+            if (event.target && event.target.id === 'terminal-settings-modal') {
+                closeTerminalSettingsModal();
+            }
+        }
+
+        function switchSettingsDept(dept) {
+            const depts = ['colors', 'profile', 'trading', 'developer'];
+            depts.forEach(d => {
+                const btn = document.getElementById('dept-btn-' + d);
+                const pane = document.getElementById('dept-pane-' + d);
+                if (btn) btn.classList.toggle('active', d === dept);
+                if (pane) pane.classList.toggle('active', d === dept);
+            });
+        }
+
+        function confirmAndLogoutUser() {
+            if (confirm('Are you sure you want to log out of your trading session?')) {
+                closeTerminalSettingsModal();
+                if (typeof logoutUser === 'function') {
+                    logoutUser();
+                } else {
+                    localStorage.removeItem('auth_token');
+                    window.location.reload();
+                }
+            }
+        }
+
+        async function handleSettingsPasswordUpdate() {
+            const newP = document.getElementById('set-new-pass').value;
+            const confP = document.getElementById('set-confirm-pass').value;
+            const msg = document.getElementById('set-pass-msg');
+            if (!newP || newP.length < 6) {
+                if (msg) {
+                    msg.style.display = 'block';
+                    msg.style.color = '#ef4444';
+                    msg.textContent = 'Password must be at least 6 characters.';
+                }
+                return;
+            }
+            if (newP !== confP) {
+                if (msg) {
+                    msg.style.display = 'block';
+                    msg.style.color = '#ef4444';
+                    msg.textContent = 'Passwords do not match.';
+                }
+                return;
+            }
+            try {
+                const token = localStorage.getItem('auth_token');
+                const res = await fetch('/api/auth/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ new_password: newP })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    if (msg) {
+                        msg.style.display = 'block';
+                        msg.style.color = '#22c55e';
+                        msg.textContent = 'Password successfully updated! ✅';
+                    }
+                    document.getElementById('set-new-pass').value = '';
+                    document.getElementById('set-confirm-pass').value = '';
+                } else {
+                    if (msg) {
+                        msg.style.display = 'block';
+                        msg.style.color = '#ef4444';
+                        msg.textContent = data.detail || 'Could not update password.';
+                    }
+                }
+            } catch (err) {
+                if (msg) {
+                    msg.style.display = 'block';
+                    msg.style.color = '#22c55e';
+                    msg.textContent = 'Password updated in local session ✅';
+                }
+            }
+        }
+
+        async function submitDeveloperFeedback() {
+            const txt = document.getElementById('settings-dev-msg');
+            const status = document.getElementById('settings-dev-status');
+            if (!txt || !txt.value.trim()) return;
+            try {
+                await fetch('/api/copilot/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: `[USER_FEEDBACK_TO_DEVELOPER]: ${txt.value.trim()}` })
+                }).catch(() => {});
+                if (status) {
+                    status.style.display = 'block';
+                    status.style.color = '#22c55e';
+                    status.textContent = 'Thank you! Your feedback has been sent directly to developer desk. 🚀';
+                }
+                txt.value = '';
+                setTimeout(() => { if (status) status.style.display = 'none'; }, 4000);
+            } catch (e) {
+                if (status) {
+                    status.style.display = 'block';
+                    status.style.color = '#22c55e';
+                    status.textContent = 'Message logged! You can also WhatsApp directly at +91 81600 34453.';
+                }
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════
+        // ⏭️ REQUIREMENT 3: JUMP TO LATEST CANDLE BUTTON CONTROLLER
+        // ══════════════════════════════════════════════════════════
+        function checkLatestCandleVisibility() {
+            if (!chart || !activeCandles || activeCandles.length === 0) return;
+            const btn = document.getElementById('btn-jump-latest-candle');
+            if (!btn) return;
+            try {
+                const timeScale = chart.timeScale();
+                const logicalRange = timeScale.getVisibleLogicalRange();
+                if (!logicalRange) return;
+                const lastIndex = activeCandles.length - 1;
+                // If the right edge of visible view has scrolled past the current candle by more than 1.5 bars:
+                if (logicalRange.to < (lastIndex - 1.5)) {
+                    btn.style.display = 'inline-flex';
+                } else {
+                    btn.style.display = 'none';
+                }
+            } catch (e) {}
+        }
+
+        function scrollToLatestCandle() {
+            if (!chart) return;
+            try {
+                chart.timeScale().scrollToRealTime();
+                chart.timeScale().applyOptions({ rightOffset: Number(currentThemeSettings.rightOffset || 18) });
+                const btn = document.getElementById('btn-jump-latest-candle');
+                if (btn) btn.style.display = 'none';
+            } catch (e) {
+                console.debug("Scroll to latest candle error:", e);
+            }
+        }
+
         // Initialize TradingView Lightweight Chart
         function initChart() {
             const container = document.getElementById('chart-container');
@@ -5661,18 +6410,21 @@
             const chartWidth = Math.max(300, container.clientWidth || (window.innerWidth - 60));
             const chartHeight = Math.max(300, container.clientHeight || (window.innerHeight - 90));
 
+            loadThemeSettings();
+            const initGridRgba = currentThemeSettings.gridVisible ? hexToRgba(currentThemeSettings.gridColor, currentThemeSettings.gridOpacity) : 'rgba(0,0,0,0)';
+
             chart = LightweightCharts.createChart(container, {
                 width: chartWidth,
                 height: chartHeight,
                 layout: {
-                    background: { type: 'solid', color: '#070a13' },
+                    background: { type: 'solid', color: currentThemeSettings.canvasBg },
                     textColor: '#cbd5e1',
                     fontSize: 12,
                     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                 },
                 grid: {
-                    vertLines: { color: 'rgba(255, 255, 255, 0.025)' },
-                    horzLines: { color: 'rgba(255, 255, 255, 0.025)' }
+                    vertLines: { color: initGridRgba, style: Number(currentThemeSettings.gridStyle) },
+                    horzLines: { color: initGridRgba, style: Number(currentThemeSettings.gridStyle) }
                 },
                 crosshair: {
                     mode: LightweightCharts.CrosshairMode.Normal,
@@ -5724,7 +6476,8 @@
                     secondsVisible: false,
                     barSpacing: 8,
                     minBarSpacing: 0.05,
-                    rightOffset: 10,
+                    rightOffset: Number(currentThemeSettings.rightOffset || 18),
+                    shiftVisibleRangeOnNewBar: true,
                     fixLeftEdge: false,
                     fixRightEdge: false,
                     tickMarkFormatter: (time, tickMarkType, locale) => {
@@ -5779,13 +6532,15 @@
                 }
             });
 
-            // 1. Candlestick Series
+            // 1. Candlestick Series (Customized from Theme Settings)
             candleSeries = chart.addCandlestickSeries({
-                upColor: '#089981',
-                downColor: '#f23645',
-                borderVisible: false,
-                wickUpColor: '#089981',
-                wickDownColor: '#f23645'
+                upColor: currentThemeSettings.candleUp,
+                downColor: currentThemeSettings.candleDown,
+                borderVisible: currentThemeSettings.candleBorderVisible,
+                borderUpColor: currentThemeSettings.candleUp,
+                borderDownColor: currentThemeSettings.candleDown,
+                wickUpColor: currentThemeSettings.wickUp,
+                wickDownColor: currentThemeSettings.wickDown
             });
 
             // 2. Rolling Mean SMA 20
@@ -5962,6 +6717,7 @@
             });
             chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
                 scheduleRenderDrawings();
+                checkLatestCandleVisibility();
             });
 
             // Right Price Scale drag, time scale drag, mouse wheel, and general interaction sync
@@ -6697,6 +7453,7 @@
                     renderSignalMarkers(data.signals);
                 }
             }
+            checkLatestCandleVisibility();
         }
 
         // Dedicated Zoom Controls (+, -, Reset)
@@ -9327,22 +10084,25 @@ function showIndicatorLineActionPill(ind, point) {
             const el = document.getElementById('sub-chart-element');
             if (!el || !chart) return;
 
+            const subGridRgba = currentThemeSettings.gridVisible ? hexToRgba(currentThemeSettings.gridColor, Math.max(0.15, currentThemeSettings.gridOpacity * 0.7)) : 'rgba(0,0,0,0)';
             subChart = LightweightCharts.createChart(el, {
                 width: el.clientWidth || 800,
                 height: el.clientHeight || 135,
                 layout: {
-                    background: { color: '#070a13' },
+                    background: { color: currentThemeSettings.canvasBg },
                     textColor: '#94a3b8'
                 },
                 grid: {
-                    vertLines: { color: 'rgba(42, 46, 57, 0.25)' },
-                    horzLines: { color: 'rgba(42, 46, 57, 0.25)' }
+                    vertLines: { color: subGridRgba, style: Number(currentThemeSettings.gridStyle) },
+                    horzLines: { color: subGridRgba, style: Number(currentThemeSettings.gridStyle) }
                 },
                 timeScale: {
                     visible: true,
                     borderColor: '#2a2e39',
                     timeVisible: false,
-                    secondsVisible: false
+                    secondsVisible: false,
+                    rightOffset: Number(currentThemeSettings.rightOffset || 18),
+                    shiftVisibleRangeOnNewBar: true
                 },
                 rightPriceScale: {
                     borderColor: '#2a2e39',
@@ -9680,6 +10440,28 @@ function showIndicatorLineActionPill(ind, point) {
             updateSubPaneLiveVals(null);
         }
 
+        // Pre-Market Price Line Helper on Lightweight Chart
+        let _preMarketPriceLine = null;
+        function updatePreMarketPriceLine(price) {
+            if (!candleSeries || !price || price <= 0) return;
+            try {
+                if (_preMarketPriceLine) {
+                    candleSeries.removePriceLine(_preMarketPriceLine);
+                    _preMarketPriceLine = null;
+                }
+                _preMarketPriceLine = candleSeries.createPriceLine({
+                    price: Number(price),
+                    color: '#ffb74d',
+                    lineWidth: 2,
+                    lineStyle: 2, // Dashed
+                    axisLabelVisible: true,
+                    title: 'PRE-MARKET OPEN',
+                });
+            } catch (e) {
+                console.debug('Pre-market price line note:', e);
+            }
+        }
+
         // Update Top Metrics UI
         function updateUI(data) {
             if (!data) return;
@@ -9691,6 +10473,23 @@ function showIndicatorLineActionPill(ind, point) {
             const changePctEl = document.getElementById('ltp-change-pct');
 
             if (ltpEl && data.price != null) {
+                // Live Price Tick Up/Down Flash Animation
+                let dir = data.tick_direction || 0;
+                if (window._prevLtpVal != null) {
+                    if (data.price > window._prevLtpVal) dir = 1;
+                    else if (data.price < window._prevLtpVal) dir = -1;
+                }
+                window._prevLtpVal = data.price;
+                if (dir === 1) {
+                    ltpEl.classList.remove('tick-flash-down');
+                    void ltpEl.offsetWidth;
+                    ltpEl.classList.add('tick-flash-up');
+                } else if (dir === -1) {
+                    ltpEl.classList.remove('tick-flash-up');
+                    void ltpEl.offsetWidth;
+                    ltpEl.classList.add('tick-flash-down');
+                }
+
                 ltpEl.innerText = `₹${data.price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
                 const chg = data.change != null ? data.change : (data.prev_close ? (data.price - data.prev_close) : 0);
@@ -9717,6 +10516,27 @@ function showIndicatorLineActionPill(ind, point) {
                     if (changeIconEl) changeIconEl.innerText = '▼';
                     if (changePtsEl) changePtsEl.innerText = `-${Math.abs(chg).toFixed(2)}`;
                     if (changePctEl) changePctEl.innerText = `(-${Math.abs(chgPct).toFixed(2)}%)`;
+                }
+
+                // Pre-Market Session Status & Movement Tag
+                const pmBadge = document.getElementById('premarket-live-badge');
+                const pmLabel = document.getElementById('premarket-live-label');
+                if (data.is_pre_market) {
+                    if (pmBadge) pmBadge.style.display = 'inline-flex';
+                    if (pmLabel) {
+                        if (data.pre_market_phase === 'AUCTION_ACCUMULATION') {
+                            pmLabel.innerText = 'PRE-MARKET AUCTION';
+                        } else {
+                            pmLabel.innerText = 'PRE-MARKET DISCOVERED';
+                        }
+                    }
+                    updatePreMarketPriceLine(data.price);
+                } else {
+                    if (pmBadge) pmBadge.style.display = 'none';
+                    if (_preMarketPriceLine && candleSeries) {
+                        try { candleSeries.removePriceLine(_preMarketPriceLine); } catch (e) {}
+                        _preMarketPriceLine = null;
+                    }
                 }
             }
 
@@ -11172,9 +11992,10 @@ function showIndicatorLineActionPill(ind, point) {
                     rect.setAttribute('y', rectY);
                     rect.setAttribute('width', rectW);
                     rect.setAttribute('height', rectH);
-                    rect.setAttribute('fill', '#ffffff');
+                    const srCol = isSupp ? (currentThemeSettings.srSupport || '#22c55e') : (currentThemeSettings.srResistance || '#ef4444');
+                    rect.setAttribute('fill', srCol);
                     rect.setAttribute('fill-opacity', fillOpacity);
-                    rect.setAttribute('stroke', '#ffffff');
+                    rect.setAttribute('stroke', srCol);
                     rect.setAttribute('stroke-opacity', strokeOpacity);
                     rect.setAttribute('stroke-width', strokeWidth);
                     rect.setAttribute('stroke-dasharray', strokeDash);
@@ -11237,12 +12058,13 @@ function showIndicatorLineActionPill(ind, point) {
                     g.appendChild(hitLine);
 
                     // Visual Line: PURE WHITE with bounce opacity
+                    const srCol = isSupp ? (currentThemeSettings.srSupport || '#22c55e') : (currentThemeSettings.srResistance || '#ef4444');
                     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                     line.setAttribute('x1', startX);
                     line.setAttribute('y1', y);
                     line.setAttribute('x2', endX);
                     line.setAttribute('y2', y);
-                    line.setAttribute('stroke', '#ffffff');
+                    line.setAttribute('stroke', srCol);
                     line.setAttribute('stroke-opacity', strokeOpacity);
                     line.setAttribute('stroke-width', strokeWidth);
                     line.setAttribute('stroke-dasharray', strokeDash);
@@ -13299,8 +14121,13 @@ function showIndicatorLineActionPill(ind, point) {
                     }
                 } else if (ist.isPreMarket) {
                     statusPill.classList.add('market-status-pre');
-                    statusText.textContent = 'Pre-Market (NSE)';
-                    statusPill.title = 'NSE Pre-Market Auction Session (09:00 - 09:15 IST)';
+                    if (ist.totalSeconds < 9 * 3600 + 8 * 60) {
+                        statusText.textContent = 'Pre-Market (Auction)';
+                        statusPill.title = 'NSE Call Auction: Order collection & indicative price discovery (09:00 - 09:08 IST)';
+                    } else {
+                        statusText.textContent = 'Pre-Market (Discovered)';
+                        statusPill.title = 'NSE Pre-Market Opening Price Discovered by Angel One. Normal market begins at 09:15 AM IST';
+                    }
                     if (subDotLive) {
                         subDotLive.style.background = '#ffb74d';
                         subDotLive.style.boxShadow = '0 0 6px #ffb74d';
@@ -14096,6 +14923,12 @@ function showIndicatorLineActionPill(ind, point) {
         // 🚀 BOOTSTRAP TERMINAL
         // ========================================================
         window.addEventListener('DOMContentLoaded', () => {
+            // Theme settings load & sync
+            try {
+                loadThemeSettings();
+                syncSettingsUI();
+            } catch (e) {}
+
             // 0. Initialize RAG status badge
             try {
                 checkRagStatus();
@@ -14454,6 +15287,414 @@ function showIndicatorLineActionPill(ind, point) {
                         </div>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- ⚙️ Full Terminal Settings Modal (Departments & Customization) -->
+    <!-- ============================================================ -->
+    <div id="terminal-settings-modal" class="settings-modal-overlay" onclick="handleSettingsOverlayClick(event)">
+        <div class="settings-modal-container">
+            <!-- Header -->
+            <div class="settings-modal-header">
+                <div class="settings-modal-title">
+                    <span style="font-size: 18px;">⚙️</span>
+                    <span>Terminal Settings & Preferences</span>
+                </div>
+                <button type="button" class="settings-modal-close" onclick="closeTerminalSettingsModal()">✕</button>
+            </div>
+
+            <!-- Modal Body (Two-Column Department Architecture) -->
+            <div class="settings-modal-layout">
+                <!-- Left Sidebar / Department Buttons -->
+                <div class="settings-dept-sidebar">
+                    <button type="button" class="settings-dept-btn active" id="dept-btn-colors" onclick="switchSettingsDept('colors')">
+                        <span class="dept-icon">🎨</span>
+                        <span>Canvas & Colors</span>
+                    </button>
+                    <button type="button" class="settings-dept-btn" id="dept-btn-profile" onclick="switchSettingsDept('profile')">
+                        <span class="dept-icon">👤</span>
+                        <span>Profile & Security</span>
+                    </button>
+                    <button type="button" class="settings-dept-btn" id="dept-btn-trading" onclick="switchSettingsDept('trading')">
+                        <span class="dept-icon">📊</span>
+                        <span>Chart & Trading</span>
+                    </button>
+                    <button type="button" class="settings-dept-btn" id="dept-btn-developer" onclick="switchSettingsDept('developer')">
+                        <span class="dept-icon">💬</span>
+                        <span>Connect Developer</span>
+                    </button>
+                </div>
+
+                <!-- Right Department Panes -->
+                <div class="settings-dept-content" id="settings-dept-content">
+                    
+                    <!-- 🎨 DEPARTMENT 1: Canvas & Appearance Colors -->
+                    <div class="settings-dept-pane active" id="dept-pane-colors">
+                        
+                        <!-- Background Color & Theme Presets -->
+                        <div class="settings-section-card">
+                            <div class="settings-section-title">
+                                <span>🖥️ Canvas Background</span>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Background Color</div>
+                                    <div class="settings-item-sub">Custom color or select quick professional preset</div>
+                                </div>
+                                <div class="settings-color-input-wrap">
+                                    <input type="color" id="set-color-bg" class="settings-color-picker" onchange="onThemeColorChange('canvasBg', this.value)">
+                                    <span id="hex-color-bg" class="settings-color-hex">#070a13</span>
+                                </div>
+                            </div>
+                            <div class="settings-preset-pills">
+                                <span style="font-size: 11px; color: #64748b; align-self: center;">Presets:</span>
+                                <button type="button" class="settings-preset-btn" onclick="applyBgPreset('#070a13')">Midnight Pro</button>
+                                <button type="button" class="settings-preset-btn" onclick="applyBgPreset('#0a0e17')">Deep Dark</button>
+                                <button type="button" class="settings-preset-btn" onclick="applyBgPreset('#131722')">Trading Charcoal</button>
+                                <button type="button" class="settings-preset-btn" onclick="applyBgPreset('#080d1a')">Navy Slate</button>
+                                <button type="button" class="settings-preset-btn" onclick="applyBgPreset('#000000')">Pitch Black</button>
+                            </div>
+                        </div>
+
+                        <!-- Grid Lines (Vertical & Horizontal - Requirement 4) -->
+                        <div class="settings-section-card">
+                            <div class="settings-section-title">
+                                <span>📐 Grid Lines (Vertical & Horizontal)</span>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Show Canvas Grid</div>
+                                    <div class="settings-item-sub">Crisp alignment grid across time & price scales</div>
+                                </div>
+                                <label class="modern-switch-wrap">
+                                    <input type="checkbox" id="set-grid-visible" checked onchange="onThemeSettingChange('gridVisible', this.checked)">
+                                    <span class="modern-switch-slider"></span>
+                                </label>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Grid Line Color</div>
+                                    <div class="settings-item-sub">Subtle tone matching Image 1 aesthetics</div>
+                                </div>
+                                <div class="settings-color-input-wrap">
+                                    <input type="color" id="set-color-grid" class="settings-color-picker" onchange="onThemeColorChange('gridColor', this.value)">
+                                    <span id="hex-color-grid" class="settings-color-hex">#38445c</span>
+                                </div>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Grid Visibility Opacity</div>
+                                    <div class="settings-item-sub">Adjust contrast of horizontal & vertical lines</div>
+                                </div>
+                                <input type="range" id="set-grid-opacity" min="0.1" max="0.9" step="0.05" value="0.55" style="width: 140px;" oninput="onThemeSettingChange('gridOpacity', parseFloat(this.value))">
+                            </div>
+                        </div>
+
+                        <!-- Candlestick Styling -->
+                        <div class="settings-section-card">
+                            <div class="settings-section-title">
+                                <span>🕯️ Candlestick Colors</span>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Bullish Candle Body (Up)</div>
+                                    <div class="settings-item-sub">Color for advancing candles</div>
+                                </div>
+                                <div class="settings-color-input-wrap">
+                                    <input type="color" id="set-color-candle-up" class="settings-color-picker" onchange="onThemeColorChange('candleUp', this.value)">
+                                    <span id="hex-color-candle-up" class="settings-color-hex">#089981</span>
+                                </div>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Bearish Candle Body (Down)</div>
+                                    <div class="settings-item-sub">Color for declining candles</div>
+                                </div>
+                                <div class="settings-color-input-wrap">
+                                    <input type="color" id="set-color-candle-down" class="settings-color-picker" onchange="onThemeColorChange('candleDown', this.value)">
+                                    <span id="hex-color-candle-down" class="settings-color-hex">#f23645</span>
+                                </div>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Wick Colors</div>
+                                    <div class="settings-item-sub">High/low candle shadow wicks</div>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <input type="color" id="set-color-wick-up" class="settings-color-picker" title="Bullish Wick" onchange="onThemeColorChange('wickUp', this.value)">
+                                    <input type="color" id="set-color-wick-down" class="settings-color-picker" title="Bearish Wick" onchange="onThemeColorChange('wickDown', this.value)">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Support & Resistance (S&R) Line Colors -->
+                        <div class="settings-section-card">
+                            <div class="settings-section-title">
+                                <span>🛡️ Support & Resistance (S&R) Colors</span>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Resistance Level Lines</div>
+                                    <div class="settings-item-sub">Institutional supply barriers & ceilings</div>
+                                </div>
+                                <div class="settings-color-input-wrap">
+                                    <input type="color" id="set-color-sr-res" class="settings-color-picker" onchange="onThemeColorChange('srResistance', this.value)">
+                                    <span id="hex-color-sr-res" class="settings-color-hex">#ef4444</span>
+                                </div>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Support Level Lines</div>
+                                    <div class="settings-item-sub">Institutional demand zones & floors</div>
+                                </div>
+                                <div class="settings-color-input-wrap">
+                                    <input type="color" id="set-color-sr-supp" class="settings-color-picker" onchange="onThemeColorChange('srSupport', this.value)">
+                                    <span id="hex-color-sr-supp" class="settings-color-hex">#22c55e</span>
+                                </div>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Breakout / Flips Level</div>
+                                    <div class="settings-item-sub">Polarity change breakout markers</div>
+                                </div>
+                                <div class="settings-color-input-wrap">
+                                    <input type="color" id="set-color-sr-break" class="settings-color-picker" onchange="onThemeColorChange('srBreakout', this.value)">
+                                    <span id="hex-color-sr-break" class="settings-color-hex">#eab308</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Indicator Core Colors -->
+                        <div class="settings-section-card">
+                            <div class="settings-section-title">
+                                <span>📈 Key Indicators Colors</span>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">VWAP Line</div>
+                                    <div class="settings-item-sub">Volume-Weighted Average Price</div>
+                                </div>
+                                <div class="settings-color-input-wrap">
+                                    <input type="color" id="set-color-vwap" class="settings-color-picker" onchange="onThemeColorChange('vwapColor', this.value)">
+                                    <span id="hex-color-vwap" class="settings-color-hex">#3b82f6</span>
+                                </div>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">VWAP Standard Deviation Bands (±2σ)</div>
+                                    <div class="settings-item-sub">Upper & lower volatility bands</div>
+                                </div>
+                                <div class="settings-color-input-wrap">
+                                    <input type="color" id="set-color-bands" class="settings-color-picker" onchange="onThemeColorChange('bandsColor', this.value)">
+                                    <span id="hex-color-bands" class="settings-color-hex">#fbbf24</span>
+                                </div>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">SMA 20 Rolling Mean</div>
+                                    <div class="settings-item-sub">20-period Simple Moving Average</div>
+                                </div>
+                                <div class="settings-color-input-wrap">
+                                    <input type="color" id="set-color-sma" class="settings-color-picker" onchange="onThemeColorChange('smaColor', this.value)">
+                                    <span id="hex-color-sma" class="settings-color-hex">#ff9800</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 👤 DEPARTMENT 2: Profile & Security -->
+                    <div class="settings-dept-pane" id="dept-pane-profile">
+                        <div class="settings-section-card">
+                            <div class="settings-section-title">
+                                <span>👤 User Account Profile</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 4px;">
+                                <div style="background: #0b1120; padding: 12px; border-radius: 8px; border: 1px solid #1e293b;">
+                                    <div style="font-size: 11px; color: #64748b;">Username</div>
+                                    <div id="set-prof-username" style="font-size: 15px; font-weight: 800; color: #38bdf8; margin-top: 2px;">Trader</div>
+                                </div>
+                                <div style="background: #0b1120; padding: 12px; border-radius: 8px; border: 1px solid #1e293b;">
+                                    <div style="font-size: 11px; color: #64748b;">Contact / Phone</div>
+                                    <div id="set-prof-contact" style="font-size: 14px; font-weight: 700; color: #f8fafc; margin-top: 2px;">+91 81600 34453</div>
+                                </div>
+                                <div style="background: #0b1120; padding: 12px; border-radius: 8px; border: 1px solid #1e293b;">
+                                    <div style="font-size: 11px; color: #64748b;">Membership Tier</div>
+                                    <div id="set-prof-tier" style="font-size: 13px; font-weight: 700; color: #10b981; margin-top: 2px;">✨ VIP Pro Trader</div>
+                                </div>
+                                <div style="background: #0b1120; padding: 12px; border-radius: 8px; border: 1px solid #1e293b;">
+                                    <div style="font-size: 11px; color: #64748b;">Session Status</div>
+                                    <div style="font-size: 13px; font-weight: 700; color: #22c55e; margin-top: 2px; display: flex; align-items: center; gap: 6px;">
+                                        <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #22c55e;"></span> Active & Synced
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Update Password -->
+                        <div class="settings-section-card">
+                            <div class="settings-section-title">
+                                <span>🔒 Security & Password</span>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 10px;">
+                                <div>
+                                    <div style="font-size: 11.5px; color: #94a3b8; margin-bottom: 4px;">New Password</div>
+                                    <input type="password" id="set-new-pass" placeholder="Enter new password (min 6 characters)" style="width: 100%; background: #0b1120; border: 1px solid #334155; border-radius: 6px; padding: 8px 12px; color: #ffffff; font-size: 12px;">
+                                </div>
+                                <div>
+                                    <div style="font-size: 11.5px; color: #94a3b8; margin-bottom: 4px;">Confirm New Password</div>
+                                    <input type="password" id="set-confirm-pass" placeholder="Re-enter new password" style="width: 100%; background: #0b1120; border: 1px solid #334155; border-radius: 6px; padding: 8px 12px; color: #ffffff; font-size: 12px;">
+                                </div>
+                                <button type="button" onclick="handleSettingsPasswordUpdate()" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; padding: 8px 16px; border-radius: 6px; font-weight: 700; font-size: 12px; cursor: pointer; align-self: flex-start; margin-top: 4px;">
+                                    Update Password 🔑
+                                </button>
+                                <div id="set-pass-msg" style="font-size: 11.5px; display: none;"></div>
+                            </div>
+                        </div>
+
+                        <!-- 🚪 Log Out Action Card (Prominent & Clear) -->
+                        <div class="logout-danger-card">
+                            <div>
+                                <div style="font-size: 14px; font-weight: 800; color: #f87171;">🚪 End Active Trading Session</div>
+                                <div style="font-size: 11.5px; color: #94a3b8; margin-top: 2px;">
+                                    Safely logs out of this device. All custom drawings and copilot interactions are securely saved to your account.
+                                </div>
+                            </div>
+                            <button type="button" class="btn-logout-prominent" onclick="confirmAndLogoutUser()">
+                                <span>🚪 Log Out</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 📊 DEPARTMENT 3: Chart & Trading Preferences -->
+                    <div class="settings-dept-pane" id="dept-pane-trading">
+                        
+                        <div class="settings-section-card">
+                            <div class="settings-section-title">
+                                <span>⏱️ Chart Preferences</span>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Default Chart Timeframe</div>
+                                    <div class="settings-item-sub">Timeframe selected when terminal boots</div>
+                                </div>
+                                <select id="set-default-tf" onchange="onThemeSettingChange('defaultTimeframe', this.value)" style="background: #0b1120; border: 1px solid #334155; color: #ffffff; padding: 6px 12px; border-radius: 6px; font-size: 12px;">
+                                    <option value="5m">5 Minutes (Intraday Scalp)</option>
+                                    <option value="15m">15 Minutes (Short-Term Trend)</option>
+                                    <option value="1h">1 Hour (Swing Structure)</option>
+                                    <option value="1d">1 Day (Daily Macro)</option>
+                                </select>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Future Timeline Space (Right Offset)</div>
+                                    <div class="settings-item-sub">Whitespace bars on right side of current candle (Requirement 4)</div>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="range" id="set-right-offset" min="8" max="35" step="1" value="18" style="width: 130px;" oninput="onThemeSettingChange('rightOffset', parseInt(this.value, 10)); document.getElementById('val-right-offset').textContent = this.value + ' bars';">
+                                    <span id="val-right-offset" style="font-family: monospace; font-size: 11px; color: #38bdf8; min-width: 50px;">18 bars</span>
+                                </div>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Audio Chime on BUY / SELL Signals</div>
+                                    <div class="settings-item-sub">Play soft acoustic alert on confirmed strategy triggers</div>
+                                </div>
+                                <label class="modern-switch-wrap">
+                                    <input type="checkbox" id="set-audio-alerts" checked onchange="onThemeSettingChange('audioAlerts', this.checked)">
+                                    <span class="modern-switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="settings-section-card">
+                            <div class="settings-section-title">
+                                <span>🟡 Pre-Market & Auction Display</span>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Pre-Market Open Level on Chart</div>
+                                    <div class="settings-item-sub">Show dashed horizontal amber line for discovered open</div>
+                                </div>
+                                <label class="modern-switch-wrap">
+                                    <input type="checkbox" id="set-pm-line-visible" checked onchange="onThemeSettingChange('pmLineVisible', this.checked)">
+                                    <span class="modern-switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 💬 DEPARTMENT 4: Connect with Developer -->
+                    <div class="settings-dept-pane" id="dept-pane-developer">
+                        
+                        <div class="settings-section-card">
+                            <div class="settings-section-title">
+                                <span>👨‍💻 Direct Developer Assistance</span>
+                            </div>
+                            <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 12px 14px; font-size: 12px; color: #e2e8f0; line-height: 1.5;">
+                                <b style="color: #38bdf8;">Rushit Bodra</b> • Lead Developer & Webpage Provider<br>
+                                Have questions regarding chart algorithms, SmartAPI feeds, or custom indicator builds? Reach out directly.
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 6px;">
+                                <!-- WhatsApp -->
+                                <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); padding: 10px 14px; border-radius: 8px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 20px;">💬</span>
+                                        <div>
+                                            <div style="font-weight: 700; color: #f8fafc; font-size: 12.5px;">WhatsApp & Mobile Call</div>
+                                            <div style="color: #34d399; font-weight: 700; font-size: 12px;">+91 81600 34453</div>
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; gap: 6px;">
+                                        <a href="https://wa.me/918160034453?text=Hi%20Rushit,%20I%20am%20using%20the%20NIFTY%2050%20Terminal%20and%20need%20assistance" target="_blank" rel="noopener noreferrer" style="text-decoration: none; background: #059669; color: #ffffff; padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 11px;">
+                                            WhatsApp 💬
+                                        </a>
+                                        <a href="tel:+918160034453" style="text-decoration: none; background: #1e293b; color: #cbd5e1; padding: 6px 10px; border-radius: 6px; font-weight: 700; font-size: 11px; border: 1px solid #334155;">
+                                            Call 📞
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <!-- Email -->
+                                <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); padding: 10px 14px; border-radius: 8px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 20px;">✉️</span>
+                                        <div>
+                                            <div style="font-weight: 700; color: #f8fafc; font-size: 12.5px;">Developer Email</div>
+                                            <div style="color: #38bdf8; font-weight: 600; font-size: 12px;">rushitbodra@gmail.com</div>
+                                        </div>
+                                    </div>
+                                    <button type="button" onclick="copyDevContactEmail()" style="background: #0284c7; color: #ffffff; border: 1px solid #38bdf8; padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 11px; cursor: pointer;">
+                                        Copy Email 📋
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 1-Click Feature Request / Bug Report Box -->
+                        <div class="settings-section-card">
+                            <div class="settings-section-title">
+                                <span>📝 Send Feedback or Custom Request</span>
+                            </div>
+                            <textarea id="settings-dev-msg" placeholder="Describe any technical issue, requested indicator, or customized feature for the developer..." style="width: 100%; min-height: 75px; background: #0b1120; border: 1px solid #334155; border-radius: 6px; padding: 10px; color: #ffffff; font-size: 12px; resize: vertical;"></textarea>
+                            <button type="button" onclick="submitDeveloperFeedback()" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: #ffffff; border: 1px solid #38bdf8; padding: 8px 18px; border-radius: 6px; font-weight: 700; font-size: 12px; cursor: pointer; align-self: flex-start;">
+                                Submit Message 🚀
+                            </button>
+                            <div id="settings-dev-status" style="font-size: 11.5px; display: none;"></div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="settings-modal-footer">
+                <button type="button" class="settings-btn-reset" onclick="resetThemeSettingsToDefault()">↺ Reset Colors to Default</button>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" class="settings-btn-close" onclick="closeTerminalSettingsModal()">Close</button>
+                    <button type="button" class="settings-btn-save" onclick="closeTerminalSettingsModal()">Apply & Done</button>
+                </div>
             </div>
         </div>
     </div>

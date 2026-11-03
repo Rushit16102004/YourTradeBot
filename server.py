@@ -412,6 +412,9 @@ async def get_market_data(
         "last_sync_time": sync_time_str,
         "next_sync_secs": snapshot.get("next_sync_secs", 300),
         "is_authed": snapshot.get("is_authed", False),
+        "is_pre_market": bool(snapshot.get("is_pre_market", False)),
+        "pre_market_phase": snapshot.get("pre_market_phase"),
+        "tick_direction": snapshot.get("tick_direction", 0),
     }
     # Keep cache lean (max 10 entries)
     if len(_market_data_cache) > 10:
@@ -440,8 +443,13 @@ async def get_live_candle(
     cur_chg = round(float(snapshot.get("change", 0.0)), 2)
     state = snapshot.get("state")
 
+    is_pre_market = bool(snapshot.get("is_pre_market", False))
+    pre_market_phase = snapshot.get("pre_market_phase")
+    tick_dir = snapshot.get("tick_direction", 0)
+
     live_candle = None
-    if not df.empty:
+    # In pre-market, do not mutate yesterday's closed candle on the chart
+    if not df.empty and not is_pre_market:
         last_row = df.iloc[-1]
         last_idx = df.index[-1]
         ts_sec = int(last_idx.timestamp()) if hasattr(last_idx, "timestamp") else int(pd.to_datetime(last_idx).timestamp())
@@ -495,6 +503,9 @@ async def get_live_candle(
         "sr_alert": snapshot.get("sr_alert"),
         "candle": live_candle,
         "timeframe": timeframe,
+        "is_pre_market": is_pre_market,
+        "pre_market_phase": pre_market_phase,
+        "tick_direction": tick_dir,
     })
 
 

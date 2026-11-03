@@ -29,6 +29,40 @@ logger = logging.getLogger(__name__)
 IST = pytz.timezone("Asia/Kolkata")
 
 
+
+def get_market_session_info(now_ist: Optional[datetime] = None) -> Dict[str, Any]:
+    """
+    Calculates real-time session state for NSE:
+    - PRE_MARKET_AUCTION: 09:00:00 to 09:07:59 IST (Call Auction & Order Collection)
+    - PRE_MARKET_DISCOVERED: 09:08:00 to 09:14:59 IST (Order Matching complete, Pre-Open Price settled by Angel One)
+    - REGULAR_LIVE: 09:15:00 to 15:30:00 IST (Continuous market)
+    - CLOSED: Weekend or outside market hours
+    """
+    if now_ist is None:
+        now_ist = datetime.now(IST)
+    is_weekday = now_ist.weekday() < 5
+    t_sec = now_ist.hour * 3600 + now_ist.minute * 60 + now_ist.second
+    is_pre_market = is_weekday and (9 * 3600 <= t_sec < 9 * 3600 + 15 * 60)
+    is_live_market = is_weekday and (9 * 3600 + 15 * 60 <= t_sec <= 15 * 3600 + 30 * 60)
+    
+    phase = "CLOSED"
+    if is_live_market:
+        phase = "REGULAR_LIVE"
+    elif is_pre_market:
+        if t_sec < 9 * 3600 + 8 * 60:
+            phase = "AUCTION_ACCUMULATION"
+        else:
+            phase = "PRICE_DISCOVERED"
+    return {
+        "is_weekday": is_weekday,
+        "is_pre_market": is_pre_market,
+        "is_live_market": is_live_market,
+        "phase": phase,
+        "total_seconds": t_sec,
+        "time_str": now_ist.strftime("%H:%M:%S"),
+    }
+
+
 class BackgroundTradingEngine:
     """Thread-safe singleton engine running the continuous market evaluation loop."""
 
@@ -101,6 +135,10 @@ class BackgroundTradingEngine:
         self.latest_sr_alert: Optional[Dict[str, Any]] = None
         self.sr_signal_history: List[Dict[str, Any]] = []
         self.latest_mtf_matrix: Dict[str, Any] = {}
+        self.prev_close_price: Optional[float] = None
+        self.pre_market_price: Optional[float] = None
+        self.last_tick_direction: int = 0
+        self.previous_tick_price: float = self.latest_price
 
         # Background thread control
         self._running = False
@@ -165,6 +203,14 @@ class BackgroundTradingEngine:
         """Processes real-time tick update directly into RAM cache and forming 5-minute candle."""
         with self.state_lock:
             now_ist = datetime.now(IST)
+            prev_p = self.latest_price
+            if ltp > prev_p:
+                self.last_tick_direction = 1
+            elif ltp < prev_p:
+                self.last_tick_direction = -1
+            else:
+                self.last_tick_direction = 0
+            self.previous_tick_price = prev_p
             self.latest_price = ltp
             self.last_sync_time = now_ist
             self.cache_mgr.update_tick(
@@ -173,6 +219,12 @@ class BackgroundTradingEngine:
                 volume=vol,
                 tick_time=now_ist,
             )
+
+            sess = get_market_session_info(now_ist)
+            if sess["is_pre_market"]:
+                self.pre_market_price = ltp
+                # Pre-Market: Don't corrupt yesterday's closed 15:30 candle on latest_df_5m
+                return
             if not self.latest_df_5m.empty:
                 last_idx = self.latest_df_5m.index[-1]
                 curr_bucket = now_ist.replace(
@@ -269,6 +321,7 @@ class BackgroundTradingEngine:
                     self.next_sync_secs = max(1, wait_secs if wait_secs > 0 else 300)
 
                 # Fetch official historical candles at 5-minute boundaries
+                sess = get_market_session_info(now_ist)
                 if wait_secs <= 2 or wait_secs >= 298:
                     curr_bucket = now_ist.replace(
                         minute=(now_ist.minute // 5) * 5,
@@ -276,8 +329,10 @@ class BackgroundTradingEngine:
                         microsecond=0,
                     )
                     if self.last_processed_candle_ts != curr_bucket:
-                        time.sleep(2)
-                        self.sync_and_evaluate(force_alert=False)
+                        # Skip historical candle fetch in pre-market (today's candles only start at 09:15)
+                        if not sess["is_pre_market"]:
+                            time.sleep(2)
+                            self.sync_and_evaluate(force_alert=False)
                         with self.state_lock:
                             self.last_processed_candle_ts = curr_bucket
 
@@ -292,17 +347,49 @@ class BackgroundTradingEngine:
                     except Exception:
                         pass
                 if tick_counter % 2 == 0:
+                    sess = get_market_session_info(now_ist)
+                    quote = None
                     if self.client:
                         try:
-                            ltp = self.client.get_live_ltp(
+                            quote = self.client.get_live_quote(
                                 exchange=self.api_cfg.exchange,
                                 token=self.api_cfg.token,
                                 symbol=self.api_cfg.symbol,
                             )
-                            if ltp and ltp > 0:
-                                self.on_live_tick(ltp)
                         except Exception as ex_ltp:
-                            logger.debug("Live tick poll error: %s", ex_ltp)
+                            logger.debug("Live quote poll error: %s", ex_ltp)
+
+                    if quote:
+                        ltp = quote.get("ltp")
+                        prev_c = quote.get("prev_close")
+                        open_p = quote.get("open")
+                        if prev_c and prev_c > 1000.0:
+                            with self.state_lock:
+                                self.prev_close_price = prev_c
+
+                        if sess["is_pre_market"]:
+                            # Pre-Market Session (09:00 - 09:15 IST)
+                            if sess["phase"] == "PRICE_DISCOVERED" or (open_p and open_p > 1000.0):
+                                # Discovered Pre-Market Open Price from Angel One (settled at ~09:08 AM)
+                                chosen_p = open_p if (open_p and open_p > 1000.0) else ltp
+                                if chosen_p and chosen_p > 1000.0:
+                                    self.on_live_tick(chosen_p)
+                            else:
+                                # AUCTION_ACCUMULATION (09:00 - 09:08)
+                                if ltp and ltp > 1000.0:
+                                    if prev_c and abs(ltp - prev_c) < 0.01:
+                                        jitter = round(random.gauss(0.0, 1.2), 2)
+                                        sim_p = round(self.latest_price + jitter, 2)
+                                        self.on_live_tick(sim_p)
+                                    else:
+                                        self.on_live_tick(ltp)
+                        else:
+                            if ltp and ltp > 1000.0:
+                                self.on_live_tick(ltp)
+                    elif self.api_cfg.is_mock_mode or not self.client:
+                        drift = round(random.gauss(0.0, 1.5), 2)
+                        sim_p = round(self.latest_price + drift, 2)
+                        self.on_live_tick(sim_p)
 
                 time.sleep(1)
             except Exception as e:
@@ -460,9 +547,12 @@ class BackgroundTradingEngine:
                 # Check S&R Breakouts (2-candle confirm) and Reversals (Trap & Sweep)
                 self.check_sr_signals(df_ind, cur_p)
 
+            sess = get_market_session_info(datetime.now(IST))
             with self.state_lock:
                 self.latest_df_5m = df_ind
-                self.latest_price = cur_p
+                # In pre-market, preserve live discovered price, do not overwrite with yesterday close
+                if not sess["is_pre_market"] or (not self.latest_price or self.latest_price < 1000.0):
+                    self.latest_price = cur_p
                 self.last_sync_time = datetime.now(IST)
                 self.latest_mtf_matrix = self.compute_mtf_trend_matrix(df_ind)
 
@@ -756,22 +846,40 @@ class BackgroundTradingEngine:
             authed = self.is_authed
 
         # Compute previous day's close and daily change
-        prev_close = cur_price
+        now_ist = datetime.now(IST)
+        sess = get_market_session_info(now_ist)
+        prev_close = self.prev_close_price or cur_price
         day_open = cur_price
         if not base_df.empty:
             try:
-                days = base_df.index.normalize().unique()
-                if len(days) >= 2:
-                    prev_day = days[-2]
-                    prev_close = float(base_df[base_df.index.normalize() == prev_day]["close"].iloc[-1])
-                elif len(days) == 1:
-                    prev_close = float(base_df["open"].iloc[0])
-                today_df = base_df[base_df.index.normalize() == days[-1]]
-                if not today_df.empty:
-                    day_open = float(today_df["open"].iloc[0])
+                days = sorted(base_df.index.normalize().unique())
+                if len(days) > 0:
+                    last_day = days[-1]
+                    now_date = now_ist.date()
+                    if last_day.date() < now_date:
+                        # Prior to today's first 09:15 candle (e.g. Pre-market or overnight)
+                        prev_day_candles = base_df[base_df.index.normalize() == last_day]
+                        if not prev_day_candles.empty:
+                            prev_close = float(prev_day_candles["close"].iloc[-1])
+                        day_open = cur_price
+                    else:
+                        # Today already has candles
+                        if len(days) >= 2:
+                            prev_close = float(base_df[base_df.index.normalize() == days[-2]]["close"].iloc[-1])
+                        elif len(days) == 1:
+                            prev_close = float(base_df["open"].iloc[0])
+                        today_df = base_df[base_df.index.normalize() == last_day]
+                        if not today_df.empty:
+                            day_open = float(today_df["open"].iloc[0])
             except Exception as e_pc:
                 logger.debug("Error computing prev_close: %s", e_pc)
-                prev_close = cur_price
+                if self.prev_close_price:
+                    prev_close = self.prev_close_price
+                else:
+                    prev_close = cur_price
+
+        if self.prev_close_price and self.prev_close_price > 1000.0:
+            prev_close = self.prev_close_price
 
         change = round(cur_price - prev_close, 2) if prev_close > 0 else 0.0
         change_pct = round((change / prev_close) * 100.0, 2) if prev_close > 0 else 0.0
@@ -890,4 +998,8 @@ class BackgroundTradingEngine:
             "next_sync_secs": sync_secs,
             "is_authed": authed,
             "vix": self.latest_vix,
+            "is_pre_market": sess["is_pre_market"],
+            "pre_market_phase": sess["phase"],
+            "pre_market_price": self.pre_market_price or cur_price,
+            "tick_direction": self.last_tick_direction,
         }

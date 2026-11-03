@@ -88,8 +88,15 @@ class AngelSmartApiClient:
             pass
         return None
 
-    def get_live_ltp(self, exchange: str = "NSE", token: str = "99926000", symbol: str = "Nifty 50") -> Optional[float]:
-        """Fetches live traded price (LTP) directly from Angel One SmartAPI with auto-reauthentication and fallback."""
+    def get_live_quote(self, exchange: str = "NSE", token: str = "99926000", symbol: str = "Nifty 50") -> Optional[Dict[str, Any]]:
+        """
+        Fetches live quote data directly from Angel One SmartAPI:
+        - ltp: Live Traded Price / Pre-Market Discovered Price
+        - prev_close: Previous trading day's official close
+        - open: Today's open / indicative pre-open auction price
+        - high: Today's high
+        - low: Today's low
+        """
         self.ensure_valid_session()
 
         if self.is_connected and self.smart_connect:
@@ -103,14 +110,41 @@ class AngelSmartApiClient:
                         res = self.smart_connect.ltpData(exchange, symbol, str(token))
 
                 if res and res.get("status") and res.get("data"):
-                    val = float(res["data"].get("ltp", 0.0))
-                    if val > 1000.0:
-                        return val
+                    d = res["data"]
+                    ltp = float(d.get("ltp", 0.0))
+                    prev_c = float(d.get("close", 0.0))
+                    open_p = float(d.get("open", 0.0))
+                    high_p = float(d.get("high", 0.0))
+                    low_p = float(d.get("low", 0.0))
+                    if ltp > 1000.0:
+                        return {
+                            "ltp": ltp,
+                            "prev_close": prev_c if prev_c > 1000.0 else None,
+                            "open": open_p if open_p > 1000.0 else None,
+                            "high": high_p if high_p > 1000.0 else None,
+                            "low": low_p if low_p > 1000.0 else None,
+                        }
             except Exception as e:
-                logger.error("Error fetching live LTP from Angel One: %s", e)
+                logger.error("Error fetching live quote from Angel One: %s", e)
 
-        # 2. Seamless live market fallback if Angel One is momentarily unavailable
-        return self._get_fallback_live_ltp()
+        # Seamless live market fallback if Angel One is momentarily unavailable
+        fallback_ltp = self._get_fallback_live_ltp()
+        if fallback_ltp and fallback_ltp > 1000.0:
+            return {
+                "ltp": fallback_ltp,
+                "prev_close": None,
+                "open": None,
+                "high": None,
+                "low": None,
+            }
+        return None
+
+    def get_live_ltp(self, exchange: str = "NSE", token: str = "99926000", symbol: str = "Nifty 50") -> Optional[float]:
+        """Fetches live traded price (LTP) directly from Angel One SmartAPI with auto-reauthentication and fallback."""
+        quote = self.get_live_quote(exchange, token, symbol)
+        if quote and quote.get("ltp"):
+            return quote["ltp"]
+        return None
 
     def get_live_vix(self) -> float:
         """
