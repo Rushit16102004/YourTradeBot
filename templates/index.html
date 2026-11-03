@@ -2515,6 +2515,15 @@
                 flex-shrink: 0;
                 white-space: nowrap;
             }
+            .yaxis-candle-timer {
+                font-size: 9px;
+                padding: 1px 2px;
+                gap: 2px;
+            }
+            .yaxis-candle-timer .timer-tf {
+                font-size: 8px;
+                padding: 0 2px;
+            }
             .timer-tf-label {
                 display: none !important;
             }
@@ -3891,23 +3900,22 @@
             align-items: flex-start;
             gap: 2px;
         }
-        /* ⏳ TradingView-Style Candle Countdown Badge (Pinned to Y-Axis Live Price) */
+        /* ⏳ TradingView-Style Candle Countdown Badge (Pinned directly BELOW Y-Axis Live Price) */
         .yaxis-candle-timer {
             position: absolute;
-            right: 70px;
-            top: 50%;
-            transform: translateY(-50%);
+            right: 2px;
             z-index: 25;
             display: none;
             align-items: center;
-            gap: 4px;
-            padding: 2.5px 7px;
-            background: rgba(13, 17, 28, 0.94);
+            justify-content: center;
+            gap: 2.5px;
+            padding: 1.5px 3px;
+            background: rgba(13, 17, 28, 0.95);
             border: 1px solid rgba(56, 189, 248, 0.7);
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.65), 0 0 10px rgba(56, 189, 248, 0.25);
-            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7), 0 0 8px rgba(56, 189, 248, 0.25);
+            border-radius: 3px;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             color: #38bdf8;
             pointer-events: none;
@@ -3915,18 +3923,69 @@
             transition: top 0.08s ease-out;
             backdrop-filter: blur(4px);
             -webkit-backdrop-filter: blur(4px);
+            box-sizing: border-box;
         }
         .yaxis-candle-timer .timer-icon {
-            font-size: 10px;
+            font-size: 9.5px;
         }
         .yaxis-candle-timer .timer-tf {
             background: rgba(56, 189, 248, 0.2);
             color: #7dd3fc;
-            font-size: 9px;
+            font-size: 8.5px;
             font-weight: 800;
-            padding: 0.5px 4px;
-            border-radius: 3px;
-            letter-spacing: 0.3px;
+            padding: 0 3px;
+            border-radius: 2px;
+            letter-spacing: 0.2px;
+        }
+
+        /* 📱 Mobile Header Interactive Scroll Hint Banner */
+        .mobile-header-scroll-hint {
+            display: none;
+            position: fixed;
+            top: 76px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 12px;
+            background: rgba(15, 23, 42, 0.96);
+            border: 1px solid rgba(56, 189, 248, 0.75);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.85), 0 0 14px rgba(56, 189, 248, 0.35);
+            border-radius: 20px;
+            font-size: 11px;
+            color: #e2e8f0;
+            white-space: nowrap;
+            pointer-events: auto;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            animation: hintSlideDown 0.35s ease-out;
+        }
+        .mobile-header-scroll-hint .hint-swipe-hand {
+            font-size: 14px;
+            display: inline-block;
+            animation: swipeHandNudge 1.2s infinite ease-in-out;
+        }
+        .mobile-header-scroll-hint b {
+            color: #38bdf8;
+        }
+        .mobile-header-scroll-hint .hint-close-btn {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            font-size: 11px;
+            cursor: pointer;
+            padding: 0 0 0 4px;
+            line-height: 1;
+        }
+        @keyframes hintSlideDown {
+            from { opacity: 0; transform: translate(-50%, -10px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        @keyframes swipeHandNudge {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(6px); }
         }
         .yaxis-candle-timer.urgent {
             border-color: #ef4444 !important;
@@ -3946,7 +4005,8 @@
         .btn-jump-latest {
             position: absolute;
             bottom: 36px;
-            right: 80px;
+            left: 50%;
+            transform: translateX(-50%);
             z-index: 45;
             display: none;
             align-items: center;
@@ -3970,7 +4030,7 @@
             color: #ffffff;
             border-color: #38bdf8;
             box-shadow: 0 6px 22px rgba(2, 132, 199, 0.55);
-            transform: translateY(-2px);
+            transform: translateX(-50%) translateY(-2px);
         }
         .btn-jump-latest .jump-icon {
             font-size: 12px;
@@ -4960,6 +5020,13 @@
             </div>
         </div>
     </header>
+
+    <!-- 📱 Mobile Header Interactive Hint Banner (Auto-nudges once on phone so user knows header scrolls) -->
+    <div id="mobile-header-scroll-hint" class="mobile-header-scroll-hint" onclick="dismissMobileHeaderHint(event)">
+        <span class="hint-swipe-hand">👉</span>
+        <span class="hint-text">Swipe header <b>left & right</b> for <b>Settings</b> & <b>Indicators</b></span>
+        <button type="button" class="hint-close-btn" onclick="dismissMobileHeaderHint(event)">✕</button>
+    </div>
     <!-- ✨ High-Converting Guest Free Access Incentive Banner -->
     <div id="guest-vip-banner" class="guest-vip-banner">
         <div class="guest-vip-content">
@@ -6090,9 +6157,9 @@
             wickUp: '#089981',
             wickDown: '#f23645',
             candleBorderVisible: false,
-            srResistance: '#ef4444',
-            srSupport: '#22c55e',
-            srBreakout: '#eab308',
+            srResistance: '#ffffff',
+            srSupport: '#ffffff',
+            srBreakout: '#ffffff',
             vwapColor: '#3b82f6',
             bandsColor: '#fbbf24',
             smaColor: '#ff9800',
@@ -6109,6 +6176,9 @@
                 const saved = localStorage.getItem('terminal_theme_settings');
                 if (saved) {
                     currentThemeSettings = Object.assign({}, DEFAULT_THEME_SETTINGS, JSON.parse(saved));
+                    // Default R&S color is white (#ffffff); upgrade old cached red/green presets
+                    if (currentThemeSettings.srResistance === '#ef4444') currentThemeSettings.srResistance = '#ffffff';
+                    if (currentThemeSettings.srSupport === '#22c55e') currentThemeSettings.srSupport = '#ffffff';
                 }
             } catch (e) {
                 console.debug("Theme settings load note:", e);
@@ -6249,7 +6319,7 @@
             }
         }
 
-        function openTerminalSettingsModal(defaultDept = 'colors') {
+        function openTerminalSettingsModal(defaultDept = 'profile') {
             syncSettingsUI();
             switchSettingsDept(defaultDept);
             const modal = document.getElementById('terminal-settings-modal');
@@ -6854,7 +6924,7 @@
             }
         }
 
-        // ⏳ Positions Candle Countdown Badge dynamically adjacent to live price scale (Y-Axis)
+        // ⏳ Positions Candle Countdown Badge dynamically directly BELOW live price label on Y-Axis
         function updateYAxisCandleTimerPosition() {
             const timerBadge = document.getElementById('yaxis-candle-timer');
             if (!timerBadge || !chart || !candleSeries) return;
@@ -6880,17 +6950,90 @@
 
             const chartHeight = container.clientHeight;
             // Hide if off-screen vertically
-            if (y < 4 || y > chartHeight - 20) {
+            if (y < 4 || y > chartHeight - 16) {
                 timerBadge.style.display = 'none';
                 return;
             }
 
             const rightScale = chart.priceScale('right');
-            const scaleWidth = rightScale ? rightScale.width() : 65;
+            const scaleWidth = rightScale ? Math.max(52, rightScale.width()) : 65;
 
             timerBadge.style.display = 'inline-flex';
-            timerBadge.style.top = `${Math.round(y)}px`;
-            timerBadge.style.right = `${scaleWidth + 4}px`;
+            timerBadge.style.right = '2px';
+            timerBadge.style.width = `${scaleWidth - 4}px`;
+
+            // Position directly below price label (y + 11px); if near bottom of chart, position directly above (y - 23px)
+            if (y + 28 > chartHeight) {
+                timerBadge.style.top = `${Math.round(y - 23)}px`;
+            } else {
+                timerBadge.style.top = `${Math.round(y + 11)}px`;
+            }
+        }
+
+        // 📱 Mobile Header Interactive Peek / Auto-Scroll Hint Engine
+        function runMobileHeaderPeekAnimation() {
+            if (window.innerWidth > 768) return;
+
+            try {
+                if (sessionStorage.getItem('mobile_header_peek_shown')) return;
+            } catch (e) {}
+
+            const topHeader = document.querySelector('.header-line-top');
+            const bottomHeader = document.querySelector('.header-line-bottom');
+            const hintBanner = document.getElementById('mobile-header-scroll-hint');
+
+            if (!topHeader && !bottomHeader) return;
+
+            try {
+                sessionStorage.setItem('mobile_header_peek_shown', '1');
+            } catch (e) {}
+
+            // Wait 800ms after initial page load so user sees the initial top view
+            setTimeout(() => {
+                // Show hint banner
+                if (hintBanner) {
+                    hintBanner.style.display = 'inline-flex';
+                }
+
+                // 1. Smoothly scroll header right to reveal Settings & Indicators
+                const targetScrollTop = topHeader ? Math.min(200, topHeader.scrollWidth - topHeader.clientWidth) : 0;
+                const targetScrollBottom = bottomHeader ? Math.min(200, bottomHeader.scrollWidth - bottomHeader.clientWidth) : 0;
+
+                if (topHeader && targetScrollTop > 20) {
+                    topHeader.scrollTo({ left: targetScrollTop, behavior: 'smooth' });
+                }
+                if (bottomHeader && targetScrollBottom > 20) {
+                    bottomHeader.scrollTo({ left: targetScrollBottom, behavior: 'smooth' });
+                }
+
+                // 2. Pause for 1100ms so the user clearly sees: "Settings button and more indicators are right here!"
+                setTimeout(() => {
+                    // Smoothly scroll back to the original start position
+                    if (topHeader) topHeader.scrollTo({ left: 0, behavior: 'smooth' });
+                    if (bottomHeader) bottomHeader.scrollTo({ left: 0, behavior: 'smooth' });
+
+                    // Automatically hide hint banner after 4.5 seconds
+                    setTimeout(() => {
+                        dismissMobileHeaderHint();
+                    }, 4500);
+                }, 1100);
+            }, 800);
+
+            // Listen for user swipe/touch to dismiss hint immediately
+            if (topHeader) topHeader.addEventListener('touchstart', () => dismissMobileHeaderHint(), { passive: true, once: true });
+            if (bottomHeader) bottomHeader.addEventListener('touchstart', () => dismissMobileHeaderHint(), { passive: true, once: true });
+        }
+
+        function dismissMobileHeaderHint(event) {
+            if (event) event.stopPropagation();
+            const hintBanner = document.getElementById('mobile-header-scroll-hint');
+            if (hintBanner && hintBanner.style.display !== 'none') {
+                hintBanner.style.opacity = '0';
+                hintBanner.style.transition = 'opacity 0.3s ease-out';
+                setTimeout(() => {
+                    hintBanner.style.display = 'none';
+                }, 300);
+            }
         }
 
         function getTimeframeSeconds() {
@@ -12132,7 +12275,7 @@ function showIndicatorLineActionPill(ind, point) {
                     rect.setAttribute('y', rectY);
                     rect.setAttribute('width', rectW);
                     rect.setAttribute('height', rectH);
-                    const srCol = isSupp ? (currentThemeSettings.srSupport || '#22c55e') : (currentThemeSettings.srResistance || '#ef4444');
+                    const srCol = isSupp ? (currentThemeSettings.srSupport || '#ffffff') : (currentThemeSettings.srResistance || '#ffffff');
                     rect.setAttribute('fill', srCol);
                     rect.setAttribute('fill-opacity', fillOpacity);
                     rect.setAttribute('stroke', srCol);
@@ -12198,7 +12341,7 @@ function showIndicatorLineActionPill(ind, point) {
                     g.appendChild(hitLine);
 
                     // Visual Line: PURE WHITE with bounce opacity
-                    const srCol = isSupp ? (currentThemeSettings.srSupport || '#22c55e') : (currentThemeSettings.srResistance || '#ef4444');
+                    const srCol = isSupp ? (currentThemeSettings.srSupport || '#ffffff') : (currentThemeSettings.srResistance || '#ffffff');
                     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                     line.setAttribute('x1', startX);
                     line.setAttribute('y1', y);
@@ -15085,6 +15228,11 @@ function showIndicatorLineActionPill(ind, point) {
         // 🚀 BOOTSTRAP TERMINAL
         // ========================================================
         window.addEventListener('DOMContentLoaded', () => {
+            // 📱 1-Time mobile header peek animation
+            try {
+                runMobileHeaderPeekAnimation();
+            } catch (e) {}
+
             // Theme settings load & sync
             try {
                 loadThemeSettings();
@@ -15471,18 +15619,22 @@ function showIndicatorLineActionPill(ind, point) {
             <div class="settings-modal-layout">
                 <!-- Left Sidebar / Department Buttons -->
                 <div class="settings-dept-sidebar">
-                    <button type="button" class="settings-dept-btn active" id="dept-btn-colors" onclick="switchSettingsDept('colors')">
-                        <span class="dept-icon">🎨</span>
-                        <span>Canvas & Colors</span>
-                    </button>
-                    <button type="button" class="settings-dept-btn" id="dept-btn-profile" onclick="switchSettingsDept('profile')">
+                    <!-- 1 is profile -->
+                    <button type="button" class="settings-dept-btn active" id="dept-btn-profile" onclick="switchSettingsDept('profile')">
                         <span class="dept-icon">👤</span>
                         <span>Profile & Security</span>
                     </button>
+                    <!-- 2nd is chart & trading -->
                     <button type="button" class="settings-dept-btn" id="dept-btn-trading" onclick="switchSettingsDept('trading')">
                         <span class="dept-icon">📊</span>
                         <span>Chart & Trading</span>
                     </button>
+                    <!-- 3 is canvas & color -->
+                    <button type="button" class="settings-dept-btn" id="dept-btn-colors" onclick="switchSettingsDept('colors')">
+                        <span class="dept-icon">🎨</span>
+                        <span>Canvas & Colors</span>
+                    </button>
+                    <!-- 4 is connect developer -->
                     <button type="button" class="settings-dept-btn" id="dept-btn-developer" onclick="switchSettingsDept('developer')">
                         <span class="dept-icon">💬</span>
                         <span>Connect Developer</span>
@@ -15492,182 +15644,8 @@ function showIndicatorLineActionPill(ind, point) {
                 <!-- Right Department Panes -->
                 <div class="settings-dept-content" id="settings-dept-content">
                     
-                    <!-- 🎨 DEPARTMENT 1: Canvas & Appearance Colors -->
-                    <div class="settings-dept-pane active" id="dept-pane-colors">
-                        
-                        <!-- Background Color & Theme Presets -->
-                        <div class="settings-section-card">
-                            <div class="settings-section-title">
-                                <span>🖥️ Canvas Background</span>
-                            </div>
-                            <div class="settings-item-row">
-                                <div>
-                                    <div class="settings-item-label">Background Color</div>
-                                    <div class="settings-item-sub">Custom color or select quick professional preset</div>
-                                </div>
-                                <div class="settings-color-input-wrap">
-                                    <input type="color" id="set-color-bg" class="settings-color-picker" onchange="onThemeColorChange('canvasBg', this.value)">
-                                    <span id="hex-color-bg" class="settings-color-hex">#070a13</span>
-                                </div>
-                            </div>
-                            <div class="settings-preset-pills">
-                                <span style="font-size: 11px; color: #64748b; align-self: center;">Presets:</span>
-                                <button type="button" class="settings-preset-btn" onclick="applyBgPreset('#070a13')">Midnight Pro</button>
-                                <button type="button" class="settings-preset-btn" onclick="applyBgPreset('#0a0e17')">Deep Dark</button>
-                                <button type="button" class="settings-preset-btn" onclick="applyBgPreset('#131722')">Trading Charcoal</button>
-                                <button type="button" class="settings-preset-btn" onclick="applyBgPreset('#080d1a')">Navy Slate</button>
-                                <button type="button" class="settings-preset-btn" onclick="applyBgPreset('#000000')">Pitch Black</button>
-                            </div>
-                        </div>
-
-                        <!-- Grid Lines (Vertical & Horizontal - Requirement 4) -->
-                        <div class="settings-section-card">
-                            <div class="settings-section-title">
-                                <span>📐 Grid Lines (Vertical & Horizontal)</span>
-                            </div>
-                            <div class="settings-item-row">
-                                <div>
-                                    <div class="settings-item-label">Show Canvas Grid</div>
-                                    <div class="settings-item-sub">Crisp alignment grid across time & price scales</div>
-                                </div>
-                                <label class="modern-switch-wrap">
-                                    <input type="checkbox" id="set-grid-visible" checked onchange="onThemeSettingChange('gridVisible', this.checked)">
-                                    <span class="modern-switch-slider"></span>
-                                </label>
-                            </div>
-                            <div class="settings-item-row">
-                                <div>
-                                    <div class="settings-item-label">Grid Line Color</div>
-                                    <div class="settings-item-sub">Subtle tone matching Image 1 aesthetics</div>
-                                </div>
-                                <div class="settings-color-input-wrap">
-                                    <input type="color" id="set-color-grid" class="settings-color-picker" onchange="onThemeColorChange('gridColor', this.value)">
-                                    <span id="hex-color-grid" class="settings-color-hex">#38445c</span>
-                                </div>
-                            </div>
-                            <div class="settings-item-row">
-                                <div>
-                                    <div class="settings-item-label">Grid Visibility Opacity</div>
-                                    <div class="settings-item-sub">Adjust contrast of horizontal & vertical lines</div>
-                                </div>
-                                <input type="range" id="set-grid-opacity" min="0.1" max="0.9" step="0.05" value="0.55" style="width: 140px;" oninput="onThemeSettingChange('gridOpacity', parseFloat(this.value))">
-                            </div>
-                        </div>
-
-                        <!-- Candlestick Styling -->
-                        <div class="settings-section-card">
-                            <div class="settings-section-title">
-                                <span>🕯️ Candlestick Colors</span>
-                            </div>
-                            <div class="settings-item-row">
-                                <div>
-                                    <div class="settings-item-label">Bullish Candle Body (Up)</div>
-                                    <div class="settings-item-sub">Color for advancing candles</div>
-                                </div>
-                                <div class="settings-color-input-wrap">
-                                    <input type="color" id="set-color-candle-up" class="settings-color-picker" onchange="onThemeColorChange('candleUp', this.value)">
-                                    <span id="hex-color-candle-up" class="settings-color-hex">#089981</span>
-                                </div>
-                            </div>
-                            <div class="settings-item-row">
-                                <div>
-                                    <div class="settings-item-label">Bearish Candle Body (Down)</div>
-                                    <div class="settings-item-sub">Color for declining candles</div>
-                                </div>
-                                <div class="settings-color-input-wrap">
-                                    <input type="color" id="set-color-candle-down" class="settings-color-picker" onchange="onThemeColorChange('candleDown', this.value)">
-                                    <span id="hex-color-candle-down" class="settings-color-hex">#f23645</span>
-                                </div>
-                            </div>
-                            <div class="settings-item-row">
-                                <div>
-                                    <div class="settings-item-label">Wick Colors</div>
-                                    <div class="settings-item-sub">High/low candle shadow wicks</div>
-                                </div>
-                                <div style="display: flex; gap: 8px;">
-                                    <input type="color" id="set-color-wick-up" class="settings-color-picker" title="Bullish Wick" onchange="onThemeColorChange('wickUp', this.value)">
-                                    <input type="color" id="set-color-wick-down" class="settings-color-picker" title="Bearish Wick" onchange="onThemeColorChange('wickDown', this.value)">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Support & Resistance (S&R) Line Colors -->
-                        <div class="settings-section-card">
-                            <div class="settings-section-title">
-                                <span>🛡️ Support & Resistance (S&R) Colors</span>
-                            </div>
-                            <div class="settings-item-row">
-                                <div>
-                                    <div class="settings-item-label">Resistance Level Lines</div>
-                                    <div class="settings-item-sub">Institutional supply barriers & ceilings</div>
-                                </div>
-                                <div class="settings-color-input-wrap">
-                                    <input type="color" id="set-color-sr-res" class="settings-color-picker" onchange="onThemeColorChange('srResistance', this.value)">
-                                    <span id="hex-color-sr-res" class="settings-color-hex">#ef4444</span>
-                                </div>
-                            </div>
-                            <div class="settings-item-row">
-                                <div>
-                                    <div class="settings-item-label">Support Level Lines</div>
-                                    <div class="settings-item-sub">Institutional demand zones & floors</div>
-                                </div>
-                                <div class="settings-color-input-wrap">
-                                    <input type="color" id="set-color-sr-supp" class="settings-color-picker" onchange="onThemeColorChange('srSupport', this.value)">
-                                    <span id="hex-color-sr-supp" class="settings-color-hex">#22c55e</span>
-                                </div>
-                            </div>
-                            <div class="settings-item-row">
-                                <div>
-                                    <div class="settings-item-label">Breakout / Flips Level</div>
-                                    <div class="settings-item-sub">Polarity change breakout markers</div>
-                                </div>
-                                <div class="settings-color-input-wrap">
-                                    <input type="color" id="set-color-sr-break" class="settings-color-picker" onchange="onThemeColorChange('srBreakout', this.value)">
-                                    <span id="hex-color-sr-break" class="settings-color-hex">#eab308</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Indicator Core Colors -->
-                        <div class="settings-section-card">
-                            <div class="settings-section-title">
-                                <span>📈 Key Indicators Colors</span>
-                            </div>
-                            <div class="settings-item-row">
-                                <div>
-                                    <div class="settings-item-label">VWAP Line</div>
-                                    <div class="settings-item-sub">Volume-Weighted Average Price</div>
-                                </div>
-                                <div class="settings-color-input-wrap">
-                                    <input type="color" id="set-color-vwap" class="settings-color-picker" onchange="onThemeColorChange('vwapColor', this.value)">
-                                    <span id="hex-color-vwap" class="settings-color-hex">#3b82f6</span>
-                                </div>
-                            </div>
-                            <div class="settings-item-row">
-                                <div>
-                                    <div class="settings-item-label">VWAP Standard Deviation Bands (±2σ)</div>
-                                    <div class="settings-item-sub">Upper & lower volatility bands</div>
-                                </div>
-                                <div class="settings-color-input-wrap">
-                                    <input type="color" id="set-color-bands" class="settings-color-picker" onchange="onThemeColorChange('bandsColor', this.value)">
-                                    <span id="hex-color-bands" class="settings-color-hex">#fbbf24</span>
-                                </div>
-                            </div>
-                            <div class="settings-item-row">
-                                <div>
-                                    <div class="settings-item-label">SMA 20 Rolling Mean</div>
-                                    <div class="settings-item-sub">20-period Simple Moving Average</div>
-                                </div>
-                                <div class="settings-color-input-wrap">
-                                    <input type="color" id="set-color-sma" class="settings-color-picker" onchange="onThemeColorChange('smaColor', this.value)">
-                                    <span id="hex-color-sma" class="settings-color-hex">#ff9800</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- 👤 DEPARTMENT 2: Profile & Security -->
-                    <div class="settings-dept-pane" id="dept-pane-profile">
+                    <div class="settings-dept-pane active" id="dept-pane-profile">
                         <div class="settings-section-card">
                             <div class="settings-section-title">
                                 <span>👤 User Account Profile</span>
@@ -15787,6 +15765,180 @@ function showIndicatorLineActionPill(ind, point) {
                         </div>
                     </div>
 
+                    <!-- 🎨 DEPARTMENT 1: Canvas & Appearance Colors -->
+                    <div class="settings-dept-pane" id="dept-pane-colors">
+                        
+                        <!-- Background Color & Theme Presets -->
+                        <div class="settings-section-card">
+                            <div class="settings-section-title">
+                                <span>🖥️ Canvas Background</span>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Background Color</div>
+                                    <div class="settings-item-sub">Custom color or select quick professional preset</div>
+                                </div>
+                                <div class="settings-color-input-wrap">
+                                    <input type="color" id="set-color-bg" class="settings-color-picker" onchange="onThemeColorChange('canvasBg', this.value)">
+                                    <span id="hex-color-bg" class="settings-color-hex">#070a13</span>
+                                </div>
+                            </div>
+                            <div class="settings-preset-pills">
+                                <span style="font-size: 11px; color: #64748b; align-self: center;">Presets:</span>
+                                <button type="button" class="settings-preset-btn" onclick="applyBgPreset('#070a13')">Midnight Pro</button>
+                                <button type="button" class="settings-preset-btn" onclick="applyBgPreset('#0a0e17')">Deep Dark</button>
+                                <button type="button" class="settings-preset-btn" onclick="applyBgPreset('#131722')">Trading Charcoal</button>
+                                <button type="button" class="settings-preset-btn" onclick="applyBgPreset('#080d1a')">Navy Slate</button>
+                                <button type="button" class="settings-preset-btn" onclick="applyBgPreset('#000000')">Pitch Black</button>
+                            </div>
+                        </div>
+
+                        <!-- Grid Lines (Vertical & Horizontal - Requirement 4) -->
+                        <div class="settings-section-card">
+                            <div class="settings-section-title">
+                                <span>📐 Grid Lines (Vertical & Horizontal)</span>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Show Canvas Grid</div>
+                                    <div class="settings-item-sub">Crisp alignment grid across time & price scales</div>
+                                </div>
+                                <label class="modern-switch-wrap">
+                                    <input type="checkbox" id="set-grid-visible" checked onchange="onThemeSettingChange('gridVisible', this.checked)">
+                                    <span class="modern-switch-slider"></span>
+                                </label>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Grid Line Color</div>
+                                    <div class="settings-item-sub">Subtle tone matching Image 1 aesthetics</div>
+                                </div>
+                                <div class="settings-color-input-wrap">
+                                    <input type="color" id="set-color-grid" class="settings-color-picker" onchange="onThemeColorChange('gridColor', this.value)">
+                                    <span id="hex-color-grid" class="settings-color-hex">#38445c</span>
+                                </div>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Grid Visibility Opacity</div>
+                                    <div class="settings-item-sub">Adjust contrast of horizontal & vertical lines</div>
+                                </div>
+                                <input type="range" id="set-grid-opacity" min="0.1" max="0.9" step="0.05" value="0.55" style="width: 140px;" oninput="onThemeSettingChange('gridOpacity', parseFloat(this.value))">
+                            </div>
+                        </div>
+
+                        <!-- Candlestick Styling -->
+                        <div class="settings-section-card">
+                            <div class="settings-section-title">
+                                <span>🕯️ Candlestick Colors</span>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Bullish Candle Body (Up)</div>
+                                    <div class="settings-item-sub">Color for advancing candles</div>
+                                </div>
+                                <div class="settings-color-input-wrap">
+                                    <input type="color" id="set-color-candle-up" class="settings-color-picker" onchange="onThemeColorChange('candleUp', this.value)">
+                                    <span id="hex-color-candle-up" class="settings-color-hex">#089981</span>
+                                </div>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Bearish Candle Body (Down)</div>
+                                    <div class="settings-item-sub">Color for declining candles</div>
+                                </div>
+                                <div class="settings-color-input-wrap">
+                                    <input type="color" id="set-color-candle-down" class="settings-color-picker" onchange="onThemeColorChange('candleDown', this.value)">
+                                    <span id="hex-color-candle-down" class="settings-color-hex">#f23645</span>
+                                </div>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Wick Colors</div>
+                                    <div class="settings-item-sub">High/low candle shadow wicks</div>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <input type="color" id="set-color-wick-up" class="settings-color-picker" title="Bullish Wick" onchange="onThemeColorChange('wickUp', this.value)">
+                                    <input type="color" id="set-color-wick-down" class="settings-color-picker" title="Bearish Wick" onchange="onThemeColorChange('wickDown', this.value)">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Support & Resistance (S&R) Line Colors -->
+                        <div class="settings-section-card">
+                            <div class="settings-section-title">
+                                <span>🛡️ Support & Resistance (S&R) Colors</span>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Resistance Level Lines</div>
+                                    <div class="settings-item-sub">Institutional supply barriers & ceilings</div>
+                                </div>
+                                <div class="settings-color-input-wrap">
+                                    <input type="color" id="set-color-sr-res" class="settings-color-picker" onchange="onThemeColorChange('srResistance', this.value)" value="#ffffff">
+                                    <span id="hex-color-sr-res" class="settings-color-hex">#ffffff</span>
+                                </div>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Support Level Lines</div>
+                                    <div class="settings-item-sub">Institutional demand zones & floors</div>
+                                </div>
+                                <div class="settings-color-input-wrap">
+                                    <input type="color" id="set-color-sr-supp" class="settings-color-picker" onchange="onThemeColorChange('srSupport', this.value)" value="#ffffff">
+                                    <span id="hex-color-sr-supp" class="settings-color-hex">#ffffff</span>
+                                </div>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">Breakout / Flips Level</div>
+                                    <div class="settings-item-sub">Polarity change breakout markers</div>
+                                </div>
+                                <div class="settings-color-input-wrap">
+                                    <input type="color" id="set-color-sr-break" class="settings-color-picker" onchange="onThemeColorChange('srBreakout', this.value)">
+                                    <span id="hex-color-sr-break" class="settings-color-hex">#eab308</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Indicator Core Colors -->
+                        <div class="settings-section-card">
+                            <div class="settings-section-title">
+                                <span>📈 Key Indicators Colors</span>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">VWAP Line</div>
+                                    <div class="settings-item-sub">Volume-Weighted Average Price</div>
+                                </div>
+                                <div class="settings-color-input-wrap">
+                                    <input type="color" id="set-color-vwap" class="settings-color-picker" onchange="onThemeColorChange('vwapColor', this.value)">
+                                    <span id="hex-color-vwap" class="settings-color-hex">#3b82f6</span>
+                                </div>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">VWAP Standard Deviation Bands (±2σ)</div>
+                                    <div class="settings-item-sub">Upper & lower volatility bands</div>
+                                </div>
+                                <div class="settings-color-input-wrap">
+                                    <input type="color" id="set-color-bands" class="settings-color-picker" onchange="onThemeColorChange('bandsColor', this.value)">
+                                    <span id="hex-color-bands" class="settings-color-hex">#fbbf24</span>
+                                </div>
+                            </div>
+                            <div class="settings-item-row">
+                                <div>
+                                    <div class="settings-item-label">SMA 20 Rolling Mean</div>
+                                    <div class="settings-item-sub">20-period Simple Moving Average</div>
+                                </div>
+                                <div class="settings-color-input-wrap">
+                                    <input type="color" id="set-color-sma" class="settings-color-picker" onchange="onThemeColorChange('smaColor', this.value)">
+                                    <span id="hex-color-sma" class="settings-color-hex">#ff9800</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- 💬 DEPARTMENT 4: Connect with Developer -->
                     <div class="settings-dept-pane" id="dept-pane-developer">
                         
@@ -15846,6 +15998,9 @@ function showIndicatorLineActionPill(ind, point) {
                             <div id="settings-dev-status" style="font-size: 11.5px; display: none;"></div>
                         </div>
                     </div>
+
+                </div>
+            </div>
 
                 </div>
             </div>
