@@ -43,6 +43,8 @@ user_login_records.csv
 database/user_login_records.csv
 copilot_chat_queries.csv
 database/copilot_chat_queries.csv
+visitor_daily_activity.csv
+database/visitor_daily_activity.csv
 temp_storage/*
 !temp_storage/*.py
 !temp_storage/nifty50_volume_5m.csv

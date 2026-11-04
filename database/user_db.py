@@ -38,6 +38,26 @@ LOGIN_RECORDS_CSV_PATH = PROJECT_ROOT / "user_login_records.csv"
 LOGIN_RECORDS_CSV_BACKUP_PATH = BASE_DIR / "user_login_records.csv"
 COPILOT_QUERIES_CSV_PATH = PROJECT_ROOT / "copilot_chat_queries.csv"
 COPILOT_QUERIES_CSV_BACKUP_PATH = BASE_DIR / "copilot_chat_queries.csv"
+VISITOR_ACTIVITY_CSV_PATH = PROJECT_ROOT / "visitor_daily_activity.csv"
+VISITOR_ACTIVITY_CSV_BACKUP_PATH = BASE_DIR / "visitor_daily_activity.csv"
+
+VISITOR_ACTIVITY_CSV_COLUMNS = [
+    "Activity ID",
+    "Timestamp (IST)",
+    "Visitor ID",
+    "Account / User",
+    "Action",
+    "Action Details",
+    "IP Address",
+    "City",
+    "State / Region",
+    "Country",
+    "ISP / Network",
+    "Device",
+    "OS",
+    "Browser",
+    "Page Path"
+]
 
 COPILOT_CSV_COLUMNS = [
     "Query ID",
@@ -342,6 +362,44 @@ def init_database():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_copilot_review_created ON copilot_queries_review(created_at DESC);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_copilot_review_status ON copilot_queries_review(review_status);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_copilot_review_username ON copilot_queries_review(username);")
+
+        # 8. Visitor Activity Log Table (Granular daily actions & IP tracking)
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS visitor_activity_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            visitor_id TEXT NOT NULL,
+            user_id TEXT,
+            username TEXT DEFAULT 'Guest',
+            action_type TEXT NOT NULL,
+            action_detail TEXT DEFAULT '',
+            path TEXT DEFAULT '/',
+            ip_address TEXT DEFAULT '',
+            city TEXT DEFAULT '',
+            region TEXT DEFAULT '',
+            country TEXT DEFAULT 'IN',
+            isp TEXT DEFAULT '',
+            device_type TEXT DEFAULT 'Desktop',
+            os_name TEXT DEFAULT '',
+            browser TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_activity_created ON visitor_activity_log(created_at DESC);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_activity_visitor ON visitor_activity_log(visitor_id);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_activity_ip ON visitor_activity_log(ip_address);")
+
+        # Ensure location and OS columns exist in visitor_identities
+        for v_col, v_type in [
+            ("city", "TEXT DEFAULT ''"),
+            ("region", "TEXT DEFAULT ''"),
+            ("country", "TEXT DEFAULT 'IN'"),
+            ("org_isp", "TEXT DEFAULT ''"),
+            ("os_name", "TEXT DEFAULT ''")
+        ]:
+            try:
+                cursor.execute(f"ALTER TABLE visitor_identities ADD COLUMN {v_col} {v_type};")
+            except Exception:
+                pass
 
         # Ensure user_cleared_display column exists in copilot_queries_review for developer auditing
         try:
@@ -2179,6 +2237,317 @@ init_database()
 # 📊 Real-Time Visitor Analytics & Conversion Tracking
 # ==============================================================
 
+_IP_GEO_CACHE: Dict[str, Dict[str, str]] = {}
+_IP_GEO_LOCK = threading.Lock()
+
+def get_ip_geo_info(ip: str) -> Dict[str, str]:
+    """
+    Resolves IP Geolocation (City, State/Region, Country, ISP) with memory caching.
+    Safely ignores private/localhost IPs.
+    """
+    clean_ip = (ip or "").strip()
+    if not clean_ip or clean_ip in ("127.0.0.1", "localhost", "::1", "testclient") or clean_ip.startswith("192.168.") or clean_ip.startswith("10."):
+        return {"city": "Localhost", "region": "Internal", "country": "Local", "isp": "Internal", "postal": ""}
+
+    with _IP_GEO_LOCK:
+        if clean_ip in _IP_GEO_CACHE:
+            return _IP_GEO_CACHE[clean_ip]
+
+    geo = {"city": "", "region": "", "country": "IN", "isp": "", "postal": ""}
+    try:
+        import urllib.request
+        req = urllib.request.Request(
+            f"https://ipinfo.io/{clean_ip}/json",
+            headers={"User-Agent": "NIFTY-Terminal-Audit/1.0"}
+        )
+        with urllib.request.urlopen(req, timeout=2.5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            geo["city"] = data.get("city") or ""
+            geo["region"] = data.get("region") or ""
+            geo["country"] = data.get("country") or "IN"
+            geo["isp"] = data.get("org") or data.get("hostname") or ""
+            geo["postal"] = data.get("postal") or ""
+    except Exception as e:
+        logger.debug("Geo lookup notice for %s: %s", clean_ip, e)
+
+    with _IP_GEO_LOCK:
+        _IP_GEO_CACHE[clean_ip] = geo
+
+    return geo
+
+
+def resolve_ip_geo_async(ip: str, visitor_id: str):
+    """Asynchronously resolves IP geo and updates visitor_identities record."""
+    def _worker():
+        geo = get_ip_geo_info(ip)
+        if geo.get("city") or geo.get("isp"):
+            try:
+                with _db_lock:
+                    conn = get_db_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        UPDATE visitor_identities
+                        SET city = CASE WHEN (city IS NULL OR city = '' OR city = 'Unknown') THEN ? ELSE city END,
+                            region = CASE WHEN (region IS NULL OR region = '') THEN ? ELSE region END,
+                            country = CASE WHEN (country IS NULL OR country = '') THEN ? ELSE country END,
+                            org_isp = CASE WHEN (org_isp IS NULL OR org_isp = '') THEN ? ELSE org_isp END
+                        WHERE visitor_id = ?
+                    """, (geo.get("city", ""), geo.get("region", ""), geo.get("country", ""), geo.get("isp", ""), visitor_id))
+                    conn.commit()
+                    conn.close()
+            except Exception as ex:
+                logger.debug("Async geo update note: %s", ex)
+
+    threading.Thread(target=_worker, daemon=True).start()
+
+
+def parse_user_agent_details(user_agent: str) -> Tuple[str, str, str]:
+    """Returns (device_type, browser, os_name)."""
+    ua = (user_agent or "").lower()
+
+    # Device
+    if any(k in ua for k in ["mobile", "android", "iphone", "ipod", "blackberry", "windows phone"]):
+        device = "Mobile"
+    elif "ipad" in ua or "tablet" in ua:
+        device = "Tablet"
+    else:
+        device = "Desktop"
+
+    # Browser
+    if "edg/" in ua:
+        browser = "Edge"
+    elif "chrome" in ua and "chromium" not in ua:
+        browser = "Chrome"
+    elif "safari" in ua and "chrome" not in ua:
+        browser = "Safari"
+    elif "firefox" in ua:
+        browser = "Firefox"
+    elif "opera" in ua or "opr/" in ua:
+        browser = "Opera"
+    else:
+        browser = "Chrome" if "chrome" in ua else "Other"
+
+    # OS
+    if "windows nt 10.0" in ua:
+        os_name = "Windows 10/11"
+    elif "windows nt" in ua:
+        os_name = "Windows"
+    elif "android" in ua:
+        os_name = "Android"
+    elif "iphone" in ua or "ipad" in ua or "ios" in ua:
+        os_name = "iOS"
+    elif "macintosh" in ua or "mac os x" in ua:
+        os_name = "macOS"
+    elif "cros" in ua:
+        os_name = "ChromeOS"
+    elif "linux" in ua:
+        os_name = "Linux"
+    else:
+        os_name = "Desktop" if device == "Desktop" else "Mobile"
+
+    return device, browser, os_name
+
+
+def record_visitor_action(
+    visitor_id: str,
+    action_type: str,
+    action_detail: str = "",
+    path: str = "/",
+    ip: str = "",
+    user_agent: str = "",
+    user_id: Optional[str] = None
+) -> bool:
+    """
+    Logs every user action (timeframe change, indicator toggle, news open, copilot, etc.)
+    with IP, city, ISP, device, OS, and timestamp.
+    """
+    if not visitor_id or not visitor_id.strip():
+        return False
+    visitor_id = visitor_id.strip()
+    device, browser, os_name = parse_user_agent_details(user_agent)
+    geo = get_ip_geo_info(ip)
+    now_utc = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            uname = "Guest"
+            valid_user_id = None
+            if user_id:
+                cursor.execute("SELECT id, username FROM users WHERE id = ?", (user_id,))
+                urow = cursor.fetchone()
+                if urow:
+                    valid_user_id = urow["id"]
+                    uname = urow["username"]
+
+            cursor.execute("""
+                INSERT INTO visitor_activity_log (
+                    visitor_id, user_id, username, action_type, action_detail,
+                    path, ip_address, city, region, country, isp,
+                    device_type, os_name, browser, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                visitor_id, valid_user_id, uname, action_type, action_detail[:255],
+                path[:100], ip, geo.get("city", ""), geo.get("region", ""),
+                geo.get("country", ""), geo.get("isp", ""), device, os_name, browser, now_utc
+            ))
+
+            # Update visitor_identities last_seen, IP and location
+            cursor.execute("""
+                UPDATE visitor_identities
+                SET last_seen = ?,
+                    ip_address = CASE WHEN ? != '' THEN ? ELSE ip_address END,
+                    city = CASE WHEN ? != '' AND (city IS NULL OR city = '' OR city = 'Unknown') THEN ? ELSE city END,
+                    region = CASE WHEN ? != '' AND (region IS NULL OR region = '') THEN ? ELSE region END,
+                    org_isp = CASE WHEN ? != '' AND (org_isp IS NULL OR org_isp = '') THEN ? ELSE org_isp END,
+                    os_name = CASE WHEN ? != '' THEN ? ELSE os_name END
+                WHERE visitor_id = ?
+            """, (
+                now_utc, ip, ip,
+                geo.get("city", ""), geo.get("city", ""),
+                geo.get("region", ""), geo.get("region", ""),
+                geo.get("isp", ""), geo.get("isp", ""),
+                os_name, os_name, visitor_id
+            ))
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error("Error in record_visitor_action: %s", e)
+            return False
+        finally:
+            conn.close()
+
+
+def get_daily_visitor_summary(limit: int = 100) -> List[Dict[str, Any]]:
+    """
+    Returns daily aggregated visitor activity summaries for the Admin Dashboard.
+    Groups visits by date and visitor_id, computing total time active, total actions, and IP location.
+    """
+    import pandas as pd
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            query = """
+                SELECT 
+                    DATE(a.created_at) as log_date,
+                    a.visitor_id,
+                    a.username,
+                    a.user_id,
+                    a.ip_address,
+                    COALESCE(NULLIF(v.city, ''), a.city) as city,
+                    COALESCE(NULLIF(v.region, ''), a.region) as region,
+                    COALESCE(NULLIF(v.country, ''), a.country) as country,
+                    COALESCE(NULLIF(v.org_isp, ''), a.isp) as isp,
+                    a.device_type,
+                    a.os_name,
+                    a.browser,
+                    MIN(a.created_at) as first_action_utc,
+                    MAX(a.created_at) as last_action_utc,
+                    COUNT(*) as total_actions,
+                    GROUP_CONCAT(DISTINCT a.action_type) as action_types
+                FROM visitor_activity_log a
+                LEFT JOIN visitor_identities v ON a.visitor_id = v.visitor_id
+                GROUP BY DATE(a.created_at), a.visitor_id
+                ORDER BY MAX(a.created_at) DESC
+                LIMIT ?
+            """
+            cursor.execute(query, (limit,))
+            rows = cursor.fetchall()
+            results = []
+            for r in rows:
+                d = dict(r)
+                try:
+                    f_dt = pd.to_datetime(d["first_action_utc"]) + timedelta(hours=5, minutes=30)
+                    l_dt = pd.to_datetime(d["last_action_utc"]) + timedelta(hours=5, minutes=30)
+                    d["first_action_ist"] = f_dt.strftime("%d-%b %I:%M %p")
+                    d["last_action_ist"] = l_dt.strftime("%d-%b %I:%M %p")
+                    diff_mins = max(1, int(round((l_dt - f_dt).total_seconds() / 60.0)))
+                    d["active_minutes"] = diff_mins
+                except Exception:
+                    d["first_action_ist"] = str(d.get("first_action_utc", "--"))
+                    d["last_action_ist"] = str(d.get("last_action_utc", "--"))
+                    d["active_minutes"] = 1
+
+                city = d.get("city") or ""
+                region = d.get("region") or ""
+                d["location_str"] = f"{city}, {region}" if city and region else (city or region or "India")
+                results.append(d)
+            return results
+        finally:
+            conn.close()
+
+
+def sync_visitor_activity_to_csv(csv_path: Optional[Path] = None) -> str:
+    """
+    Exports all granular visitor activity logs into visitor_daily_activity.csv.
+    """
+    try:
+        import pandas as pd
+        with _db_lock:
+            conn = get_db_connection()
+            query = """
+                SELECT id, created_at, visitor_id, username, action_type, action_detail,
+                       ip_address, city, region, country, isp, device_type, os_name, browser, path
+                FROM visitor_activity_log
+                ORDER BY created_at DESC
+            """
+            cursor = conn.cursor()
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            conn.close()
+
+        target_path = csv_path or VISITOR_ACTIVITY_CSV_PATH
+        if not rows:
+            df_empty = pd.DataFrame(columns=VISITOR_ACTIVITY_CSV_COLUMNS)
+            df_empty.to_csv(str(target_path), index=False, encoding='utf-8-sig')
+            if VISITOR_ACTIVITY_CSV_BACKUP_PATH != target_path:
+                df_empty.to_csv(str(VISITOR_ACTIVITY_CSV_BACKUP_PATH), index=False, encoding='utf-8-sig')
+            return str(target_path)
+
+        data = []
+        for r in rows:
+            d = dict(r)
+            created_val = d.get('created_at')
+            if created_val:
+                try:
+                    dt = pd.to_datetime(created_val) + timedelta(hours=5, minutes=30)
+                    ist_str = dt.strftime('%d-%b-%Y %I:%M:%S %p')
+                except Exception:
+                    ist_str = str(created_val)
+            else:
+                ist_str = '--'
+
+            data.append({
+                "Activity ID": d.get("id"),
+                "Timestamp (IST)": ist_str,
+                "Visitor ID": d.get("visitor_id", ""),
+                "Account / User": d.get("username", "Guest"),
+                "Action": d.get("action_type", ""),
+                "Action Details": d.get("action_detail", ""),
+                "IP Address": d.get("ip_address", ""),
+                "City": d.get("city", ""),
+                "State / Region": d.get("region", ""),
+                "Country": d.get("country", "IN"),
+                "ISP / Network": d.get("isp", ""),
+                "Device": d.get("device_type", "Desktop"),
+                "OS": d.get("os_name", ""),
+                "Browser": d.get("browser", ""),
+                "Page Path": d.get("path", "/")
+            })
+
+        df = pd.DataFrame(data, columns=VISITOR_ACTIVITY_CSV_COLUMNS)
+        df.to_csv(str(target_path), index=False, encoding='utf-8-sig')
+        if VISITOR_ACTIVITY_CSV_BACKUP_PATH != target_path:
+            df.to_csv(str(VISITOR_ACTIVITY_CSV_BACKUP_PATH), index=False, encoding='utf-8-sig')
+        logger.info("Successfully synced %d visitor activity logs to %s", len(df), target_path)
+        return str(target_path)
+    except Exception as e:
+        logger.error("Error syncing visitor activity to CSV: %s", e)
+        return str(csv_path or VISITOR_ACTIVITY_CSV_PATH)
+
+
 def record_visitor_hit(
     visitor_id: str,
     ip: str = "",
@@ -2195,25 +2564,10 @@ def record_visitor_hit(
         return {"status": "error", "message": "visitor_id required"}
 
     visitor_id = visitor_id.strip()
-    ua_lower = (user_agent or "").lower()
-    if any(k in ua_lower for k in ["mobile", "android", "iphone", "ipod", "blackberry", "windows phone"]):
-        device_type = "Mobile"
-    elif "ipad" in ua_lower or "tablet" in ua_lower:
-        device_type = "Tablet"
-    else:
-        device_type = "Desktop"
-
-    # Browser detection
-    if "edg/" in ua_lower:
-        browser = "Edge"
-    elif "chrome" in ua_lower and "chromium" not in ua_lower:
-        browser = "Chrome"
-    elif "safari" in ua_lower and "chrome" not in ua_lower:
-        browser = "Safari"
-    elif "firefox" in ua_lower:
-        browser = "Firefox"
-    else:
-        browser = "Other"
+    device_type, browser, os_name = parse_user_agent_details(user_agent)
+    geo = get_ip_geo_info(ip)
+    if ip and (not geo.get("city") or geo.get("city") == "Unknown"):
+        resolve_ip_geo_async(ip, visitor_id)
 
     now_utc = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -2244,14 +2598,32 @@ def record_visitor_hit(
                         visit_count = visit_count + 1, 
                         has_account = ?, 
                         user_id = ?,
-                        ip_address = CASE WHEN ? != '' THEN ? ELSE ip_address END
+                        ip_address = CASE WHEN ? != '' THEN ? ELSE ip_address END,
+                        city = CASE WHEN ? != '' AND (city IS NULL OR city = '' OR city = 'Unknown') THEN ? ELSE city END,
+                        region = CASE WHEN ? != '' AND (region IS NULL OR region = '') THEN ? ELSE region END,
+                        org_isp = CASE WHEN ? != '' AND (org_isp IS NULL OR org_isp = '') THEN ? ELSE org_isp END,
+                        os_name = CASE WHEN ? != '' THEN ? ELSE os_name END
                     WHERE visitor_id = ?
-                """, (now_utc, new_has_acc, new_user_id, ip, ip, visitor_id))
+                """, (now_utc, new_has_acc, new_user_id, ip, ip, geo.get("city", ""), geo.get("city", ""), geo.get("region", ""), geo.get("region", ""), geo.get("isp", ""), geo.get("isp", ""), os_name, os_name, visitor_id))
             else:
                 cursor.execute("""
-                    INSERT INTO visitor_identities (visitor_id, first_seen, last_seen, user_id, has_account, device_type, browser, ip_address, visit_count)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-                """, (visitor_id, now_utc, now_utc, valid_user_id, has_acc, device_type, browser, ip))
+                    INSERT INTO visitor_identities (visitor_id, first_seen, last_seen, user_id, has_account, device_type, browser, ip_address, visit_count, city, region, country, org_isp, os_name)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)
+                """, (visitor_id, now_utc, now_utc, valid_user_id, has_acc, device_type, browser, ip, geo.get("city", ""), geo.get("region", ""), geo.get("country", "IN"), geo.get("isp", ""), os_name))
+
+            # Also log page_view in visitor_activity_log
+            cursor.execute("""
+                INSERT INTO visitor_activity_log (
+                    visitor_id, user_id, username, action_type, action_detail,
+                    path, ip_address, city, region, country, isp,
+                    device_type, os_name, browser, created_at
+                ) VALUES (?, ?, ?, 'page_view', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                visitor_id, valid_user_id, (row["user_id"] if row and row["user_id"] else "Guest"),
+                (referrer[:100] if referrer else 'Direct visit'), path[:100], ip,
+                geo.get("city", ""), geo.get("region", ""), geo.get("country", ""), geo.get("isp", ""),
+                device_type, os_name, browser, now_utc
+            ))
 
             # Record pageview
             cursor.execute("""

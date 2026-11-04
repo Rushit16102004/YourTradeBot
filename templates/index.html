@@ -4971,6 +4971,14 @@
                                 <span>📥 CSV</span>
                             </button>
                         </div>
+                        <div style="display: flex; gap: 6px; margin-top: 6px;">
+                            <button onclick="openVisitorAdminDashboard(event)" style="flex: 1; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.4); color: #c084fc; padding: 7px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s ease;" title="View Live Visitor IP Intelligence & Daily Activity Dashboard">
+                                <span>🌐 Visitor Activity & IPs</span>
+                            </button>
+                            <button onclick="downloadVisitorActivityCSV(event)" style="background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.4); color: #c084fc; padding: 7px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s ease;" title="Download Full Visitor Daily Activity CSV">
+                                <span>📥 CSV</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <!-- Guest Button -->
@@ -16595,6 +16603,47 @@ function showIndicatorLineActionPill(ind, point) {
             document.body.removeChild(link);
         }
 
+        function openVisitorAdminDashboard(e) {
+            if (e) e.stopPropagation();
+            const token = localStorage.getItem('auth_token');
+            const url = token ? `/api/admin/visitors?token=${encodeURIComponent(token)}` : `/api/admin/visitors?admin_key=Rushit@Admin2026MasterKey`;
+            window.open(url, '_blank');
+        }
+
+        function downloadVisitorActivityCSV(e) {
+            if (e) e.stopPropagation();
+            const token = localStorage.getItem('auth_token');
+            const url = token ? `/api/admin/visitors/csv?token=${encodeURIComponent(token)}` : `/api/admin/visitors/csv?admin_key=Rushit@Admin2026MasterKey`;
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'visitor_daily_activity.csv';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function trackVisitorAction(actionType, actionDetail = '') {
+            const vid = (typeof getOrInitVisitorId === 'function') ? getOrInitVisitorId() : (localStorage.getItem('terminal_visitor_id') || '');
+            if (!vid) return;
+            const token = localStorage.getItem('auth_token');
+            try {
+                fetch('/api/analytics/action', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { 'Authorization': 'Bearer ' + token } : {})
+                    },
+                    body: JSON.stringify({
+                        visitor_id: vid,
+                        action_type: actionType,
+                        action_detail: String(actionDetail || '').slice(0, 255),
+                        path: window.location.pathname || '/'
+                    }),
+                    keepalive: true
+                }).catch(() => {});
+            } catch(e) {}
+        }
+
         
         // 🔒 Guest Gatekeeping: Prompts Auth Modal if unauthenticated
         function requireAuth(actionDescription = 'access this feature') {
@@ -16771,6 +16820,7 @@ function showIndicatorLineActionPill(ind, point) {
         }
 
         function openDeveloperContactModal() {
+            if (typeof trackVisitorAction === 'function') trackVisitorAction('developer_contact_open', 'Opened Developer Contact');
             const overlay = document.getElementById('developer-contact-modal-overlay');
             if (overlay) overlay.style.display = 'flex';
         }

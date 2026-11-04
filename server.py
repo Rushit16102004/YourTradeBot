@@ -926,8 +926,325 @@ async def api_download_users_csv(request: Request, admin_key: str = Query(""), t
     return JSONResponse(status_code=404, content={"status": "error", "message": "Users CSV not found"})
 
 # ==============================================================
+# 🌐 Live Visitor IP Intelligence & Daily Activity Dashboard
+# ==============================================================
+
+def render_visitor_dashboard_html(visitors: list, admin_key: str) -> str:
+    """Renders a modern, dark-themed responsive Visitor IP & Daily Activity Dashboard."""
+    import html
+    rows_html = []
+    unique_cities = set()
+    unique_isps = set()
+
+    for v in visitors:
+        vid = html.escape(str(v.get("visitor_id", "--")))
+        uname = html.escape(str(v.get("username", "Guest")))
+        ip = html.escape(str(v.get("ip_address", "--")))
+        loc = html.escape(str(v.get("location_str", "India")))
+        city = v.get("city") or ""
+        isp = html.escape(str(v.get("isp", "--")))
+        if city: unique_cities.add(city)
+        if v.get("isp"): unique_isps.add(v.get("isp"))
+
+        dev = html.escape(str(v.get("device_type", "Desktop")))
+        os_name = html.escape(str(v.get("os_name", "--")))
+        browser = html.escape(str(v.get("browser", "Chrome")))
+        first_ist = html.escape(str(v.get("first_action_ist", "--")))
+        last_ist = html.escape(str(v.get("last_action_ist", "--")))
+        act_mins = v.get("active_minutes", 1)
+        total_acts = v.get("total_actions", 1)
+        actions_str = html.escape(str(v.get("action_types", "view")).replace(",", " • "))
+
+        user_badge_style = "background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);" if uname.lower() != "guest" else "background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);"
+
+        row = f"""
+        <tr>
+            <td style="white-space: nowrap;">
+                <span style="font-weight: 700; color: #f8fafc; font-size: 12.5px;">🌐 {ip}</span>
+                <div style="font-size: 10.5px; color: #64748b; margin-top: 2px;">{vid}</div>
+            </td>
+            <td>
+                <span style="font-weight: 700; padding: 2px 7px; border-radius: 4px; font-size: 11px; {user_badge_style}">👤 {uname}</span>
+            </td>
+            <td>
+                <div style="font-weight: 700; color: #38bdf8; font-size: 12px;">📍 {loc}</div>
+                <div style="font-size: 10.5px; color: #94a3b8; margin-top: 2px;">🏢 {isp}</div>
+            </td>
+            <td style="white-space: nowrap;">
+                <div style="font-weight: 600; color: #e2e8f0; font-size: 11.5px;">💻 {os_name} • {browser}</div>
+                <div style="font-size: 10px; color: #64748b;">Device: {dev}</div>
+            </td>
+            <td style="white-space: nowrap; font-size: 11px; color: #cbd5e1;">
+                <div>🟢 Last: <b>{last_ist}</b></div>
+                <div style="color: #64748b; font-size: 10px;">First: {first_ist}</div>
+            </td>
+            <td style="text-align: center; white-space: nowrap;">
+                <span style="display: inline-block; background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); padding: 2px 7px; border-radius: 4px; font-weight: 700; font-size: 11px;">⏱️ {act_mins} min</span>
+            </td>
+            <td>
+                <span style="font-weight: 700; color: #f59e0b; font-size: 12px;">{total_acts} actions</span>
+                <div style="font-size: 10.5px; color: #94a3b8; margin-top: 2px;">{actions_str}</div>
+            </td>
+        </tr>
+        """
+        rows_html.append(row)
+
+    rows_str = "".join(rows_html) if rows_html else '<tr><td colspan="7" style="text-align: center; padding: 30px; color: #64748b;">No visitor activity records logged yet.</td></tr>'
+    encoded_key = admin_key
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>👑 Live Visitor IP Intelligence & Daily Activity — NIFTY 50 Terminal</title>
+    <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{
+            background: #090d16;
+            color: #f1f5f9;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            padding: 20px;
+            font-size: 13px;
+        }}
+        .header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #111827;
+            border: 1px solid #1e293b;
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }}
+        .title-wrap {{ display: flex; align-items: center; gap: 10px; }}
+        .title-wrap h1 {{ font-size: 18px; font-weight: 800; color: #f8fafc; }}
+        .stats-badge {{
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: #38bdf8;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+        }}
+        .btn {{
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 7px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }}
+        .btn-csv {{
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            border: 1px solid #34d399;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }}
+        .btn-json {{
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid #475569;
+            color: #94a3b8;
+        }}
+        .btn-terminal {{
+            background: rgba(37, 99, 235, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.4);
+            color: #60a5fa;
+        }}
+        .btn:hover {{ filter: brightness(1.2); transform: translateY(-1px); }}
+        .table-container {{
+            background: #111827;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            overflow-x: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }}
+        th {{
+            background: #0d1322;
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 12px 14px;
+            border-bottom: 1px solid #1e293b;
+        }}
+        td {{
+            padding: 12px 14px;
+            border-bottom: 1px solid #1e293b;
+            vertical-align: top;
+        }}
+        tr:hover td {{ background: rgba(30, 41, 59, 0.3); }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title-wrap">
+            <span style="font-size: 22px;">🌐</span>
+            <div>
+                <h1>NIFTY 50 Pro Terminal — Live Visitor IP Intelligence & Daily Activity</h1>
+                <div style="font-size: 11.5px; color: #94a3b8; margin-top: 2px;">
+                    Real-time IP Geolocation, Network Provider, Device Fingerprint & Daily User Action Audit
+                </div>
+            </div>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <div class="stats-badge">👥 {len(visitors)} Visitors Tracked</div>
+            <div class="stats-badge" style="color: #a78bfa; border-color: rgba(167, 139, 250, 0.3); background: rgba(167, 139, 250, 0.1);">📍 {len(unique_cities)} Cities</div>
+            <a href="/api/admin/visitors/csv?admin_key={encoded_key}" class="btn btn-csv" title="Download Full Visitor Activity CSV">📥 Download CSV</a>
+            <a href="/api/admin/visitors?admin_key={encoded_key}&format=json" class="btn btn-json" title="View raw JSON">{{ }} JSON</a>
+            <a href="/api/admin/copilot/queries?admin_key={encoded_key}" class="btn btn-terminal">💬 Copilot Queries</a>
+            <a href="/" class="btn btn-terminal">📈 Return to Terminal</a>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Visitor IP & ID</th>
+                    <th>Account</th>
+                    <th>Location & ISP</th>
+                    <th>Device & Browser</th>
+                    <th>Activity Window (IST)</th>
+                    <th style="text-align: center;">Active Duration</th>
+                    <th>Actions Taken</th>
+                </tr>
+            </thead>
+            <tbody>
+                {rows_str}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>"""
+
+
+@app.get("/api/admin/visitors")
+async def api_get_admin_visitors(
+    request: Request,
+    admin_key: str = Query(""),
+    key: str = Query(""),
+    token: str = Query(""),
+    format: Optional[str] = Query(None),
+    limit: int = Query(100)
+):
+    """
+    Admin endpoint: Returns live visitor IP addresses, geolocations, devices, and daily activity logs.
+    Supports HTML Dashboard, JSON, or CSV download.
+    """
+    u = get_current_user_from_request(request)
+    if not u and token:
+        u = user_db.decode_access_token(token)
+
+    master_key = (admin_key or key or "").strip()
+    is_master = (master_key == user_db.ADMIN_MASTER_KEY)
+    is_admin_user = bool(u and u.get("role") == "admin")
+
+    accept_header = request.headers.get("accept", "")
+    wants_html = ("text/html" in accept_header) and (format != "json") and (format != "csv")
+
+    if not is_master and not is_admin_user:
+        if wants_html:
+            return HTMLResponse(content=render_copilot_admin_auth_html(error="Please provide valid Admin Master Key"))
+        return JSONResponse(status_code=403, content={"error": "Admin authorization required"})
+
+    if format == "csv":
+        csv_file = user_db.sync_visitor_activity_to_csv()
+        if csv_file and os.path.exists(csv_file):
+            return FileResponse(csv_file, media_type="text/csv", filename="visitor_daily_activity.csv")
+        return JSONResponse(status_code=404, content={"error": "Visitor activity CSV not found"})
+
+    visitors = user_db.get_daily_visitor_summary(limit=limit)
+
+    if wants_html or format == "html":
+        return HTMLResponse(
+            content=render_visitor_dashboard_html(
+                visitors=visitors,
+                admin_key=master_key or (user_db.ADMIN_MASTER_KEY if is_admin_user else "")
+            )
+        )
+
+    return JSONResponse(content={"status": "ok", "count": len(visitors), "visitors": visitors})
+
+
+@app.get("/api/admin/visitors/csv")
+async def api_download_visitors_csv(
+    request: Request,
+    admin_key: str = Query(""),
+    key: str = Query(""),
+    token: str = Query("")
+):
+    """Admin endpoint: exports and downloads full visitor daily activity CSV file."""
+    u = get_current_user_from_request(request)
+    if not u and token:
+        u = user_db.decode_access_token(token)
+
+    master_key = (admin_key or key or "").strip()
+    is_master = (master_key == user_db.ADMIN_MASTER_KEY)
+    is_admin_user = bool(u and u.get("role") == "admin")
+
+    if not is_master and not is_admin_user:
+        return JSONResponse(status_code=403, content={"error": "Admin authorization required"})
+
+    csv_file = user_db.sync_visitor_activity_to_csv()
+    if csv_file and os.path.exists(csv_file):
+        return FileResponse(
+            csv_file,
+            media_type="text/csv",
+            filename="visitor_daily_activity.csv"
+        )
+    return JSONResponse(status_code=404, content={"error": "Visitor activity CSV not found"})
+
+
+# ==============================================================
 # 📊 Real-Time Visitor Analytics & Heartbeat Endpoints
 # ==============================================================
+
+@app.post("/api/analytics/action")
+async def api_analytics_action(request: Request, payload: dict = Body(...)):
+    """Logs granular visitor user action (e.g. timeframe switch, indicator toggle, news open)."""
+    visitor_id = payload.get("visitor_id") or ""
+    action_type = payload.get("action_type") or "click"
+    action_detail = payload.get("action_detail") or ""
+    path = payload.get("path") or "/"
+
+    x_forwarded_for = request.headers.get("x-forwarded-for") or ""
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(",")[0].strip()
+    else:
+        ip = request.client.host if request.client else "127.0.0.1"
+
+    ua = request.headers.get("user-agent") or ""
+    u = get_current_user_from_request(request)
+    user_id = u.get("sub") if u else None
+
+    ok = user_db.record_visitor_action(
+        visitor_id=visitor_id,
+        action_type=action_type,
+        action_detail=action_detail,
+        path=path,
+        ip=ip,
+        user_agent=ua,
+        user_id=user_id
+    )
+    return JSONResponse(content={"status": "ok" if ok else "error"})
+
 
 @app.post("/api/analytics/visit")
 async def api_analytics_visit(request: Request, payload: dict = Body(...)):
