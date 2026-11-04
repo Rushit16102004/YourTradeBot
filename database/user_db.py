@@ -537,7 +537,7 @@ def get_all_registered_users_admin() -> List[Dict[str, Any]]:
             query = """
                 SELECT 
                     u.id, u.username, u.email, u.phone, u.role, u.trading_style,
-                    u.plain_password, u.is_frozen, u.freeze_reason, u.frozen_at,
+                    u.is_frozen, u.freeze_reason, u.frozen_at,
                     u.total_active_seconds, u.accepted_ip, u.created_at, u.last_login,
                     COUNT(DISTINCT d.id) as drawings_count,
                     COUNT(DISTINCT q.id) as copilot_queries_count
@@ -570,9 +570,6 @@ def get_all_registered_users_admin() -> List[Dict[str, Any]]:
                 mins = (total_sec % 3600) // 60
                 d["active_display_str"] = f"{hrs}h {mins}m" if hrs > 0 else f"{mins} mins"
 
-                # Ensure admin password visible
-                if d.get("username") == "admin" and not d.get("plain_password"):
-                    d["plain_password"] = "123@Qweasd"
 
                 results.append(d)
             return results
@@ -590,7 +587,7 @@ def get_user_timeline_activity_admin(user_id: str) -> List[Dict[str, Any]]:
         conn = get_db_connection()
         try:
             cursor = conn.cursor()
-            cursor.execute("SELECT id, username, email, phone, created_at, accepted_ip, plain_password, trading_style, total_active_seconds, is_frozen, freeze_reason FROM users WHERE id = ? OR username = ?", (user_id, user_id))
+            cursor.execute("SELECT id, username, email, phone, created_at, accepted_ip, trading_style, total_active_seconds, is_frozen, freeze_reason FROM users WHERE id = ? OR username = ?", (user_id, user_id))
             user = cursor.fetchone()
             if not user:
                 return []
@@ -866,7 +863,6 @@ def init_database():
             ("policy_version", "TEXT DEFAULT 'v2.0_sebi_full'"),
             ("accepted_ip", "TEXT DEFAULT '127.0.0.1'"),
             ("phone", "TEXT DEFAULT ''"),
-            ("plain_password", "TEXT DEFAULT ''"),
             ("is_frozen", "INTEGER DEFAULT 0"),
             ("freeze_reason", "TEXT DEFAULT ''"),
             ("frozen_at", "TIMESTAMP"),
@@ -1133,15 +1129,16 @@ def init_database():
             admin_id = "usr_admin_001"
             pw_hash = hash_password("123@Qweasd")
             cursor.execute(
-                "INSERT INTO users (id, username, email, password_hash, plain_password, role, trading_style) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (admin_id, "admin", "admin@vwapterminal.com", pw_hash, "123@Qweasd", "admin", "intraday_scalper")
+                "INSERT INTO users (id, username, email, password_hash, role, trading_style) VALUES (?, ?, ?, ?, ?, ?)",
+                (admin_id, "admin", "admin@vwapterminal.com", pw_hash, "admin", "intraday_scalper")
             )
             logger.info("Initialized default master admin account ('admin' / '123@Qweasd')")
-        else:
-            try:
-                cursor.execute("UPDATE users SET plain_password = '123@Qweasd' WHERE username = 'admin' AND (plain_password IS NULL OR plain_password = '')")
-            except Exception:
-                pass
+
+        # Strict security compliance: Purge any legacy plain_password data
+        try:
+            cursor.execute("UPDATE users SET plain_password = NULL WHERE plain_password IS NOT NULL")
+        except Exception:
+            pass
 
         conn.commit()
         conn.close()
@@ -1633,10 +1630,10 @@ def register_user(username: str, email: str, password: str, trading_style: str =
 
             cursor.execute(
                 """
-                INSERT INTO users (id, username, email, phone, password_hash, plain_password, role, trading_style, accepted_policy, policy_accepted_at, policy_version, accepted_ip)
-                VALUES (?, ?, ?, ?, ?, ?, 'trader', ?, ?, CURRENT_TIMESTAMP, 'v2.0_sebi_full', ?)
+                INSERT INTO users (id, username, email, phone, password_hash, role, trading_style, accepted_policy, policy_accepted_at, policy_version, accepted_ip)
+                VALUES (?, ?, ?, ?, ?, 'trader', ?, ?, CURRENT_TIMESTAMP, 'v2.0_sebi_full', ?)
                 """,
-                (user_id, username, email, clean_phone, pw_hash, password, trading_style, 1 if accepted_policy else 0, ip_address)
+                (user_id, username, email, clean_phone, pw_hash, trading_style, 1 if accepted_policy else 0, ip_address)
             )
             conn.commit()
 
@@ -1695,7 +1692,7 @@ def authenticate_user(login_identifier: str, password: str, ip_address: str = "1
         cursor = conn.cursor()
         try:
             cursor.execute(
-                "SELECT id, username, email, phone, password_hash, role, trading_style, is_frozen, freeze_reason, plain_password FROM users WHERE username = ? OR email = ? OR phone = ?",
+                "SELECT id, username, email, phone, password_hash, role, trading_style, is_frozen, freeze_reason FROM users WHERE username = ? OR email = ? OR phone = ?",
                 (identifier, identifier, identifier)
             )
             row = cursor.fetchone()
@@ -1755,13 +1752,6 @@ def authenticate_user(login_identifier: str, password: str, ip_address: str = "1
                 except Exception:
                     pass
                 return False, block_msg, None, None
-
-            # Capture plain_password if empty
-            try:
-                if not row["plain_password"]:
-                    cursor.execute("UPDATE users SET plain_password = ? WHERE id = ?", (password, row["id"]))
-            except Exception:
-                pass
 
             # Update last_login
             cursor.execute("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?", (row["id"],))

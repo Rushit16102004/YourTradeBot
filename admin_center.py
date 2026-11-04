@@ -158,7 +158,7 @@ def render_admin_command_center_html(
         uemail = html.escape(str(u.get("email", "")))
         uphone = html.escape(str(u.get("phone", "") or "--"))
         ustyle = html.escape(str(u.get("trading_style", "intraday_scalper")).replace("_", " ").title())
-        plain_pw = html.escape(str(u.get("plain_password", "") or "--"))
+
         is_frozen = bool(u.get("is_frozen"))
         freeze_reason = html.escape(str(u.get("freeze_reason", "") or ""))
         reg_ist = html.escape(str(u.get("created_at_ist", "--")))
@@ -868,11 +868,8 @@ def render_admin_command_center_html(
                         <div class="val" id="mUserStyle">--</div>
                     </div>
                     <div class="info-cell">
-                        <div class="label">Registration Password</div>
-                        <div class="password-row">
-                            <span class="val" id="mUserPw" style="font-family: monospace;">••••••••</span>
-                            <button class="btn-eye" id="mUserPwToggle" onclick="togglePasswordView()">👁️ Show</button>
-                        </div>
+                        <div class="label">Password Security</div>
+                        <div class="val" style="color: #4ade80;">🔒 Salt-Hashed (Bcrypt Encrypted)</div>
                     </div>
                     <div class="info-cell">
                         <div class="label">Total Display Active Time</div>
@@ -986,7 +983,6 @@ def render_admin_command_center_html(
         const ADMIN_KEY = '{encoded_key}';
         let currentModalUser = null;
         let currentModalGuest = null;
-        let isPwRevealed = false;
 
         function showToast(msg) {{
             const t = document.getElementById('toast');
@@ -1039,8 +1035,7 @@ def render_admin_command_center_html(
             document.getElementById('mUserEmail').innerText = u.email;
             document.getElementById('mUserPhone').innerText = u.phone || '--';
             document.getElementById('mUserStyle').innerText = (u.trading_style || '').replace('_', ' ').toUpperCase();
-            document.getElementById('mUserPw').innerText = '••••••••';
-            document.getElementById('mUserPwToggle').innerText = '👁️ Show';
+
             document.getElementById('mUserDisplayTime').innerText = u.active_display_str || '0 mins';
             document.getElementById('mUserCreated').innerText = u.created_at_ist || '--';
             document.getElementById('mUserLastLogin').innerText = u.last_login_ist || '--';
@@ -1064,19 +1059,7 @@ def render_admin_command_center_html(
             currentModalUser = null;
         }}
 
-        function togglePasswordView() {{
-            if (!currentModalUser) return;
-            isPwRevealed = !isPwRevealed;
-            const pwSpan = document.getElementById('mUserPw');
-            const toggleBtn = document.getElementById('mUserPwToggle');
-            if (isPwRevealed) {{
-                pwSpan.innerText = currentModalUser.plain_password || '(Not Captured)';
-                toggleBtn.innerText = '🙈 Hide';
-            }} else {{
-                pwSpan.innerText = '••••••••';
-                toggleBtn.innerText = '👁️ Show';
-            }}
-        }}
+
 
         async function loadUserTimeline(userId) {{
             const listEl = document.getElementById('mTimelineList');
