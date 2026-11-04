@@ -1597,6 +1597,17 @@ def register_user(username: str, email: str, password: str, trading_style: str =
 
     if len(password) < 6:
         return False, "Password must be at least 6 characters long", None
+
+    DISALLOWED_WEAK_PASSWORDS = {
+        "123456", "12345678", "123456789", "password", "password123",
+        "123@qweasd", "123qweasd", "admin123", "qwerty", "qwerty123",
+        "iloveyou", "welcome", "welcome123", "123123", "111111",
+        "abc123", "pass@123", "test1234", "admin@123", "admin2026",
+        "qweasd123", "1234567890", "password1"
+    }
+    if password.strip().lower() in DISALLOWED_WEAK_PASSWORDS:
+        return False, "This password was found in public internet breach lists. Please choose a stronger, unique password to prevent browser security warnings.", None
+
     if "@" not in email or "." not in email:
         return False, "Invalid email address format", None
 
