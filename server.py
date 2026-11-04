@@ -29,17 +29,31 @@ import pandas as pd
 import uvicorn
 from fastapi import FastAPI, Query, Body, Response, Request, Header
 import database.user_db as user_db
+import admin_center
 from engine.rate_limiter import copilot_rate_limiter, SlidingWindowRateLimiter
 from temp_storage import TEMP_STORAGE_DIR
 
 auth_rate_limiter = SlidingWindowRateLimiter(max_requests=10, window_seconds=60.0, cooldown_seconds=0.5)
+
+def get_client_ip(request: Request) -> str:
+    """Extracts real client IP address respecting X-Forwarded-For reverse proxy header."""
+    x_forwarded_for = request.headers.get("x-forwarded-for") or ""
+    if x_forwarded_for:
+        return x_forwarded_for.split(",")[0].strip()
+    return request.client.host if request.client else "127.0.0.1"
+
 def get_current_user_from_request(request: Request) -> Optional[dict]:
-    """Extracts and verifies JWT token from Authorization header."""
+    """Extracts and verifies JWT token from Authorization header. Rejects frozen user accounts."""
     auth_header = request.headers.get("Authorization") or ""
     if auth_header.startswith("Bearer "):
         token = auth_header.split(" ", 1)[1].strip()
         payload = user_db.decode_access_token(token)
         if payload:
+            user_id = payload.get("sub") or payload.get("id")
+            if user_id:
+                frozen, _ = user_db.is_user_frozen(user_id)
+                if frozen:
+                    return None
             return payload
     return None
 
@@ -241,8 +255,16 @@ async def serve_chart_js():
 
 
 @app.get("/", response_class=HTMLResponse)
-async def serve_index():
-    """Serves the pure lightweight HTML5/CSS3/JavaScript trading terminal."""
+async def serve_index(request: Request):
+    """Serves the pure lightweight HTML5/CSS3/JavaScript trading terminal with IP block check."""
+    client_ip = get_client_ip(request)
+    blocked, reason = user_db.is_ip_blocked(client_ip)
+    if blocked:
+        return HTMLResponse(
+            content=admin_center.render_account_blocked_html(reason=reason, is_ip=True, entity_id=client_ip),
+            status_code=403
+        )
+
     if not INDEX_HTML.exists():
         return HTMLResponse(
             "<h3>Error: templates/index.html not found!</h3>",
@@ -899,12 +921,185 @@ async def api_admin_reset_password(payload: dict = Body(...)):
 
 
 @app.get("/api/admin/users")
-async def api_admin_users(admin_key: str = Query("")):
-    """Admin endpoint: lists all registered users with their drawings count."""
+async def api_admin_users(
+    request: Request,
+    admin_key: str = Query(""),
+    key: str = Query(""),
+    token: str = Query(""),
+    format: Optional[str] = Query(None),
+    tab: str = Query("users")
+):
+    """
+    Master Admin User & Guest Command Center:
+    - Tab 1: 👤 Registered Users (Profiles, Passwords, Display Time, Timeline, Freeze, Purge)
+    - Tab 2: 🕵️ Guest Visitors (IP, Geolocation, ISP, Display Time, Block IP, Timeline)
+    - Tab 3: 🚫 Blocked Accounts & Banned IPs
+    """
+    u = get_current_user_from_request(request)
+    if not u and token:
+        u = user_db.decode_access_token(token)
+
+    master_key = (admin_key or key or "").strip()
+    is_master = (master_key == user_db.ADMIN_MASTER_KEY)
+    is_admin_user = bool(u and u.get("role") == "admin")
+
+    wants_json = (format == "json") or (request.headers.get("x-requested-with") == "XMLHttpRequest")
+
+    if not is_master and not is_admin_user:
+        if not wants_json:
+            return HTMLResponse(content=render_copilot_admin_auth_html(error="Please enter your Admin Master Key to unlock the Command Center."))
+        return JSONResponse(status_code=403, content={"status": "error", "message": "Unauthorized: Admin Master Key required."})
+
+    users = user_db.get_all_registered_users_admin()
+    guests = user_db.get_all_guests_admin(limit=200)
+    blocked = user_db.get_blocked_entities_admin()
+
+    if wants_json:
+        return JSONResponse(content={
+            "status": "ok",
+            "users_count": len(users),
+            "guests_count": len(guests),
+            "users": users,
+            "guests": guests,
+            "blocked": blocked
+        })
+
+    html_content = admin_center.render_admin_command_center_html(
+        users=users,
+        guests=guests,
+        blocked=blocked,
+        admin_key=master_key or user_db.ADMIN_MASTER_KEY,
+        active_tab=tab
+    )
+    return HTMLResponse(content=html_content)
+
+
+@app.get("/api/admin/user-timeline")
+async def api_admin_user_timeline(
+    request: Request,
+    user_id: str = Query(...),
+    admin_key: str = Query(""),
+    key: str = Query(""),
+    token: str = Query("")
+):
+    """Admin API: returns full chronological activity timeline for a registered user."""
+    u = get_current_user_from_request(request)
+    if not u and token: u = user_db.decode_access_token(token)
+    master_key = (admin_key or key or "").strip()
+    if master_key != user_db.ADMIN_MASTER_KEY and not (u and u.get("role") == "admin"):
+        return JSONResponse(status_code=403, content={"status": "error", "message": "Unauthorized"})
+
+    timeline = user_db.get_user_timeline_activity_admin(user_id)
+    return JSONResponse(content={"status": "ok", "user_id": user_id, "timeline": timeline})
+
+
+@app.get("/api/admin/guest-timeline")
+async def api_admin_guest_timeline(
+    request: Request,
+    visitor_id: str = Query(...),
+    admin_key: str = Query(""),
+    key: str = Query(""),
+    token: str = Query("")
+):
+    """Admin API: returns full chronological activity timeline for an anonymous guest visitor."""
+    u = get_current_user_from_request(request)
+    if not u and token: u = user_db.decode_access_token(token)
+    master_key = (admin_key or key or "").strip()
+    if master_key != user_db.ADMIN_MASTER_KEY and not (u and u.get("role") == "admin"):
+        return JSONResponse(status_code=403, content={"status": "error", "message": "Unauthorized"})
+
+    timeline = user_db.get_guest_timeline_activity_admin(visitor_id)
+    return JSONResponse(content={"status": "ok", "visitor_id": visitor_id, "timeline": timeline})
+
+
+@app.post("/api/admin/user/freeze")
+async def api_admin_freeze_user(payload: dict = Body(...)):
+    """Admin API: Freezes/suspends a registered user account."""
+    admin_key = (payload.get("admin_key") or "").strip()
     if admin_key != user_db.ADMIN_MASTER_KEY:
         return JSONResponse(status_code=403, content={"status": "error", "message": "Unauthorized: Invalid Master Key"})
-    users = user_db.get_all_users()
-    return JSONResponse(content={"status": "ok", "count": len(users), "users": users})
+
+    user_id = str(payload.get("user_id") or "").strip()
+    reason = str(payload.get("reason") or "").strip()
+    ok, msg = user_db.freeze_user_admin(user_id=user_id, reason=reason)
+    return JSONResponse(content={"status": "ok" if ok else "error", "message": msg})
+
+
+@app.post("/api/admin/user/unfreeze")
+async def api_admin_unfreeze_user(payload: dict = Body(...)):
+    """Admin API: Unfreezes/restores a registered user account."""
+    admin_key = (payload.get("admin_key") or "").strip()
+    if admin_key != user_db.ADMIN_MASTER_KEY:
+        return JSONResponse(status_code=403, content={"status": "error", "message": "Unauthorized: Invalid Master Key"})
+
+    user_id = str(payload.get("user_id") or "").strip()
+    ok, msg = user_db.unfreeze_user_admin(user_id=user_id)
+    return JSONResponse(content={"status": "ok" if ok else "error", "message": msg})
+
+
+@app.post("/api/admin/user/delete")
+async def api_admin_delete_user(payload: dict = Body(...)):
+    """Admin API: Permanently purges user and ALL drawings, chat history, and logs."""
+    admin_key = (payload.get("admin_key") or "").strip()
+    if admin_key != user_db.ADMIN_MASTER_KEY:
+        return JSONResponse(status_code=403, content={"status": "error", "message": "Unauthorized: Invalid Master Key"})
+
+    user_id = str(payload.get("user_id") or "").strip()
+    ok, msg = user_db.delete_user_completely_admin(user_id=user_id)
+    return JSONResponse(content={"status": "ok" if ok else "error", "message": msg})
+
+
+@app.post("/api/admin/guest/delete")
+async def api_admin_delete_guest(payload: dict = Body(...)):
+    """Admin API: Permanently deletes guest visitor record and activity logs."""
+    admin_key = (payload.get("admin_key") or "").strip()
+    if admin_key != user_db.ADMIN_MASTER_KEY:
+        return JSONResponse(status_code=403, content={"status": "error", "message": "Unauthorized: Invalid Master Key"})
+
+    visitor_id = str(payload.get("visitor_id") or "").strip()
+    ok, msg = user_db.delete_guest_completely_admin(visitor_id=visitor_id)
+    return JSONResponse(content={"status": "ok" if ok else "error", "message": msg})
+
+
+@app.post("/api/admin/ip/block")
+async def api_admin_block_ip(payload: dict = Body(...)):
+    """Admin API: Blocks an IP address from platform access."""
+    admin_key = (payload.get("admin_key") or "").strip()
+    if admin_key != user_db.ADMIN_MASTER_KEY:
+        return JSONResponse(status_code=403, content={"status": "error", "message": "Unauthorized: Invalid Master Key"})
+
+    ip_address = str(payload.get("ip_address") or "").strip()
+    reason = str(payload.get("reason") or "").strip()
+    ok, msg = user_db.block_ip_admin(ip_address=ip_address, reason=reason)
+    return JSONResponse(content={"status": "ok" if ok else "error", "message": msg})
+
+
+@app.post("/api/admin/ip/unblock")
+async def api_admin_unblock_ip(payload: dict = Body(...)):
+    """Admin API: Unblocks an IP address."""
+    admin_key = (payload.get("admin_key") or "").strip()
+    if admin_key != user_db.ADMIN_MASTER_KEY:
+        return JSONResponse(status_code=403, content={"status": "error", "message": "Unauthorized: Invalid Master Key"})
+
+    ip_address = str(payload.get("ip_address") or "").strip()
+    ok, msg = user_db.unblock_ip_admin(ip_address=ip_address)
+    return JSONResponse(content={"status": "ok" if ok else "error", "message": msg})
+
+
+@app.post("/api/analytics/display-time")
+async def api_track_display_time(request: Request, payload: dict = Body(...)):
+    """Client telemetry endpoint: records active focused on-screen display seconds."""
+    visitor_id = str(payload.get("visitor_id") or "").strip()
+    user_id = payload.get("user_id")
+    seconds = int(payload.get("seconds") or 15)
+
+    if not user_id:
+        u = get_current_user_from_request(request)
+        if u:
+            user_id = u.get("sub") or u.get("id")
+
+    user_db.add_active_display_time(visitor_id=visitor_id, user_id=user_id, seconds=seconds)
+    return JSONResponse(content={"status": "ok"})
 
 
 @app.get("/api/admin/users/csv")
@@ -1156,13 +1351,12 @@ async def api_get_admin_visitors(
     is_master = (master_key == user_db.ADMIN_MASTER_KEY)
     is_admin_user = bool(u and u.get("role") == "admin")
 
-    accept_header = request.headers.get("accept", "")
-    wants_html = ("text/html" in accept_header) and (format != "json") and (format != "csv")
+    wants_json = (format == "json") or (request.headers.get("x-requested-with") == "XMLHttpRequest")
 
     if not is_master and not is_admin_user:
-        if wants_html:
-            return HTMLResponse(content=render_copilot_admin_auth_html(error="Please provide valid Admin Master Key"))
-        return JSONResponse(status_code=403, content={"error": "Admin authorization required"})
+        if not wants_json and (format != "csv"):
+            return HTMLResponse(content=render_copilot_admin_auth_html(error="Please enter your Admin Master Key to unlock this dashboard."))
+        return JSONResponse(status_code=403, content={"error": "Admin authorization required. Provide ?admin_key=... in URL."})
 
     if format == "csv":
         csv_file = user_db.sync_visitor_activity_to_csv()

@@ -263,6 +263,563 @@ def record_user_psychology_event(user_id: str, event_type: str, details: str) ->
             conn.close()
 
 
+# ==============================================================
+# 👑 Comprehensive Admin User & Guest Command Center Functions
+# ==============================================================
+
+def add_active_display_time(visitor_id: str, user_id: Optional[str] = None, seconds: int = 15):
+    """Accumulates active on-screen display time (seconds) for user and visitor session."""
+    sec = max(1, min(60, int(seconds)))
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            if user_id:
+                cursor.execute("""
+                    UPDATE users 
+                    SET total_active_seconds = COALESCE(total_active_seconds, 0) + ? 
+                    WHERE id = ? OR username = ?
+                """, (sec, user_id, user_id))
+
+            if visitor_id:
+                cursor.execute("""
+                    UPDATE visitor_identities 
+                    SET total_active_seconds = COALESCE(total_active_seconds, 0) + ? 
+                    WHERE visitor_id = ?
+                """, (sec, visitor_id))
+            conn.commit()
+        except Exception as e:
+            logger.debug("Error adding active display time: %s", e)
+        finally:
+            conn.close()
+
+
+def freeze_user_admin(user_id: str, reason: str = "") -> Tuple[bool, str]:
+    """Freezes/suspends a registered user account."""
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, username, role FROM users WHERE id = ? OR username = ?", (user_id, user_id))
+            user = cursor.fetchone()
+            if not user:
+                return False, f"User '{user_id}' not found."
+            if user["role"] == "admin":
+                return False, "Cannot freeze system administrator account."
+
+            uid = user["id"]
+            uname = user["username"]
+            freeze_msg = reason.strip() or "Irregular activity, bad requests, or misuse of this website"
+            now_utc = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+            cursor.execute("""
+                UPDATE users
+                SET is_frozen = 1, freeze_reason = ?, frozen_at = ?
+                WHERE id = ?
+            """, (freeze_msg, now_utc, uid))
+            conn.commit()
+            logger.info("Admin froze user %s (%s): %s", uname, uid, freeze_msg)
+            return True, f"User '{uname}' has been frozen/blocked."
+        except Exception as e:
+            logger.error("Error freezing user: %s", e)
+            return False, str(e)
+        finally:
+            conn.close()
+
+
+def unfreeze_user_admin(user_id: str) -> Tuple[bool, str]:
+    """Unfreezes/restores a registered user account."""
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE users
+                SET is_frozen = 0, freeze_reason = '', frozen_at = NULL
+                WHERE id = ? OR username = ?
+            """, (user_id, user_id))
+            conn.commit()
+            return True, "User account unblocked and restored successfully."
+        except Exception as e:
+            logger.error("Error unfreezing user: %s", e)
+            return False, str(e)
+        finally:
+            conn.close()
+
+
+def is_user_frozen(user_id: str) -> Tuple[bool, str]:
+    """Checks if a user account is currently frozen/blocked."""
+    if not user_id:
+        return False, ""
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT is_frozen, freeze_reason FROM users WHERE id = ? OR username = ?", (user_id, user_id))
+            row = cursor.fetchone()
+            if row and row["is_frozen"]:
+                return True, row["freeze_reason"] or "Irregular activity, bad requests, or misuse of this website"
+            return False, ""
+        finally:
+            conn.close()
+
+
+def block_ip_admin(ip_address: str, reason: str = "") -> Tuple[bool, str]:
+    """Blocks an IP address from accessing the platform."""
+    clean_ip = (ip_address or "").strip()
+    if not clean_ip:
+        return False, "IP address required"
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            block_msg = reason.strip() or "Irregular activity, bad requests, or misuse of this website"
+            cursor.execute("""
+                INSERT OR REPLACE INTO blocked_ips (ip_address, reason, blocked_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+            """, (clean_ip, block_msg))
+            conn.commit()
+            logger.info("Admin blocked IP: %s (Reason: %s)", clean_ip, block_msg)
+            return True, f"IP '{clean_ip}' has been blocked."
+        except Exception as e:
+            logger.error("Error blocking IP: %s", e)
+            return False, str(e)
+        finally:
+            conn.close()
+
+
+def unblock_ip_admin(ip_address: str) -> Tuple[bool, str]:
+    """Unblocks an IP address."""
+    clean_ip = (ip_address or "").strip()
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM blocked_ips WHERE ip_address = ?", (clean_ip,))
+            conn.commit()
+            logger.info("Admin unblocked IP: %s", clean_ip)
+            return True, f"IP '{clean_ip}' unblocked successfully."
+        except Exception as e:
+            return False, str(e)
+        finally:
+            conn.close()
+
+
+def is_ip_blocked(ip_address: str) -> Tuple[bool, str]:
+    """Checks if an IP address is blocked."""
+    clean_ip = (ip_address or "").strip()
+    if not clean_ip or clean_ip in ("127.0.0.1", "localhost"):
+        return False, ""
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT reason FROM blocked_ips WHERE ip_address = ?", (clean_ip,))
+            row = cursor.fetchone()
+            if row:
+                return True, row["reason"] or "Irregular activity, bad requests, or misuse of this website"
+            return False, ""
+        finally:
+            conn.close()
+
+
+def get_blocked_entities_admin() -> Dict[str, Any]:
+    """Returns all currently blocked users and IPs."""
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, username, email, phone, freeze_reason, frozen_at FROM users WHERE is_frozen = 1")
+            frozen_users = [dict(r) for r in cursor.fetchall()]
+
+            cursor.execute("SELECT ip_address, reason, blocked_at FROM blocked_ips ORDER BY blocked_at DESC")
+            blocked_ips = [dict(r) for r in cursor.fetchall()]
+
+            return {"frozen_users": frozen_users, "blocked_ips": blocked_ips}
+        finally:
+            conn.close()
+
+
+def delete_user_completely_admin(user_id: str) -> Tuple[bool, str]:
+    """
+    Completely and permanently purges a user and ALL their data from the platform:
+    1. users record
+    2. user_drawings
+    3. chat_history
+    4. copilot_queries_review (queries asked by this user)
+    5. user_preferences
+    6. user_login_records
+    7. trade_predictions
+    8. user_psychology_profile
+    9. drops copilot_user_<username> dedicated table
+    10. unlinks from visitor_identities
+    11. visitor_activity_log
+    """
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, username, role FROM users WHERE id = ? OR username = ?", (user_id, user_id))
+            user = cursor.fetchone()
+            if not user:
+                return False, f"User '{user_id}' not found."
+
+            uid = user["id"]
+            uname = user["username"]
+            if user["role"] == "admin":
+                return False, "Cannot delete master system administrator account."
+
+            # Delete drawings
+            cursor.execute("DELETE FROM user_drawings WHERE user_id = ?", (uid,))
+            # Delete chat history
+            cursor.execute("DELETE FROM chat_history WHERE user_id = ?", (uid,))
+            # Delete copilot queries review
+            cursor.execute("DELETE FROM copilot_queries_review WHERE user_id = ? OR username = ?", (uid, uname))
+            # Delete preferences
+            cursor.execute("DELETE FROM user_preferences WHERE user_id = ?", (uid,))
+            # Delete login records
+            cursor.execute("DELETE FROM user_login_records WHERE user_id = ? OR username = ?", (uid, uname))
+            # Delete predictions
+            try:
+                cursor.execute("DELETE FROM trade_predictions WHERE user_id = ?", (uid,))
+            except Exception:
+                pass
+            # Delete psychology profile
+            try:
+                cursor.execute("DELETE FROM user_psychology_profile WHERE user_id = ?", (uid,))
+            except Exception:
+                pass
+            # Unlink visitor identities
+            cursor.execute("UPDATE visitor_identities SET user_id = NULL, has_account = 0 WHERE user_id = ?", (uid,))
+            # Delete activity log
+            cursor.execute("DELETE FROM visitor_activity_log WHERE user_id = ? OR username = ?", (uid, uname))
+            # Drop dedicated copilot table
+            table_name = f"copilot_user_{uname.replace('-', '_')}"
+            cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
+            # Finally delete from users
+            cursor.execute("DELETE FROM users WHERE id = ?", (uid,))
+
+            conn.commit()
+            logger.info("Admin permanently purged user %s (%s) and all associated data.", uname, uid)
+            return True, f"User '{uname}' and all associated drawings, chat history, and logs permanently deleted."
+        except Exception as e:
+            logger.error("Error purging user: %s", e)
+            return False, str(e)
+        finally:
+            conn.close()
+
+
+def delete_guest_completely_admin(visitor_id: str) -> Tuple[bool, str]:
+    """Permanently deletes a guest visitor record, pageviews, and activity log."""
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM visitor_activity_log WHERE visitor_id = ?", (visitor_id,))
+            cursor.execute("DELETE FROM site_pageviews WHERE visitor_id = ?", (visitor_id,))
+            cursor.execute("DELETE FROM visitor_identities WHERE visitor_id = ?", (visitor_id,))
+            conn.commit()
+            return True, f"Guest visitor '{visitor_id}' records deleted successfully."
+        except Exception as e:
+            logger.error("Error deleting guest: %s", e)
+            return False, str(e)
+        finally:
+            conn.close()
+
+
+def get_all_registered_users_admin() -> List[Dict[str, Any]]:
+    """Returns all registered users with display active time, profile, drawings count, and freeze status."""
+    import pandas as pd
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            query = """
+                SELECT 
+                    u.id, u.username, u.email, u.phone, u.role, u.trading_style,
+                    u.plain_password, u.is_frozen, u.freeze_reason, u.frozen_at,
+                    u.total_active_seconds, u.accepted_ip, u.created_at, u.last_login,
+                    COUNT(DISTINCT d.id) as drawings_count,
+                    COUNT(DISTINCT q.id) as copilot_queries_count
+                FROM users u
+                LEFT JOIN user_drawings d ON u.id = d.user_id
+                LEFT JOIN copilot_queries_review q ON (u.id = q.user_id OR u.username = q.username)
+                GROUP BY u.id
+                ORDER BY u.created_at DESC
+            """
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            results = []
+            for r in rows:
+                d = dict(r)
+                # Format dates to IST
+                for dt_col in ["created_at", "last_login", "frozen_at"]:
+                    val = d.get(dt_col)
+                    if val:
+                        try:
+                            ist_dt = pd.to_datetime(val) + timedelta(hours=5, minutes=30)
+                            d[f"{dt_col}_ist"] = ist_dt.strftime("%d-%b-%Y %I:%M:%S %p")
+                        except Exception:
+                            d[f"{dt_col}_ist"] = str(val)
+                    else:
+                        d[f"{dt_col}_ist"] = "--"
+
+                # Format total display active time
+                total_sec = d.get("total_active_seconds") or 0
+                hrs = total_sec // 3600
+                mins = (total_sec % 3600) // 60
+                d["active_display_str"] = f"{hrs}h {mins}m" if hrs > 0 else f"{mins} mins"
+
+                # Ensure admin password visible
+                if d.get("username") == "admin" and not d.get("plain_password"):
+                    d["plain_password"] = "123@Qweasd"
+
+                results.append(d)
+            return results
+        finally:
+            conn.close()
+
+
+def get_user_timeline_activity_admin(user_id: str) -> List[Dict[str, Any]]:
+    """
+    Retrieves full chronological activity timeline for a registered user:
+    Registration, Logins, AI Copilot Questions, Drawings, Indicator toggles, Timeframe changes.
+    """
+    import pandas as pd
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, username, email, phone, created_at, accepted_ip, plain_password, trading_style, total_active_seconds, is_frozen, freeze_reason FROM users WHERE id = ? OR username = ?", (user_id, user_id))
+            user = cursor.fetchone()
+            if not user:
+                return []
+            uid = user["id"]
+            uname = user["username"]
+
+            timeline = []
+
+            # 1. Registration event
+            reg_time = user["created_at"]
+            try:
+                reg_ist = (pd.to_datetime(reg_time) + timedelta(hours=5, minutes=30)).strftime("%d-%b-%Y %I:%M:%S %p")
+            except Exception:
+                reg_ist = str(reg_time)
+            timeline.append({
+                "timestamp": reg_time,
+                "timestamp_ist": reg_ist,
+                "type": "account_created",
+                "icon": "🎉",
+                "title": "Account Registered",
+                "details": f"Registered with mobile {user['phone']} and style {user['trading_style']}",
+                "ip": user["accepted_ip"] or ""
+            })
+
+            # 2. Login events
+            cursor.execute("SELECT created_at, event_type, status, ip_address, details FROM user_login_records WHERE user_id = ? OR username = ? ORDER BY created_at DESC LIMIT 50", (uid, uname))
+            for l_row in cursor.fetchall():
+                t = l_row["created_at"]
+                try:
+                    t_ist = (pd.to_datetime(t) + timedelta(hours=5, minutes=30)).strftime("%d-%b-%Y %I:%M:%S %p")
+                except Exception:
+                    t_ist = str(t)
+                timeline.append({
+                    "timestamp": t,
+                    "timestamp_ist": t_ist,
+                    "type": "login_event",
+                    "icon": "🔑",
+                    "title": f"Login {l_row['status'].title()}",
+                    "details": l_row["details"] or "User session authenticated",
+                    "ip": l_row["ip_address"] or ""
+                })
+
+            # 3. AI Copilot Queries
+            cursor.execute("SELECT created_at, query, response, market_price, timeframe, metadata FROM copilot_queries_review WHERE user_id = ? OR username = ? ORDER BY created_at DESC LIMIT 100", (uid, uname))
+            for q_row in cursor.fetchall():
+                t = q_row["created_at"]
+                try:
+                    t_ist = (pd.to_datetime(t) + timedelta(hours=5, minutes=30)).strftime("%d-%b-%Y %I:%M:%S %p")
+                except Exception:
+                    t_ist = str(t)
+                q_meta = {}
+                if q_row["metadata"]:
+                    try: q_meta = json.loads(q_row["metadata"])
+                    except Exception: pass
+                timeline.append({
+                    "timestamp": t,
+                    "timestamp_ist": t_ist,
+                    "type": "copilot_query",
+                    "icon": "🤖",
+                    "title": "Asked AI Strategy Copilot",
+                    "details": f'Query: "{q_row["query"]}" (Price: ₹{float(q_row["market_price"] or 0):,.2f}, TF: {q_row["timeframe"]})',
+                    "response": q_row["response"],
+                    "ip": q_meta.get("client_ip", "")
+                })
+
+            # 4. Chart Drawings
+            cursor.execute("SELECT created_at, drawing_type, price1, price2, remark FROM user_drawings WHERE user_id = ? ORDER BY created_at DESC LIMIT 50", (uid,))
+            for d_row in cursor.fetchall():
+                t = d_row["created_at"]
+                try:
+                    t_ist = (pd.to_datetime(t) + timedelta(hours=5, minutes=30)).strftime("%d-%b-%Y %I:%M:%S %p")
+                except Exception:
+                    t_ist = str(t)
+                timeline.append({
+                    "timestamp": t,
+                    "timestamp_ist": t_ist,
+                    "type": "chart_drawing",
+                    "icon": "🎨",
+                    "title": f"Drew {d_row['drawing_type'].replace('_', ' ').title()}",
+                    "details": f"P1: ₹{float(d_row['price1'] or 0):,.2f}" + (f", P2: ₹{float(d_row['price2'] or 0):,.2f}" if d_row["price2"] else "") + (f" ({d_row['remark']})" if d_row["remark"] else ""),
+                    "ip": ""
+                })
+
+            # 5. Granular visitor activities
+            cursor.execute("SELECT created_at, action_type, action_detail, ip_address, city, isp, device_type FROM visitor_activity_log WHERE user_id = ? OR username = ? ORDER BY created_at DESC LIMIT 100", (uid, uname))
+            for a_row in cursor.fetchall():
+                t = a_row["created_at"]
+                try:
+                    t_ist = (pd.to_datetime(t) + timedelta(hours=5, minutes=30)).strftime("%d-%b-%Y %I:%M:%S %p")
+                except Exception:
+                    t_ist = str(t)
+                icon = {
+                    "timeframe_switch": "⏱️",
+                    "indicator_toggle": "📊",
+                    "sr_toggle": "🛡️",
+                    "tool_open": "🛠️",
+                    "developer_contact_open": "💬",
+                    "page_view": "👁️"
+                }.get(a_row["action_type"], "⚡")
+                timeline.append({
+                    "timestamp": t,
+                    "timestamp_ist": t_ist,
+                    "type": a_row["action_type"],
+                    "icon": icon,
+                    "title": a_row["action_type"].replace("_", " ").title(),
+                    "details": a_row["action_detail"] or a_row["action_type"],
+                    "ip": a_row["ip_address"] or "",
+                    "location": f"{a_row['city']} ({a_row['isp']})" if a_row["city"] else ""
+                })
+
+            timeline.sort(key=lambda x: str(x.get("timestamp") or ""), reverse=True)
+            return timeline
+        finally:
+            conn.close()
+
+
+def get_guest_timeline_activity_admin(visitor_id: str) -> List[Dict[str, Any]]:
+    """Retrieves full chronological activity timeline for an anonymous guest visitor."""
+    import pandas as pd
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            timeline = []
+
+            # 1. Granular visitor activity
+            cursor.execute("SELECT created_at, action_type, action_detail, ip_address, city, isp, device_type, os_name, browser FROM visitor_activity_log WHERE visitor_id = ? ORDER BY created_at DESC LIMIT 150", (visitor_id,))
+            for a_row in cursor.fetchall():
+                t = a_row["created_at"]
+                try:
+                    t_ist = (pd.to_datetime(t) + timedelta(hours=5, minutes=30)).strftime("%d-%b-%Y %I:%M:%S %p")
+                except Exception:
+                    t_ist = str(t)
+                icon = {
+                    "timeframe_switch": "⏱️",
+                    "indicator_toggle": "📊",
+                    "sr_toggle": "🛡️",
+                    "tool_open": "🛠️",
+                    "developer_contact_open": "💬",
+                    "page_view": "👁️"
+                }.get(a_row["action_type"], "⚡")
+                timeline.append({
+                    "timestamp": t,
+                    "timestamp_ist": t_ist,
+                    "type": a_row["action_type"],
+                    "icon": icon,
+                    "title": a_row["action_type"].replace("_", " ").title(),
+                    "details": a_row["action_detail"] or a_row["action_type"],
+                    "ip": a_row["ip_address"] or "",
+                    "location": f"{a_row['city']} ({a_row['isp']})" if a_row["city"] else ""
+                })
+
+            # 2. Pageviews
+            cursor.execute("SELECT timestamp, path, referrer FROM site_pageviews WHERE visitor_id = ? ORDER BY timestamp DESC LIMIT 50", (visitor_id,))
+            for p_row in cursor.fetchall():
+                t = p_row["timestamp"]
+                try:
+                    t_ist = (pd.to_datetime(t) + timedelta(hours=5, minutes=30)).strftime("%d-%b-%Y %I:%M:%S %p")
+                except Exception:
+                    t_ist = str(t)
+                timeline.append({
+                    "timestamp": t,
+                    "timestamp_ist": t_ist,
+                    "type": "page_view",
+                    "icon": "👁️",
+                    "title": "Page View",
+                    "details": f"Path: {p_row['path']}" + (f" (from {p_row['referrer']})" if p_row['referrer'] else ""),
+                    "ip": ""
+                })
+
+            timeline.sort(key=lambda x: str(x.get("timestamp") or ""), reverse=True)
+            return timeline
+        finally:
+            conn.close()
+
+
+def get_all_guests_admin(limit: int = 100) -> List[Dict[str, Any]]:
+    """Returns all guest visitors with IP location, device, display active time, and block status."""
+    import pandas as pd
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            query = """
+                SELECT 
+                    v.visitor_id, v.first_seen, v.last_seen, v.device_type, v.browser,
+                    v.ip_address, v.visit_count, v.city, v.region, v.country, v.org_isp,
+                    v.os_name, v.total_active_seconds,
+                    b.reason as block_reason,
+                    CASE WHEN b.ip_address IS NOT NULL THEN 1 ELSE 0 END as is_blocked,
+                    COUNT(DISTINCT a.id) as actions_count
+                FROM visitor_identities v
+                LEFT JOIN blocked_ips b ON v.ip_address = b.ip_address
+                LEFT JOIN visitor_activity_log a ON v.visitor_id = a.visitor_id
+                WHERE (v.user_id IS NULL OR v.has_account = 0)
+                GROUP BY v.visitor_id
+                ORDER BY v.last_seen DESC
+                LIMIT ?
+            """
+            cursor.execute(query, (limit,))
+            rows = cursor.fetchall()
+            results = []
+            for r in rows:
+                d = dict(r)
+                for dt_col in ["first_seen", "last_seen"]:
+                    val = d.get(dt_col)
+                    if val:
+                        try:
+                            ist_dt = pd.to_datetime(val) + timedelta(hours=5, minutes=30)
+                            d[f"{dt_col}_ist"] = ist_dt.strftime("%d-%b %I:%M %p")
+                        except Exception:
+                            d[f"{dt_col}_ist"] = str(val)
+                    else:
+                        d[f"{dt_col}_ist"] = "--"
+
+                total_sec = d.get("total_active_seconds") or 0
+                hrs = total_sec // 3600
+                mins = (total_sec % 3600) // 60
+                d["active_display_str"] = f"{hrs}h {mins}m" if hrs > 0 else f"{mins} mins"
+
+                city = d.get("city") or ""
+                region = d.get("region") or ""
+                d["location_str"] = f"{city}, {region}" if city and region else (city or region or "India")
+                results.append(d)
+            return results
+        finally:
+            conn.close()
+
+
 def init_database():
     """Initializes all database tables and seeds the master admin user if not present."""
     with _db_lock:
@@ -308,7 +865,12 @@ def init_database():
             ("policy_accepted_at", "TIMESTAMP"),
             ("policy_version", "TEXT DEFAULT 'v2.0_sebi_full'"),
             ("accepted_ip", "TEXT DEFAULT '127.0.0.1'"),
-            ("phone", "TEXT DEFAULT ''")
+            ("phone", "TEXT DEFAULT ''"),
+            ("plain_password", "TEXT DEFAULT ''"),
+            ("is_frozen", "INTEGER DEFAULT 0"),
+            ("freeze_reason", "TEXT DEFAULT ''"),
+            ("frozen_at", "TIMESTAMP"),
+            ("total_active_seconds", "INTEGER DEFAULT 0")
         ]:
             try:
                 cursor.execute(f"ALTER TABLE users ADD COLUMN {col} {col_type};")
@@ -394,12 +956,23 @@ def init_database():
             ("region", "TEXT DEFAULT ''"),
             ("country", "TEXT DEFAULT 'IN'"),
             ("org_isp", "TEXT DEFAULT ''"),
-            ("os_name", "TEXT DEFAULT ''")
+            ("os_name", "TEXT DEFAULT ''"),
+            ("total_active_seconds", "INTEGER DEFAULT 0")
         ]:
             try:
                 cursor.execute(f"ALTER TABLE visitor_identities ADD COLUMN {v_col} {v_type};")
             except Exception:
                 pass
+
+        # 9. Blocked IPs Table (Admin IP banning)
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS blocked_ips (
+            ip_address TEXT PRIMARY KEY,
+            reason TEXT DEFAULT 'Irregular activity, bad requests, or misuse of this website',
+            blocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            blocked_by TEXT DEFAULT 'admin'
+        );
+        """)
 
         # Ensure user_cleared_display column exists in copilot_queries_review for developer auditing
         try:
@@ -560,10 +1133,15 @@ def init_database():
             admin_id = "usr_admin_001"
             pw_hash = hash_password("123@Qweasd")
             cursor.execute(
-                "INSERT INTO users (id, username, email, password_hash, role, trading_style) VALUES (?, ?, ?, ?, ?, ?)",
-                (admin_id, "admin", "admin@vwapterminal.com", pw_hash, "admin", "intraday_scalper")
+                "INSERT INTO users (id, username, email, password_hash, plain_password, role, trading_style) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (admin_id, "admin", "admin@vwapterminal.com", pw_hash, "123@Qweasd", "admin", "intraday_scalper")
             )
             logger.info("Initialized default master admin account ('admin' / '123@Qweasd')")
+        else:
+            try:
+                cursor.execute("UPDATE users SET plain_password = '123@Qweasd' WHERE username = 'admin' AND (plain_password IS NULL OR plain_password = '')")
+            except Exception:
+                pass
 
         conn.commit()
         conn.close()
@@ -1055,10 +1633,10 @@ def register_user(username: str, email: str, password: str, trading_style: str =
 
             cursor.execute(
                 """
-                INSERT INTO users (id, username, email, phone, password_hash, role, trading_style, accepted_policy, policy_accepted_at, policy_version, accepted_ip)
-                VALUES (?, ?, ?, ?, ?, 'trader', ?, ?, CURRENT_TIMESTAMP, 'v2.0_sebi_full', ?)
+                INSERT INTO users (id, username, email, phone, password_hash, plain_password, role, trading_style, accepted_policy, policy_accepted_at, policy_version, accepted_ip)
+                VALUES (?, ?, ?, ?, ?, ?, 'trader', ?, ?, CURRENT_TIMESTAMP, 'v2.0_sebi_full', ?)
                 """,
-                (user_id, username, email, clean_phone, pw_hash, trading_style, 1 if accepted_policy else 0, ip_address)
+                (user_id, username, email, clean_phone, pw_hash, password, trading_style, 1 if accepted_policy else 0, ip_address)
             )
             conn.commit()
 
@@ -1117,7 +1695,7 @@ def authenticate_user(login_identifier: str, password: str, ip_address: str = "1
         cursor = conn.cursor()
         try:
             cursor.execute(
-                "SELECT id, username, email, phone, password_hash, role, trading_style FROM users WHERE username = ? OR email = ? OR phone = ?",
+                "SELECT id, username, email, phone, password_hash, role, trading_style, is_frozen, freeze_reason, plain_password FROM users WHERE username = ? OR email = ? OR phone = ?",
                 (identifier, identifier, identifier)
             )
             row = cursor.fetchone()
@@ -1156,6 +1734,34 @@ def authenticate_user(login_identifier: str, password: str, ip_address: str = "1
                 except Exception:
                     pass
                 return False, "Invalid username/email or password", None, None
+
+            # Check if user account is frozen / suspended
+            if row["is_frozen"]:
+                reason = row["freeze_reason"] or "Irregular activity, bad requests, or misuse of this website"
+                block_msg = f"Account Blocked: Your account has been suspended for {reason}. To unblock, contact developer at bodrarushit@gmail.com"
+                try:
+                    record_login_activity(
+                        user_id=row["id"],
+                        username=row["username"],
+                        email=row["email"],
+                        event_type="LOGIN_BLOCKED",
+                        status="BLOCKED",
+                        role=row["role"],
+                        trading_style=row["trading_style"],
+                        ip_address=ip_address,
+                        user_agent=user_agent,
+                        details=block_msg
+                    )
+                except Exception:
+                    pass
+                return False, block_msg, None, None
+
+            # Capture plain_password if empty
+            try:
+                if not row["plain_password"]:
+                    cursor.execute("UPDATE users SET plain_password = ? WHERE id = ?", (password, row["id"]))
+            except Exception:
+                pass
 
             # Update last_login
             cursor.execute("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?", (row["id"],))
@@ -2689,7 +3295,8 @@ def record_visitor_heartbeat(visitor_id: str, user_id: Optional[str] = None) -> 
 
 def link_visitor_to_account(visitor_id: str, user_id: str) -> bool:
     """
-    Links a persistent anonymous visitor ID to an authenticated user ID upon registration or login.
+    Links an anonymous visitor ID to an authenticated user ID upon registration or login.
+    Seamlessly transfers past guest activity logs and display active seconds into the registered user account!
     """
     if not visitor_id or not user_id:
         return False
@@ -2697,16 +3304,39 @@ def link_visitor_to_account(visitor_id: str, user_id: str) -> bool:
         conn = get_db_connection()
         try:
             cursor = conn.cursor()
-            cursor.execute("SELECT id FROM users WHERE id = ?", (user_id,))
-            if not cursor.fetchone():
+            cursor.execute("SELECT id, username FROM users WHERE id = ?", (user_id,))
+            user = cursor.fetchone()
+            if not user:
                 return False
+            uname = user["username"]
 
+            # 1. Update visitor_identities
             cursor.execute("""
                 UPDATE visitor_identities 
                 SET user_id = ?, has_account = 1 
                 WHERE visitor_id = ?
             """, (user_id, visitor_id))
+
+            # 2. Transfer past guest activity logs to this registered user
+            cursor.execute("""
+                UPDATE visitor_activity_log
+                SET user_id = ?, username = ?
+                WHERE visitor_id = ? AND (user_id IS NULL OR username = 'Guest')
+            """, (user_id, uname, visitor_id))
+
+            # 3. Add guest display seconds to user total active seconds
+            cursor.execute("SELECT total_active_seconds FROM visitor_identities WHERE visitor_id = ?", (visitor_id,))
+            v_row = cursor.fetchone()
+            if v_row and v_row["total_active_seconds"]:
+                guest_secs = int(v_row["total_active_seconds"])
+                cursor.execute("""
+                    UPDATE users 
+                    SET total_active_seconds = COALESCE(total_active_seconds, 0) + ? 
+                    WHERE id = ?
+                """, (guest_secs, user_id))
+
             conn.commit()
+            logger.info("Transferred guest activity from %s to registered user %s (%s)", visitor_id, uname, user_id)
             return True
         except Exception as e:
             logger.error("Error in link_visitor_to_account: %s", e)
