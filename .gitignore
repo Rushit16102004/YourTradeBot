@@ -41,6 +41,8 @@ registered_users.csv
 database/registered_users.csv
 user_login_records.csv
 database/user_login_records.csv
+copilot_chat_queries.csv
+database/copilot_chat_queries.csv
 temp_storage/*
 !temp_storage/*.py
 !temp_storage/nifty50_volume_5m.csv

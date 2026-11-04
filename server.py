@@ -993,11 +993,14 @@ async def api_admin_visitor_stats(request: Request, admin_key: str = Query(""), 
 
 
 @app.get("/api/admin/login-records/csv")
-async def api_download_login_records_csv(request: Request, admin_key: str = Query("")):
+async def api_download_login_records_csv(request: Request, admin_key: str = Query(""), key: str = Query(""), token: str = Query("")):
     """Admin endpoint: exports and downloads the live user login records CSV file."""
     u = get_current_user_from_request(request)
-    is_admin_user = (u and u.get("role") == "admin")
-    if admin_key != user_db.ADMIN_MASTER_KEY and not is_admin_user:
+    if not u and token:
+        u = user_db.decode_access_token(token)
+    master_key = (admin_key or key or "").strip()
+    is_admin_user = (u and u.get("role") == "admin") or (master_key == user_db.ADMIN_MASTER_KEY)
+    if not is_admin_user:
         return JSONResponse(status_code=403, content={"status": "error", "message": "Unauthorized: Admin access required"})
     csv_file = user_db.sync_login_records_to_csv()
     if csv_file and os.path.exists(csv_file):
@@ -1010,11 +1013,14 @@ async def api_download_login_records_csv(request: Request, admin_key: str = Quer
 
 
 @app.get("/api/admin/login-records")
-async def api_get_login_records(request: Request, admin_key: str = Query(""), limit: int = Query(100)):
+async def api_get_login_records(request: Request, admin_key: str = Query(""), key: str = Query(""), token: str = Query(""), limit: int = Query(100)):
     """Admin endpoint: returns latest login and registration activity audit logs."""
     u = get_current_user_from_request(request)
-    is_admin_user = (u and u.get("role") == "admin")
-    if admin_key != user_db.ADMIN_MASTER_KEY and not is_admin_user:
+    if not u and token:
+        u = user_db.decode_access_token(token)
+    master_key = (admin_key or key or "").strip()
+    is_admin_user = (u and u.get("role") == "admin") or (master_key == user_db.ADMIN_MASTER_KEY)
+    if not is_admin_user:
         return JSONResponse(status_code=403, content={"status": "error", "message": "Unauthorized: Admin access required"})
     records = user_db.get_login_records(limit=limit)
     return JSONResponse(content={"status": "ok", "count": len(records), "records": records})
@@ -1519,31 +1525,516 @@ async def get_volume_constituents():
 
 
 # -------------------------------------------------------------
-# 📋 Copilot Query Review & Multi-User Audit Endpoints
+# 📋 Copilot Query Review & Multi-User Audit Endpoints (HTML + JSON + CSV)
 # -------------------------------------------------------------
+
+def render_copilot_admin_auth_html(error: str = "") -> str:
+    """Renders a sleek dark-themed Admin Key Authentication Form in Chrome browser."""
+    err_html = f'''<div style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; font-weight: 600;">⚠️ {error}</div>''' if error else ""
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Authorization — NIFTY 50 Pro Terminal</title>
+    <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{
+            background: #090d16;
+            color: #f1f5f9;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }}
+        .card {{
+            background: #111827;
+            border: 1px solid #1e293b;
+            border-radius: 14px;
+            box-shadow: 0 20px 45px rgba(0,0,0,0.7);
+            max-width: 440px;
+            width: 100%;
+            padding: 28px 24px;
+            text-align: center;
+        }}
+        .logo-badge {{
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.35);
+            font-size: 24px;
+            margin-bottom: 16px;
+        }}
+        h1 {{ font-size: 19px; font-weight: 800; color: #f8fafc; margin-bottom: 6px; }}
+        p {{ color: #94a3b8; font-size: 13px; line-height: 1.5; margin-bottom: 20px; }}
+        .input-group {{ text-align: left; margin-bottom: 18px; }}
+        label {{ display: block; font-size: 12px; font-weight: 700; color: #cbd5e1; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }}
+        input[type="password"], input[type="text"] {{
+            width: 100%;
+            padding: 12px 14px;
+            background: #0b1120;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #f8fafc;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.2s ease;
+        }}
+        input:focus {{ border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25); }}
+        .btn-submit {{
+            width: 100%;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            border: 1px solid #60a5fa;
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 14px;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(37,99,235,0.4);
+            transition: all 0.2s ease;
+        }}
+        .btn-submit:hover {{ filter: brightness(1.15); transform: translateY(-1px); }}
+        .btn-quick {{
+            background: transparent;
+            border: 1px dashed rgba(56, 189, 248, 0.4);
+            color: #38bdf8;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            transition: all 0.2s;
+        }}
+        .btn-quick:hover {{ background: rgba(56, 189, 248, 0.1); border-color: #38bdf8; }}
+        .footer-link {{ margin-top: 20px; font-size: 12px; color: #64748b; }}
+        .footer-link a {{ color: #38bdf8; text-decoration: none; font-weight: 600; }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="logo-badge">👑</div>
+        <h1>Admin Authorization Required</h1>
+        <p>Please enter your Admin Master Key to inspect live Copilot queries, user chat history, and audit records.</p>
+        {err_html}
+        <form method="GET" action="/api/admin/copilot/queries">
+            <div class="input-group">
+                <label for="admin_key">Master Admin Secret Key</label>
+                <input type="password" id="admin_key" name="admin_key" placeholder="Enter Admin Master Key..." required autofocus>
+            </div>
+            <button type="submit" class="btn-submit">🔓 Unlock Copilot Queries Dashboard</button>
+            <button type="button" class="btn-quick" onclick="document.getElementById('admin_key').value = 'Rushit@Admin2026MasterKey'; this.style.borderColor='#22c55e'; this.innerText='✓ Default Key Filled';">🔑 Use Default Master Key</button>
+        </form>
+        <div class="footer-link">
+            Return to <a href="/">NIFTY 50 Terminal Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>"""
+
+
+def render_copilot_queries_html(
+    queries: list,
+    tables: list,
+    count: int,
+    current_status: str,
+    current_username: str,
+    admin_key: str
+) -> str:
+    """Renders a full-featured, dark-mode responsive Copilot Audit Dashboard."""
+    import html
+    rows_html = []
+    for q in queries:
+        qid = q.get("id", "")
+        uname = html.escape(str(q.get("username", "Guest")))
+        user_table = html.escape(str(q.get("user_table", "")))
+        query_text = html.escape(str(q.get("query", "")))
+        resp_text = html.escape(str(q.get("response", "")))
+        m_price = q.get("market_price")
+        price_str = f"₹{float(m_price):,.2f}" if m_price is not None else "--"
+        tf = html.escape(str(q.get("timeframe", "5m")))
+        r_status = str(q.get("review_status", "pending")).lower()
+        created_at = q.get("created_at", "--")
+        
+        # Meta details
+        meta = q.get("metadata") or {}
+        ip_addr = html.escape(str(meta.get("client_ip", "")))
+        style = html.escape(str(meta.get("trading_style", "")).replace("_", " ").title())
+        conf = html.escape(str(meta.get("confluence", "")))
+
+        status_badge_color = {
+            "pending": "background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);",
+            "reviewed": "background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4);",
+            "flagged": "background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4);"
+        }.get(r_status, "background: #334155; color: #94a3b8;")
+
+        user_badge_color = "background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);" if uname.lower() != "guest" else "background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);"
+
+        row = f"""
+        <tr id="row-{qid}">
+            <td style="font-size: 11px; color: #94a3b8; white-space: nowrap;">
+                <b style="color: #cbd5e1;">#{qid}</b><br>
+                <span>{created_at}</span>
+            </td>
+            <td>
+                <span style="font-weight: 700; padding: 2px 7px; border-radius: 4px; font-size: 11px; {user_badge_color}">👤 {uname}</span>
+                <div style="font-size: 10.5px; color: #64748b; margin-top: 4px;">{user_table}</div>
+                {f'<div style="font-size: 10px; color: #a78bfa; margin-top: 2px;">🎯 {style}</div>' if style else ''}
+                {f'<div style="font-size: 9.5px; color: #64748b; margin-top: 1px;">IP: {ip_addr}</div>' if ip_addr else ''}
+            </td>
+            <td style="white-space: nowrap;">
+                <span style="font-weight: 700; color: #38bdf8; font-size: 12px;">{price_str}</span>
+                <div style="font-size: 10.5px; color: #94a3b8;">TF: {tf}</div>
+                {f'<div style="font-size: 9.5px; color: #f59e0b; margin-top: 2px;">{conf}</div>' if conf else ''}
+            </td>
+            <td style="max-width: 320px;">
+                <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid #334155; padding: 8px 10px; border-radius: 6px; font-size: 12px; color: #f1f5f9; white-space: pre-wrap; word-break: break-word;">💬 {query_text}</div>
+            </td>
+            <td style="max-width: 380px;">
+                <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid #1e293b; padding: 8px 10px; border-radius: 6px; font-size: 11.5px; color: #cbd5e1; max-height: 140px; overflow-y: auto; white-space: pre-wrap; word-break: break-word;">🤖 {resp_text}</div>
+            </td>
+            <td style="text-align: center; white-space: nowrap;">
+                <span id="badge-{qid}" style="display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; {status_badge_color}">{r_status}</span>
+                <div style="display: flex; gap: 4px; justify-content: center; margin-top: 6px;">
+                    <button onclick="updateReview({qid}, 'reviewed')" title="Mark as Reviewed" style="background: rgba(34, 197, 94, 0.2); border: 1px solid rgba(34, 197, 94, 0.4); color: #4ade80; border-radius: 4px; padding: 2px 6px; font-size: 10px; cursor: pointer;">✓</button>
+                    <button onclick="updateReview({qid}, 'flagged')" title="Flag Query" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; border-radius: 4px; padding: 2px 6px; font-size: 10px; cursor: pointer;">⚑</button>
+                </div>
+            </td>
+        </tr>
+        """
+        rows_html.append(row)
+
+    rows_str = "".join(rows_html) if rows_html else '<tr><td colspan="6" style="text-align: center; padding: 30px; color: #64748b;">No Copilot queries found matching current filter.</td></tr>'
+    encoded_key = admin_key
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>👑 AI Copilot Chat Audit & Master Records — NIFTY 50 Terminal</title>
+    <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{
+            background: #090d16;
+            color: #f1f5f9;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            padding: 20px;
+            font-size: 13px;
+        }}
+        .header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #111827;
+            border: 1px solid #1e293b;
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }}
+        .title-wrap {{ display: flex; align-items: center; gap: 10px; }}
+        .title-wrap h1 {{ font-size: 18px; font-weight: 800; color: #f8fafc; }}
+        .stats-badge {{
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: #38bdf8;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+        }}
+        .btn {{
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 7px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }}
+        .btn-csv {{
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            border: 1px solid #34d399;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }}
+        .btn-json {{
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid #475569;
+            color: #94a3b8;
+        }}
+        .btn-terminal {{
+            background: rgba(37, 99, 235, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.4);
+            color: #60a5fa;
+        }}
+        .btn:hover {{ filter: brightness(1.2); transform: translateY(-1px); }}
+        .filter-bar {{
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }}
+        select, input[type="text"] {{
+            background: #090d16;
+            border: 1px solid #334155;
+            color: #f8fafc;
+            padding: 7px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            outline: none;
+        }}
+        select:focus, input:focus {{ border-color: #38bdf8; }}
+        .table-container {{
+            background: #111827;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            overflow-x: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }}
+        th {{
+            background: #0d1322;
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 12px 14px;
+            border-bottom: 1px solid #1e293b;
+        }}
+        td {{
+            padding: 12px 14px;
+            border-bottom: 1px solid #1e293b;
+            vertical-align: top;
+        }}
+        tr:hover td {{ background: rgba(30, 41, 59, 0.3); }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title-wrap">
+            <span style="font-size: 22px;">👑</span>
+            <div>
+                <h1>NIFTY 50 Pro Terminal — AI Copilot Chat Audit & Master Records</h1>
+                <div style="font-size: 11.5px; color: #94a3b8; margin-top: 2px;">
+                    Permanent multi-user vector storage & developer review audit table
+                </div>
+            </div>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <div class="stats-badge">💬 {count} Queries Logged</div>
+            <div class="stats-badge" style="color: #a78bfa; border-color: rgba(167, 139, 250, 0.3); background: rgba(167, 139, 250, 0.1);">📁 {len(tables)} User Tables</div>
+            <a href="/api/admin/copilot/queries/csv?admin_key={encoded_key}" class="btn btn-csv" title="Download all queries as CSV">📥 Download CSV</a>
+            <a href="/api/admin/copilot/queries?admin_key={encoded_key}&format=json" class="btn btn-json" title="View raw JSON output">{{ }} Raw JSON</a>
+            <a href="/" class="btn btn-terminal">📈 Return to Terminal</a>
+        </div>
+    </div>
+
+    <form class="filter-bar" method="GET" action="/api/admin/copilot/queries">
+        <input type="hidden" name="admin_key" value="{encoded_key}">
+        <span style="font-weight: 700; color: #cbd5e1;">Filter:</span>
+        <select name="status" onchange="this.form.submit()">
+            <option value="all" {"selected" if current_status == "all" else ""}>All Statuses</option>
+            <option value="pending" {"selected" if current_status == "pending" else ""}>⏳ Pending Review</option>
+            <option value="reviewed" {"selected" if current_status == "reviewed" else ""}>✓ Reviewed</option>
+            <option value="flagged" {"selected" if current_status == "flagged" else ""}>⚑ Flagged</option>
+        </select>
+        <input type="text" name="username" placeholder="Search by username or user_id..." value="{current_username or ''}">
+        <button type="submit" class="btn" style="background: #2563eb; color: #fff; border: 1px solid #3b82f6;">Filter</button>
+        {f'<a href="/api/admin/copilot/queries?admin_key={encoded_key}" class="btn" style="background: #334155; color: #94a3b8; border: none;">Reset</a>' if (current_status != "all" or current_username) else ''}
+    </form>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Log ID & Time</th>
+                    <th>User & Account</th>
+                    <th>Market State</th>
+                    <th>User Question</th>
+                    <th>AI Copilot Response</th>
+                    <th style="text-align: center;">Review Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {rows_str}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        async function updateReview(queryId, newStatus) {{
+            try {{
+                const res = await fetch('/api/admin/copilot/review?admin_key={encoded_key}', {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{ id: queryId, status: newStatus, notes: 'Reviewed from Web Dashboard' }})
+                }});
+                const data = await res.json();
+                if (data && data.success) {{
+                    const badge = document.getElementById('badge-' + queryId);
+                    if (badge) {{
+                        badge.innerText = newStatus;
+                        badge.style.background = newStatus === 'reviewed' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+                        badge.style.color = newStatus === 'reviewed' ? '#4ade80' : '#f87171';
+                        badge.style.borderColor = newStatus === 'reviewed' ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)';
+                    }}
+                }} else {{
+                    alert('Failed to update review status');
+                }}
+            }} catch(e) {{
+                alert('Error updating review status: ' + e);
+            }}
+        }}
+    </script>
+</body>
+</html>"""
+
+
 @app.get("/api/admin/copilot/queries")
 async def get_copilot_queries_admin(
     request: Request,
+    admin_key: str = Query(""),
+    key: str = Query(""),
+    token: str = Query(""),
     status: Optional[str] = Query(None),
     username: Optional[str] = Query(None),
-    limit: int = Query(50),
+    format: Optional[str] = Query(None),
+    limit: int = Query(100),
     offset: int = Query(0)
 ):
-    """Admin endpoint: returns list of user questions and responses for review, plus all user tables."""
+    """
+    Admin endpoint: Returns user questions, AI responses, and audit records.
+    Supports JSON, CSV, or dark-themed Web HTML Dashboard.
+    Authentication supported via:
+      1. Master key in URL: ?admin_key=... or ?key=...
+      2. JWT Token in URL: ?token=...
+      3. Standard Authorization: Bearer <token> header
+    """
     u = get_current_user_from_request(request)
-    if not u or u.get("role") != "admin":
-        return JSONResponse(status_code=403, content={"error": "Admin authorization required"})
+    if not u and token:
+        u = user_db.decode_access_token(token)
+
+    master_key = (admin_key or key or "").strip()
+    is_master = (master_key == user_db.ADMIN_MASTER_KEY)
+    is_admin_user = bool(u and u.get("role") == "admin")
+
+    accept_header = request.headers.get("accept", "")
+    wants_html = ("text/html" in accept_header) and (format != "json") and (format != "csv")
+
+    if not is_master and not is_admin_user:
+        if wants_html:
+            return HTMLResponse(content=render_copilot_admin_auth_html(error="Please provide valid Admin Master Key"))
+        return JSONResponse(
+            status_code=403,
+            content={
+                "error": "Admin authorization required",
+                "help": "Provide '?admin_key=YOUR_MASTER_KEY' in the URL (e.g. ?admin_key=Rushit@Admin2026MasterKey), or log into the terminal as Admin."
+            }
+        )
+
+    # Export as CSV if format=csv
+    if format == "csv":
+        csv_file = user_db.sync_copilot_queries_to_csv()
+        if csv_file and os.path.exists(csv_file):
+            return FileResponse(csv_file, media_type="text/csv", filename="copilot_chat_queries.csv")
+        return JSONResponse(status_code=404, content={"error": "Copilot queries CSV not found"})
+
     queries = user_db.get_copilot_queries_for_review(status=status, username=username, limit=limit, offset=offset)
     tables = user_db.get_all_copilot_user_tables()
+
+    # Render HTML Dashboard in Chrome browser
+    if wants_html or format == "html":
+        return HTMLResponse(
+            content=render_copilot_queries_html(
+                queries=queries,
+                tables=tables,
+                count=len(queries),
+                current_status=status or "all",
+                current_username=username or "",
+                admin_key=master_key or (user_db.ADMIN_MASTER_KEY if is_admin_user else "")
+            )
+        )
+
+    # Default API JSON response
     return JSONResponse(content={"queries": queries, "user_tables": tables, "count": len(queries)})
 
 
+@app.get("/api/admin/copilot/queries/csv")
+async def api_download_copilot_queries_csv(
+    request: Request,
+    admin_key: str = Query(""),
+    key: str = Query(""),
+    token: str = Query("")
+):
+    """Admin endpoint: exports and downloads full Copilot queries CSV."""
+    u = get_current_user_from_request(request)
+    if not u and token:
+        u = user_db.decode_access_token(token)
+
+    master_key = (admin_key or key or "").strip()
+    is_master = (master_key == user_db.ADMIN_MASTER_KEY)
+    is_admin_user = bool(u and u.get("role") == "admin")
+
+    if not is_master and not is_admin_user:
+        return JSONResponse(status_code=403, content={"error": "Admin authorization required"})
+
+    csv_file = user_db.sync_copilot_queries_to_csv()
+    if csv_file and os.path.exists(csv_file):
+        return FileResponse(
+            csv_file,
+            media_type="text/csv",
+            filename="copilot_chat_queries.csv"
+        )
+    return JSONResponse(status_code=404, content={"error": "Copilot queries CSV not found"})
+
+
 @app.post("/api/admin/copilot/review")
-async def update_copilot_review(request: Request, payload: dict = Body(...)):
+async def update_copilot_review(
+    request: Request,
+    payload: dict = Body(...),
+    admin_key: str = Query(""),
+    key: str = Query(""),
+    token: str = Query("")
+):
     """Admin endpoint: updates review status ('reviewed', 'flagged', 'pending') and admin notes."""
     u = get_current_user_from_request(request)
-    if not u or u.get("role") != "admin":
+    if not u and token:
+        u = user_db.decode_access_token(token)
+
+    master_key = (admin_key or key or payload.get("admin_key") or "").strip()
+    is_master = (master_key == user_db.ADMIN_MASTER_KEY)
+    is_admin = bool(u and u.get("role") == "admin") or is_master
+
+    if not is_admin:
         return JSONResponse(status_code=403, content={"error": "Admin authorization required"})
+
     query_id = payload.get("id")
     review_status = payload.get("status", "reviewed")
     admin_notes = payload.get("notes", "")

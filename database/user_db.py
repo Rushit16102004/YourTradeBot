@@ -36,6 +36,25 @@ USERS_CSV_PATH = PROJECT_ROOT / "registered_users.csv"
 USERS_CSV_BACKUP_PATH = BASE_DIR / "registered_users.csv"
 LOGIN_RECORDS_CSV_PATH = PROJECT_ROOT / "user_login_records.csv"
 LOGIN_RECORDS_CSV_BACKUP_PATH = BASE_DIR / "user_login_records.csv"
+COPILOT_QUERIES_CSV_PATH = PROJECT_ROOT / "copilot_chat_queries.csv"
+COPILOT_QUERIES_CSV_BACKUP_PATH = BASE_DIR / "copilot_chat_queries.csv"
+
+COPILOT_CSV_COLUMNS = [
+    "Query ID",
+    "Timestamp (IST)",
+    "Username",
+    "User ID",
+    "User Query",
+    "AI Copilot Response",
+    "Intent",
+    "Market Price",
+    "Timeframe",
+    "Review Status",
+    "Admin Notes",
+    "Trading Style",
+    "Confluence",
+    "Client IP"
+]
 
 LOGIN_CSV_COLUMNS = [
     "Log ID",
@@ -1575,6 +1594,82 @@ def get_copilot_queries_for_review(
             return results
         finally:
             conn.close()
+
+
+def sync_copilot_queries_to_csv(csv_path: Optional[Path] = None) -> str:
+    """
+    Exports all copilot queries and responses from copilot_queries_review into copilot_chat_queries.csv.
+    Stores in both project root and database/ folder.
+    """
+    try:
+        import pandas as pd
+        with _db_lock:
+            conn = get_db_connection()
+            query = """
+                SELECT id, user_id, username, query, response, intent, market_price, timeframe, review_status, admin_notes, metadata, created_at
+                FROM copilot_queries_review
+                ORDER BY created_at DESC
+            """
+            cursor = conn.cursor()
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            conn.close()
+
+        target_path = csv_path or COPILOT_QUERIES_CSV_PATH
+        if not rows:
+            df_empty = pd.DataFrame(columns=COPILOT_CSV_COLUMNS)
+            df_empty.to_csv(str(target_path), index=False, encoding='utf-8-sig')
+            if COPILOT_QUERIES_CSV_BACKUP_PATH != target_path:
+                df_empty.to_csv(str(COPILOT_QUERIES_CSV_BACKUP_PATH), index=False, encoding='utf-8-sig')
+            return str(target_path)
+
+        data = []
+        for r in rows:
+            d = dict(r)
+            created_val = d.get('created_at')
+            if created_val:
+                try:
+                    dt = pd.to_datetime(created_val)
+                    dt_ist = dt + timedelta(hours=5, minutes=30)
+                    ist_str = dt_ist.strftime('%d-%b-%Y %I:%M:%S %p')
+                except Exception:
+                    ist_str = str(created_val)
+            else:
+                ist_str = '--'
+
+            meta = {}
+            if d.get("metadata"):
+                try:
+                    meta = json.loads(d["metadata"]) if isinstance(d["metadata"], str) else d["metadata"]
+                except Exception:
+                    meta = {}
+
+            data.append({
+                "Query ID": d.get("id"),
+                "Timestamp (IST)": ist_str,
+                "Username": d.get("username", "Guest"),
+                "User ID": d.get("user_id", ""),
+                "User Query": d.get("query", ""),
+                "AI Copilot Response": d.get("response", ""),
+                "Intent": d.get("intent", ""),
+                "Market Price": d.get("market_price", ""),
+                "Timeframe": d.get("timeframe", "5m"),
+                "Review Status": d.get("review_status", "pending"),
+                "Admin Notes": d.get("admin_notes", ""),
+                "Trading Style": meta.get("trading_style", ""),
+                "Confluence": meta.get("confluence", ""),
+                "Client IP": meta.get("client_ip", "")
+            })
+
+        df = pd.DataFrame(data, columns=COPILOT_CSV_COLUMNS)
+        df.to_csv(str(target_path), index=False, encoding='utf-8-sig')
+        if COPILOT_QUERIES_CSV_BACKUP_PATH != target_path:
+            df.to_csv(str(COPILOT_QUERIES_CSV_BACKUP_PATH), index=False, encoding='utf-8-sig')
+        logger.info("Successfully synced %d copilot query records to %s", len(df), target_path)
+        return str(target_path)
+    except Exception as e:
+        logger.error("Error syncing copilot queries to CSV: %s", e)
+        return str(csv_path or COPILOT_QUERIES_CSV_PATH)
 
 
 def update_copilot_query_review(query_id: int, review_status: str, admin_notes: str = "") -> bool:
