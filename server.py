@@ -2136,7 +2136,7 @@ def render_copilot_admin_auth_html(error: str = "") -> str:
         <h1>Admin Authorization Required</h1>
         <p>Please enter your Admin Master Key to inspect live Copilot queries, user chat history, and audit records.</p>
         {err_html}
-        <form method="GET" action="/api/admin/copilot/queries">
+        <form method="GET">
             <div class="input-group">
                 <label for="admin_key">Master Admin Secret Key</label>
                 <input type="password" id="admin_key" name="admin_key" placeholder="Enter Admin Master Key..." required autofocus>
@@ -2456,12 +2456,12 @@ async def get_copilot_queries_admin(
     is_master = (master_key == user_db.ADMIN_MASTER_KEY)
     is_admin_user = bool(u and u.get("role") == "admin")
 
-    accept_header = request.headers.get("accept", "")
-    wants_html = ("text/html" in accept_header) and (format != "json") and (format != "csv")
+    wants_json = (format == "json") or (request.headers.get("x-requested-with") == "XMLHttpRequest")
+    wants_html = not wants_json and (format != "csv")
 
     if not is_master and not is_admin_user:
         if wants_html:
-            return HTMLResponse(content=render_copilot_admin_auth_html(error="Please provide valid Admin Master Key"))
+            return HTMLResponse(content=render_copilot_admin_auth_html(error="Please enter your Admin Master Key to unlock Copilot Chat Audit."))
         return JSONResponse(
             status_code=403,
             content={
