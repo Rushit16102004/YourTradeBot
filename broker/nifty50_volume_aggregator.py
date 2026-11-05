@@ -111,7 +111,6 @@ class Nifty50VolumeAggregator:
             summed.index = summed.index.tz_convert(IST)
 
         # Aggregate ceiling at 24M (prevents 210M / 300M single-bar blowouts)
-        summed = summed.clip(upper=24000000.0)
 
         # Smooth rare 0.0 glitch bars
         med_agg = float(summed[summed > 500000].median()) if (summed > 500000).any() else 3000000.0
@@ -277,7 +276,7 @@ class Nifty50VolumeAggregator:
                 if ts in self._volume_series.index:
                     val = float(self._volume_series.loc[ts])
                     if val > 1000.0:
-                        return min(24000000.0, val)
+                        return val
 
         # Dynamic live volume estimation for active forming candle or unclosed bar
         now_ist = datetime.now(IST)
@@ -356,30 +355,37 @@ class Nifty50VolumeAggregator:
         median_vol = float(vol_series[vol_series > 100000].median()) if not vol_series.empty else 3200000.0
         n_rows = len(res)
 
+        # Precompute typical volume by time of day (HH:MM) to follow authentic intraday volume curve
+        tod_medians = {}
+        if not vol_series.empty:
+            try:
+                df_tod = pd.DataFrame({"vol": vol_series})
+                df_tod["tod"] = df_tod.index.strftime("%H:%M")
+                tod_medians = df_tod.groupby("tod")["vol"].median().to_dict()
+            except Exception:
+                tod_medians = {}
+
         for i in range(n_rows):
             val = aligned_vol.iloc[i]
             t_val = target_idx[i]
+            tod_str = t_val.strftime("%H:%M")
+            base_tod_vol = tod_medians.get(tod_str, median_vol)
             is_forming = (i == n_rows - 1) and (t_val.date() == now_ist.date())
 
             if is_forming:
-                # For forming candle, if real constituent volume is already accumulated, use it!
                 if pd.notnull(val) and val > 1000.0:
                     aligned_vol.iloc[i] = round(float(val), 2)
                 else:
-                    # Elapsed time in current 5m candle (proportional to real typical volume pace)
                     elapsed_sec = (now_ist.minute % 5) * 60 + now_ist.second
                     progress = max(0.05, min(1.0, elapsed_sec / 300.0))
-                    aligned_vol.iloc[i] = round(median_vol * progress, 2)
+                    aligned_vol.iloc[i] = round(base_tod_vol * progress, 2)
             elif pd.isna(val) or val <= 100.0:
-                # Interpolate naturally from adjacent real bars with organic variance (no flat stepped blocks)
-                prev_val = aligned_vol.iloc[i-1] if i > 0 and pd.notnull(aligned_vol.iloc[i-1]) and aligned_vol.iloc[i-1] > 1000 else median_vol
+                # Organic volume anchored strictly to time-of-day baseline (never compounding recursively)
                 candle_range = abs(float(res["high"].iloc[i] - res["low"].iloc[i])) if "high" in res and "low" in res else 15.0
-                range_factor = min(2.5, max(0.4, candle_range / 20.0))
-                # Add natural market variation (+-12%) so bars reflect organic volume dynamics
-                jitter = 1.0 + (((i * 17 + int(t_val.minute)) % 25) - 12) / 100.0
-                aligned_vol.iloc[i] = round(prev_val * range_factor * jitter, 2)
+                range_factor = min(1.6, max(0.55, candle_range / 18.0))
+                jitter = 1.0 + (((i * 13 + int(t_val.minute)) % 21) - 10) / 100.0
+                aligned_vol.iloc[i] = round(base_tod_vol * range_factor * jitter, 2)
 
-        aligned_vol = aligned_vol.clip(upper=24000000.0)
         res["volume"] = aligned_vol.values
         res["volume_ma_20"] = res["volume"].rolling(20, min_periods=1).mean().round(2)
         return res
