@@ -2760,29 +2760,44 @@
                 transform: translateY(-1px);
             }
 
-            /* Mobile Drawing Toggle - positioned cleanly above the bottom action dock */
+            /* Mobile Drawing Toggle - positioned cleanly above volume pane */
             .mobile-draw-toggle {
                 display: flex !important;
-                bottom: 72px !important;
-                left: 12px !important;
-                width: 38px !important;
-                height: 38px !important;
-                font-size: 16px !important;
+                bottom: 95px !important;
+                left: 10px !important;
+                width: 36px !important;
+                height: 36px !important;
+                font-size: 15px !important;
                 z-index: 1050 !important;
             }
 
-            /* Mobile Floating Terminal Action Dock (Centered & Non-overlapping) */
+            /* Mobile Jump to Latest Candle Button - Positioned above volume pane on right */
+            .btn-jump-latest {
+                bottom: 115px !important;
+                right: 12px !important;
+                left: auto !important;
+                transform: none !important;
+                padding: 5px 11px !important;
+                font-size: 11px !important;
+                border-radius: 20px !important;
+                z-index: 45 !important;
+            }
+            .btn-jump-latest:hover {
+                transform: translateY(-2px) !important;
+            }
+
+            /* Mobile Floating Terminal Action Dock (Docked at bottom-right corner, leaving volume completely clear) */
             .floating-terminal-dock {
                 position: fixed !important;
-                bottom: 12px !important;
-                left: 50% !important;
+                bottom: 10px !important;
+                right: 10px !important;
+                left: auto !important;
                 top: auto !important;
-                right: auto !important;
-                transform: translateX(-50%) !important;
+                transform: none !important;
                 z-index: 1100 !important;
                 padding: 3px 5px !important;
                 gap: 4px !important;
-                max-width: calc(100vw - 16px) !important;
+                max-width: 260px !important;
                 box-sizing: border-box !important;
                 border-radius: 9999px !important;
             }
@@ -2792,30 +2807,30 @@
             }
 
             .floating-terminal-dock .dock-btn {
-                padding: 6px 10px !important;
-                font-size: 11.5px !important;
+                padding: 5px 9px !important;
+                font-size: 11px !important;
                 gap: 4px !important;
                 border-radius: 9999px !important;
             }
 
             .floating-terminal-dock .dock-btn span {
-                font-size: 11.5px !important;
+                font-size: 11px !important;
             }
 
             .floating-terminal-dock .dock-minimize-btn {
-                width: 20px !important;
-                height: 20px !important;
-                font-size: 13px !important;
+                width: 18px !important;
+                height: 18px !important;
+                font-size: 12px !important;
                 padding: 0 !important;
             }
 
             .floating-terminal-dock.minimized {
-                bottom: 12px !important;
-                left: 50% !important;
+                bottom: 10px !important;
+                right: 10px !important;
+                left: auto !important;
                 top: auto !important;
-                right: auto !important;
-                transform: translateX(-50%) !important;
-                padding: 6px 14px !important;
+                transform: none !important;
+                padding: 5px 12px !important;
             }
 
             /* Chart Viewport: 100% Full Width Edge-to-Edge */
@@ -2836,14 +2851,53 @@
                 line-height: 1.3;
             }
 
-            /* Mobile Properties Panel */
+            /* Mobile Properties Panel - Ultra-compact, corner docked, minimal screen footprint */
             .properties-panel {
-                top: 8px;
-                right: 8px;
-                left: 8px;
-                width: auto !important;
+                top: 8px !important;
+                right: 8px !important;
+                left: auto !important;
+                width: 290px !important;
                 max-width: calc(100vw - 16px) !important;
+                max-height: 48vh !important;
+                overflow-y: auto !important;
+                padding: 10px 12px !important;
+                gap: 8px !important;
                 z-index: 1100;
+                box-shadow: 0 12px 36px rgba(0, 0, 0, 0.9) !important;
+                border-radius: 10px !important;
+            }
+            .properties-panel .prop-group {
+                gap: 4px !important;
+            }
+            .properties-panel .color-palette {
+                gap: 5px !important;
+            }
+            .properties-panel .color-swatch {
+                width: 20px !important;
+                height: 20px !important;
+            }
+            .properties-panel .drawing-quick-chips {
+                gap: 3px !important;
+                max-height: 52px !important;
+                overflow-y: auto !important;
+            }
+            .properties-panel .quick-chip-btn {
+                padding: 2.5px 6px !important;
+                font-size: 10px !important;
+            }
+            .properties-panel .remark-input {
+                padding: 5px 8px !important;
+                font-size: 11px !important;
+            }
+            .properties-panel #shape-coords-info {
+                padding: 5px 8px !important;
+                font-size: 10px !important;
+                line-height: 1.4 !important;
+            }
+            .properties-panel .btn-delete-shape {
+                padding: 6px 10px !important;
+                font-size: 11px !important;
+                margin-top: 2px !important;
             }
 
             /* Floating AI Copilot Trigger */
@@ -5075,8 +5129,8 @@
                 <button class="btn-action" onclick="openSignalHistoryModal()" title="View Structured Signal History: Main Strategy vs S&R Breakout & Reversal">
                     📜 <span class="hide-on-mobile">History</span><span class="show-on-mobile">Hist</span>
                 </button>
-                <button class="btn-action" onclick="fetchData(true)" title="Force live sync with NSE feed">
-                    🔄<span class="hide-on-mobile"> Sync</span>
+                <button class="btn-action" id="btn-sync-action" onclick="triggerManualSync()" title="Force live sync with NSE feed">
+                    <span id="sync-icon" style="display: inline-block;">🔄</span><span class="hide-on-mobile"> Sync</span>
                 </button>
 
 
@@ -5451,11 +5505,9 @@
                     <button class="line-pill-close" onclick="hideIndicatorLinePill(event)">✕</button>
                 </div>
 
-                <!-- ✏️ Floating Drawing Shape Action Pill (Click any pencil line or shape to Delete or Edit) -->
+                <!-- ✏️ Floating Drawing Shape Action Pill (Click any pencil line or shape to Delete) -->
                 <div id="shape-action-pill" class="indicator-line-pill" style="display: none; z-index: 25;">
                     <div class="line-pill-badge" id="shape-pill-badge">✏️ Pencil Line</div>
-                    <button class="line-pill-btn" onclick="promptNamingSelectedShape()" title="Name this drawing for AI Copilot" style="color: #38bdf8; font-weight: 700;">🏷️ Name</button>
-                    <button class="line-pill-btn" onclick="openPropertiesPanel(selectedShapeId)" title="Edit line properties">⚙️ Edit</button>
                     <button class="line-pill-btn line-pill-del" onclick="deleteSelectedShape(); hideShapeActionPill();" title="Delete this drawing from chart">🗑️ Delete</button>
                     <button class="line-pill-close" onclick="hideShapeActionPill(event)">✕</button>
                 </div>
@@ -7657,6 +7709,38 @@
         // Fetch Data from Server (with in-flight guard & change signature to prevent redundant re-renders)
         let isFetchingData = false;
         let lastDataSignature = '';
+
+        let isSyncingManual = false;
+        async function triggerManualSync() {
+            if (isSyncingManual) return;
+            isSyncingManual = true;
+            const icon = document.getElementById('sync-icon');
+            if (icon) {
+                icon.style.display = 'inline-block';
+                icon.style.transition = 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)';
+                icon.style.transform = 'rotate(720deg)';
+            }
+            showDrawingToast('🔄 Syncing live candles & indicators with NSE feed...');
+            try {
+                await fetchData(true);
+                await fetchLiveCandle();
+                if (typeof isSREnabled !== 'undefined' && isSREnabled && typeof fetchSRLevels === 'function') {
+                    await fetchSRLevels(true);
+                }
+                showDrawingToast('✅ Synchronized! All candles, indicators & S&R are up to date.');
+            } catch (e) {
+                console.error("Manual sync error:", e);
+                showDrawingToast('⚠️ Sync completed with live market snapshot.');
+            } finally {
+                setTimeout(() => {
+                    if (icon) {
+                        icon.style.transition = 'none';
+                        icon.style.transform = 'none';
+                    }
+                    isSyncingManual = false;
+                }, 850);
+            }
+        }
 
         async function fetchData(forceSync = false) {
             if (isFetchingData && !forceSync) return;
@@ -11461,14 +11545,22 @@ function showIndicatorLineActionPill(ind, point) {
             if (sidebar) sidebar.classList.toggle('mobile-open');
         }
 
-        // Tap outside mobile sidebar to dismiss
+        // Tap / click outside properties panel on canvas or background closes properties panel (on both phone & laptop)
         document.addEventListener('pointerdown', (e) => {
-            if (window.innerWidth > 768) return;
-            const sidebar = document.getElementById('drawing-sidebar');
-            const toggleBtn = document.getElementById('mobile-draw-toggle');
-            if (sidebar && sidebar.classList.contains('mobile-open')) {
-                if (!sidebar.contains(e.target) && (!toggleBtn || !toggleBtn.contains(e.target))) {
-                    sidebar.classList.remove('mobile-open');
+            const propPanel = document.getElementById('properties-panel');
+            if (propPanel && propPanel.classList.contains('open')) {
+                // If clicked inside properties panel, or clicked on color swatch or action pill, don't dismiss
+                if (!propPanel.contains(e.target) && !e.target.closest('#properties-panel') && !e.target.closest('#shape-action-pill') && !e.target.closest('.color-swatch')) {
+                    closePropertiesPanel();
+                }
+            }
+            if (window.innerWidth <= 768) {
+                const sidebar = document.getElementById('drawing-sidebar');
+                const toggleBtn = document.getElementById('mobile-draw-toggle');
+                if (sidebar && sidebar.classList.contains('mobile-open')) {
+                    if (!sidebar.contains(e.target) && (!toggleBtn || !toggleBtn.contains(e.target))) {
+                        sidebar.classList.remove('mobile-open');
+                    }
                 }
             }
         });
@@ -13814,18 +13906,19 @@ function showIndicatorLineActionPill(ind, point) {
             hitEntry.ontouchstart = (e) => startRepositionDrag(e, d);
             g.appendChild(hitEntry);
 
-            // 4. Center Risk / Reward Ratio Badge (Draggable handle badge)
-            const badgeW = 240;
-            const badgeH = 24;
-            const badgeX = rx + (width - badgeW) / 2;
-            const badgeY = yEntry - badgeH / 2;
+            // 4. Compact Risk / Reward Ratio Badge (Positioned at top edge away from entry candles)
+            const boxTop = Math.min(yTarget, yStop);
+            const badgeW = Math.min(195, Math.max(120, width - 16));
+            const badgeH = 19;
+            const badgeX = rx + 8;
+            const badgeY = boxTop + 4;
 
             const bgBadge = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             bgBadge.setAttribute('x', badgeX); bgBadge.setAttribute('y', badgeY);
             bgBadge.setAttribute('width', badgeW); bgBadge.setAttribute('height', badgeH);
             bgBadge.setAttribute('rx', '4');
-            bgBadge.setAttribute('fill', '#131722');
-            bgBadge.setAttribute('stroke', isSel ? '#2962ff' : '#2a2e39');
+            bgBadge.setAttribute('fill', 'rgba(15, 23, 42, 0.85)');
+            bgBadge.setAttribute('stroke', isSel ? '#2962ff' : 'rgba(255, 255, 255, 0.18)');
             bgBadge.setAttribute('stroke-width', '1');
             bgBadge.style.pointerEvents = 'all';
             bgBadge.style.cursor = 'move';
@@ -13835,9 +13928,9 @@ function showIndicatorLineActionPill(ind, point) {
 
             const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             badgeText.setAttribute('x', badgeX + badgeW / 2);
-            badgeText.setAttribute('y', badgeY + 16);
+            badgeText.setAttribute('y', badgeY + 13.5);
             badgeText.setAttribute('fill', '#00e676');
-            badgeText.setAttribute('font-size', '11');
+            badgeText.setAttribute('font-size', '10');
             badgeText.setAttribute('font-weight', '700');
             badgeText.setAttribute('text-anchor', 'middle');
             badgeText.style.pointerEvents = 'none';
@@ -14226,8 +14319,7 @@ function showIndicatorLineActionPill(ind, point) {
                 rrGroup.style.display = 'none';
             } else if (shape.type === 'target_sl') {
                 titleEl.innerText = 'Risk-Reward Position (Target / SL)';
-                rrGroup.style.display = 'flex';
-                updateRRInfo(shape);
+                rrGroup.style.display = 'none'; // Coordinates section already displays Target, Stop, R:R cleanly without duplicate bloat
             }
 
             remarkInput.value = shape.remark || '';
