@@ -12,6 +12,7 @@ Rules:
 """
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import os
@@ -753,6 +754,161 @@ def combine_sr_levels(
     return final_levels
 
 
+def combine_multi_period_sr(
+    periods_with_tags: List[tuple[str, List[Dict[str, Any]]]],
+    price_tolerance: float = 8.0,
+    current_price: Optional[float] = None,
+    max_support: int = 4,
+    max_resistance: int = 4,
+    max_rects: int = 3,
+    max_total: int = 12,
+    confluence_title: str = "Multi-Month Confluence",
+) -> List[Dict[str, Any]]:
+    """
+    Combines Support & Resistance levels across multiple rolling monthly horizons (e.g. 1M, 2M, 3M, 4M).
+    Clusters levels within price_tolerance (default 8.0 points) with matching polarity.
+    Boosts bounce counts, elevates line widths/thickness, and generates prominent confluence labels.
+    """
+    raw_items = []
+    for tag, lvls in periods_with_tags:
+        for l in (lvls or []):
+            item = copy.deepcopy(l)
+            item["_tag"] = tag
+            raw_items.append(item)
+
+    if not raw_items:
+        return []
+
+    supports = [x for x in raw_items if x.get("is_support", "Support" in x.get("role", ""))]
+    resistances = [x for x in raw_items if not x.get("is_support", "Support" in x.get("role", ""))]
+
+    def _cluster_side(items: List[Dict[str, Any]], is_support: bool) -> List[Dict[str, Any]]:
+        clusters = []
+        for it in items:
+            p = float(it.get("avg_price", it.get("price1", 0.0)))
+            matched = False
+            for c in clusters:
+                c_p = c["avg_p"]
+                if abs(p - c_p) <= price_tolerance:
+                    c["items"].append(it)
+                    c["prices"].append(p)
+                    c["avg_p"] = sum(c["prices"]) / len(c["prices"])
+                    matched = True
+                    break
+            if not matched:
+                clusters.append({
+                    "items": [it],
+                    "prices": [p],
+                    "avg_p": p,
+                })
+
+        merged_levels = []
+        for idx, c in enumerate(clusters):
+            c_items = c["items"]
+            tags = list(dict.fromkeys(x["_tag"] for x in c_items))
+            bounces_list = [x.get("bounces", 3) for x in c_items]
+            max_b = max(bounces_list)
+            comb_bounces = max_b + (len(tags) - 1)
+            comb_p = round(c["avg_p"], 2)
+            is_rect = any(x.get("type") == "rect" for x in c_items)
+            base_role = "Support" if is_support else "Resistance"
+
+            is_confluence = (len(tags) > 1)
+            if len(tags) >= 4:
+                role_label = f"Ultra-Strong {base_role} (All 4M Confluence)"
+            elif len(tags) == 3:
+                role_label = f"Strong {base_role} (1,2,3M Confluence)"
+            elif len(tags) == 2:
+                role_label = f"Strong {base_role} ({'+'.join(tags)} Confluence)"
+            else:
+                role_label = c_items[0].get("role", f"Major {base_role}")
+
+            w = round(min(max(float(x.get("width", 2.0)) for x in c_items) + (1.0 if is_confluence else 0.0), 5.0), 1)
+            time1 = min(x.get("time1", 0) for x in c_items)
+            time2 = max(x.get("time2", 0) for x in c_items)
+
+            if is_rect:
+                min_p = round(min(float(x.get("min_price", comb_p - 4.0)) for x in c_items), 2)
+                max_p = round(max(float(x.get("max_price", comb_p + 4.0)) for x in c_items), 2)
+                merged_levels.append({
+                    "id": f"sr_multi_rect_{int(min_p)}_{int(max_p)}_{idx}",
+                    "type": "rect",
+                    "time1": time1,
+                    "time2": time2,
+                    "price1": max_p,
+                    "price2": min_p,
+                    "color": "#ffffff",
+                    "width": w,
+                    "opacity": 1.0,
+                    "fill_opacity": 0.16,
+                    "remark": f"{role_label} Zone ({comb_bounces}x) ₹{min_p:.1f} - ₹{max_p:.1f}",
+                    "is_sr_auto": True,
+                    "is_confluence": is_confluence,
+                    "origin": "+".join(tags),
+                    "timeframe_tag": "+".join(tags),
+                    "role": f"{role_label} Zone",
+                    "is_support": is_support,
+                    "category": "support" if is_support else "resistance",
+                    "bounces": comb_bounces,
+                    "min_price": min_p,
+                    "max_price": max_p,
+                    "avg_price": comb_p,
+                    "spread": round(max_p - min_p, 2),
+                    "upper_color": "#ffd700",
+                    "lower_color": "#ffd700",
+                    "upper_width": round(w * 1.15, 1),
+                    "lower_width": round(w * 1.15, 1),
+                })
+            else:
+                merged_levels.append({
+                    "id": f"sr_multi_line_{int(comb_p)}_{comb_bounces}x_{idx}",
+                    "type": "line",
+                    "time1": time1,
+                    "time2": time2,
+                    "price1": comb_p,
+                    "price2": comb_p,
+                    "color": "#ffffff",
+                    "width": w,
+                    "opacity": 1.0,
+                    "remark": f"{role_label} ({comb_bounces}x) ₹{comb_p:.2f}",
+                    "is_sr_auto": True,
+                    "is_confluence": is_confluence,
+                    "origin": "+".join(tags),
+                    "timeframe_tag": "+".join(tags),
+                    "role": role_label,
+                    "is_support": is_support,
+                    "category": "support" if is_support else "resistance",
+                    "bounces": comb_bounces,
+                    "avg_price": comb_p,
+                    "spread": round(max(float(x.get("spread", 0.0)) for x in c_items), 2),
+                })
+        return merged_levels
+
+    merged_supp = _cluster_side(supports, is_support=True)
+    merged_res = _cluster_side(resistances, is_support=False)
+
+    if current_price is not None:
+        merged_supp.sort(key=lambda x: (1 if x.get("is_confluence") else 0, x.get("bounces", 0), -abs(x.get("avg_price", current_price) - current_price)), reverse=True)
+        merged_res.sort(key=lambda x: (1 if x.get("is_confluence") else 0, x.get("bounces", 0), -abs(x.get("avg_price", current_price) - current_price)), reverse=True)
+    else:
+        merged_supp.sort(key=lambda x: (1 if x.get("is_confluence") else 0, x.get("bounces", 0)), reverse=True)
+        merged_res.sort(key=lambda x: (1 if x.get("is_confluence") else 0, x.get("bounces", 0)), reverse=True)
+
+    final_supp = merged_supp[:max_support]
+    final_res = merged_res[:max_resistance]
+    all_final = final_supp + final_res
+
+    rects = [x for x in all_final if x.get("type") == "rect"]
+    lines = [x for x in all_final if x.get("type") != "rect"]
+    if len(rects) > max_rects:
+        rects = rects[:max_rects]
+    all_final = rects + lines
+    if len(all_final) > max_total:
+        all_final = all_final[:max_total]
+    return all_final
+
+
+
 def calculate_sr_periods(
     df_5m: pd.DataFrame,
     current_price: Optional[float] = None,
@@ -818,6 +974,32 @@ def calculate_sr_periods(
         future_candles=future_candles,
     )
 
+    # 3 Months (last 65 trading days)
+    days_3m = unique_days[-65:] if len(unique_days) >= 65 else unique_days
+    df_3m = df_5m[df_5m.index.normalize().isin(days_3m)].copy()
+    major_3m = detect_support_resistance(
+        df_3m,
+        current_price=cur_p,
+        max_support=max_support,
+        max_resistance=max_resistance,
+        max_rects=max_rects,
+        rect_min_bounces=rect_min_bounces,
+        future_candles=future_candles,
+    )
+
+    # 4 Months (last 90 trading days / full 4-month history)
+    days_4m = unique_days[-90:] if len(unique_days) >= 90 else unique_days
+    df_4m = df_5m[df_5m.index.normalize().isin(days_4m)].copy()
+    major_4m = detect_support_resistance(
+        df_4m,
+        current_price=cur_p,
+        max_support=max_support,
+        max_resistance=max_resistance,
+        max_rects=max_rects,
+        rect_min_bounces=rect_min_bounces,
+        future_candles=future_candles,
+    )
+
     # Local S&R (last 5-7 trading days)
     if include_local and max_local > 0:
         local_1m = detect_local_support_resistance(
@@ -826,19 +1008,21 @@ def calculate_sr_periods(
         local_2m = detect_local_support_resistance(
             df_5m, major_2m, days_back=days_back, max_local=max_local, future_candles=future_candles
         )
+        local_4m = detect_local_support_resistance(
+            df_5m, major_4m, days_back=days_back, max_local=max_local, future_candles=future_candles
+        )
     else:
         local_1m = []
         local_2m = []
+        local_4m = []
 
     def _cap_total(levels: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         if len(levels) <= max_total:
             return levels
-        # Keep rectangles (major flip zones with >= 6x bounces)
         rects = [l for l in levels if l.get("type") == "rect"]
         lines = [l for l in levels if l.get("type") != "rect"]
         if len(rects) >= max_total:
             return rects[:max_total]
-        # Sort lines by bounce count (highest first) and proximity to current price
         if cur_p is not None:
             lines.sort(key=lambda s: (-s.get("bounces", 0), abs(s.get("avg_price", cur_p) - cur_p)))
         else:
@@ -848,24 +1032,59 @@ def calculate_sr_periods(
 
     levels_1m = _cap_total(major_1m + local_1m)
     levels_2m = _cap_total(major_2m + local_2m)
+    levels_3m = _cap_total(major_3m + local_2m)
+    levels_4m = _cap_total(major_4m + local_4m)
 
-    combined_levels = combine_sr_levels(
-        levels_1m,
-        levels_2m,
+    # Multi-Month Confluences:
+    # 1&2 Month Confluence
+    levels_1_2m = combine_multi_period_sr(
+        [("1M", levels_1m), ("2M", levels_2m)],
         price_tolerance=8.0,
         current_price=cur_p,
         max_support=max_support,
         max_resistance=max_resistance,
         max_rects=max_rects,
         max_total=max_total,
+        confluence_title="1M+2M Confluence"
+    )
+
+    # 1,2,3 Month Confluence
+    levels_1_2_3m = combine_multi_period_sr(
+        [("1M", levels_1m), ("2M", levels_2m), ("3M", levels_3m)],
+        price_tolerance=8.0,
+        current_price=cur_p,
+        max_support=max_support,
+        max_resistance=max_resistance,
+        max_rects=max_rects,
+        max_total=max_total,
+        confluence_title="1,2,3M Confluence"
+    )
+
+    # All Month (1,2,3,4) Confluence
+    levels_all = combine_multi_period_sr(
+        [("1M", levels_1m), ("2M", levels_2m), ("3M", levels_3m), ("4M", levels_4m)],
+        price_tolerance=8.0,
+        current_price=cur_p,
+        max_support=max_support,
+        max_resistance=max_resistance,
+        max_rects=max_rects,
+        max_total=max_total,
+        confluence_title="All-Month (1,2,3,4) Confluence"
     )
 
     return {
         "1m": levels_1m,
         "2m": levels_2m,
-        "combined": combined_levels,
+        "3m": levels_3m,
+        "4m": levels_4m,
+        "1_2m": levels_1_2m,
+        "1_2_3m": levels_1_2_3m,
+        "all": levels_all,
+        "combined": levels_all,  # default confluence
         "major_1m": major_1m,
         "major_2m": major_2m,
+        "major_3m": major_3m,
+        "major_4m": major_4m,
         "local_1m": local_1m,
         "local_2m": local_2m,
     }
@@ -923,7 +1142,7 @@ def update_or_get_sr_levels(
         return {
             "mode": "empty",
             "is_within_window": True,
-            "periods": {"1m": [], "2m": [], "combined": [], "major_1m": [], "major_2m": [], "local_1m": [], "local_2m": []}
+            "periods": {"1m": [], "2m": [], "3m": [], "4m": [], "1_2m": [], "1_2_3m": [], "all": [], "combined": [], "major_1m": [], "major_2m": [], "major_3m": [], "major_4m": []}
         }
 
     cur_p = current_price
@@ -998,11 +1217,13 @@ def update_or_get_sr_levels(
     # Replace old lines completely with new lines on disk
     save_sr_cache_to_disk(new_cache, filepath)
     logger.info(
-        "[%s] 24H Live S&R updated with new candles (1M: %d, 2M: %d, Comb: %d, candles=%d, future=%d).",
+        "[%s] 24H Live S&R updated with 4M candles (2M: %d, 4M: %d, 1&2M: %d, 1,2,3M: %d, All 4M: %d, candles=%d, future=%d).",
         now_ist.strftime("%H:%M:%S IST"),
-        len(computed.get("1m", [])),
         len(computed.get("2m", [])),
-        len(computed.get("combined", [])),
+        len(computed.get("4m", [])),
+        len(computed.get("1_2m", [])),
+        len(computed.get("1_2_3m", [])),
+        len(computed.get("all", [])),
         candle_count,
         future_candles,
     )

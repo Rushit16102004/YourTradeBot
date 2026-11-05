@@ -1,7 +1,7 @@
 """
 Server-side background engine that runs continuously in Python memory.
 Operates independently of any browser tab or client connection.
-Ensures 2 months of candle history across 5m, 15m, 1h, and 1d timeframes,
+Ensures 4 months of candle history across 5m, 15m, 1h, and 1d timeframes,
 with 1st priority in-memory RAM caching, real-time tick updates, and Telegram alerts.
 """
 from __future__ import annotations
@@ -144,9 +144,9 @@ class BackgroundTradingEngine:
         self._running = False
         self._thread: Optional[threading.Thread] = None
 
-        # Seed 2 months initial data (1st Priority: RAM Cache / CSV fallback)
+        # Seed 4 months initial data (1st Priority: RAM Cache / CSV fallback)
         cached_df = self.cache_mgr.get_candles(self.api_cfg.symbol, "5m")
-        if cached_df is not None and len(cached_df) >= 2000:
+        if cached_df is not None and len(cached_df) >= 3000:
             try:
                 cached_df = get_volume_aggregator().merge_volume_into_candles(cached_df)
             except Exception as e:
@@ -157,7 +157,7 @@ class BackgroundTradingEngine:
             self.latest_price = float(cached_df["close"].iloc[-1])
             self.latest_mtf_matrix = self.compute_mtf_trend_matrix(df_ind)
             
-            # Immediately evaluate strategy signals on restored 2-month candles!
+            # Immediately evaluate strategy signals on restored 4-month candles!
             self.sig_mgr.signal_history.clear()
             self.sig_mgr.strategy.reset()
             last_state = None
@@ -176,7 +176,7 @@ class BackgroundTradingEngine:
                 last_state = state_temp
             if last_state is not None:
                 self.sig_mgr.current_state = last_state
-            logger.info("Instantly restored 2-month candles and evaluated %d signals from cache memory.", len(self.sig_mgr.signal_history))
+            logger.info("Instantly restored 4-month candles and evaluated %d signals from cache memory.", len(self.sig_mgr.signal_history))
         else:
             self.sync_and_evaluate(force_alert=False)
 
@@ -397,7 +397,7 @@ class BackgroundTradingEngine:
                 time.sleep(5)
 
     def sync_and_evaluate(self, force_alert: bool = False):
-        """Fetches 2 months of candles, computes indicators, evaluates signals, and alerts Telegram."""
+        """Fetches 4 months of candles, computes indicators, evaluates signals, and alerts Telegram."""
         try:
             # Refresh authentic India VIX
             if self.client:
@@ -415,20 +415,20 @@ class BackgroundTradingEngine:
                         self.api_cfg.exchange,
                         self.api_cfg.token,
                         interval="FIVE_MINUTE",
-                        days=50,  # 50 trading days fits NSE/Yahoo feed cleanly
+                        days=90,  # 90 trading days fits 4 months of NSE feed cleanly
                     )
                 except Exception as ex:
                     logger.warning("Error fetching live candles: %s", ex)
 
             if refreshed_df is None or len(refreshed_df) < 50:
                 cur_anchor = self.latest_price if (self.latest_price and self.latest_price > 1000) else 23050.0
-                refreshed_df = generate_sample_candles(3375, base_price=cur_anchor)
+                refreshed_df = generate_sample_candles(6750, base_price=cur_anchor)
 
             if refreshed_df is not None and not refreshed_df.empty:
                 times = refreshed_df.index.strftime("%H:%M")
                 refreshed_df = refreshed_df[(times >= "09:15") & (times <= "15:30")].copy()
-                # Retain last 45 trading days (~2 calendar months)
-                unique_days = sorted(refreshed_df.index.normalize().unique())[-45:]
+                # Retain last 90 trading days (~4 calendar months)
+                unique_days = sorted(refreshed_df.index.normalize().unique())[-90:]
                 refreshed_df = refreshed_df[refreshed_df.index.normalize().isin(unique_days)].copy()
                 try:
                     refreshed_df = get_volume_aggregator().merge_volume_into_candles(refreshed_df)
@@ -447,7 +447,7 @@ class BackgroundTradingEngine:
                 logger.warning("Error merging constituent volume during sync: %s", e)
             df_ind = compute_all_indicators(df_temp, self.strat_cfg)
 
-            # Re-evaluate all candles across 2-month history
+            # Re-evaluate all candles across 4-month history
             self.sig_mgr.signal_history.clear()
             self.sig_mgr.strategy.reset()
 
@@ -592,9 +592,10 @@ class BackgroundTradingEngine:
                         from RAG.rag_database import RAGDatabase
                         c_data = load_sr_cache_from_disk()
                         if c_data and "periods" in c_data:
-                            comb = c_data["periods"].get("combined", [])
-                            if comb:
-                                RAGDatabase.get_instance().add_sr_levels(comb, period_tag="combined")
+                            for p_tag in ["all", "2m", "4m", "1_2m", "1_2_3m"]:
+                                lvls = c_data["periods"].get(p_tag, [])
+                                if lvls:
+                                    RAGDatabase.get_instance().add_sr_levels(lvls, period_tag=p_tag)
                     except Exception as ex_rag_sr:
                         logger.debug("RAG S&R index note: %s", ex_rag_sr)
 

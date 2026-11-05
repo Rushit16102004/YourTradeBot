@@ -93,23 +93,24 @@ STRATEGY_KNOWLEDGE_DOCS: List[Dict[str, Any]] = [
     },
 
     # ---------------------------------------------------------
-    # 4. Multi-Month S&R Confluence Architecture (1M + 2M)
+    # 4. Multi-Month S&R Confluence Architecture (2M, 4M, 1&2M, 1,2,3M, All 4M)
     # ---------------------------------------------------------
     {
         "id": "strat_sr_confluence_logic",
-        "title": "1M + 2M Confluence Architecture & Multi-Month Order Flow",
+        "title": "4-Month Multi-Horizon S&R Confluence Architecture & Institutional Order Flow",
         "category": "CONFLUENCE",
-        "tags": "confluence, 1m, 2m, macro, multi_month, order_flow",
+        "tags": "confluence, 1m, 2m, 4m, macro, multi_month, order_flow, 1_2m, 1_2_3m, all_month",
         "content": (
-            "Multi-Month 1M + 2M Support & Resistance Confluence Architecture:\n"
-            "1. 1-Month (1M) Dataset: Rolling 20 trading days (~1,500 5m candles). Reflects active swing structure and tactical intraday pivots.\n"
-            "2. 2-Month (2M) Dataset: Rolling 40-45 trading days (~3,285 5m candles). Reflects institutional macro boundaries and multi-week high-volume nodes.\n"
-            "3. Confluence Merging (<= 8.0 Points):\n"
-            "   - When a 1M level and a 2M level share polarity (both support or both resistance) and fall within <= 8 points of each other, they merge into a single Confluence Barrier.\n"
-            "   - Confluence levels receive boosted touch counts: max(bounces_1m, bounces_2m) + 1 bonus touch.\n"
-            "   - Tagged: '1M + 2M Confluence'. Colored in Pure White (#ffffff) with bold line thickness.\n"
-            "4. Why Confluence Matters: Institutional algorithms, pension funds, and FII order blocks concentrate orders at multi-month barriers. "
-            "A breakout or trap at a 1M+2M confluence level has 3x higher statistical follow-through than an isolated 1-day pivot."
+            "4-Month Multi-Horizon Support & Resistance Confluence Architecture:\n"
+            "1. 1-Month (1M): Rolling 20 trading days (~1,500 5m candles). Tactical swing structure and recent pivots.\n"
+            "2. 2-Month (2M): Rolling 45 trading days (~3,375 5m candles). Intermediate institutional barriers and multi-week volume nodes.\n"
+            "3. 4-Month (4M): Rolling 86-90 trading days (~6,500+ 5m candles). Macro institutional boundaries, quarterly flip zones, and major liquidity pools.\n"
+            "4. Multi-Month Confluence Engine (<= 8.0 Points):\n"
+            "   - 1&2 Month Confluence: Overlap between 1M swing pivots and 2M intermediate barriers.\n"
+            "   - 1,2,3 Month Confluence: Triple-horizon multi-month confluence.\n"
+            "   - All Month (1,2,3,4) Confluence: Supreme confluence where levels align across all 4 months, receiving boosted touch counts, maximum thickness, and supreme priority.\n"
+            "5. Why Multi-Month Confluence Matters: Institutional algorithms and FII/DII order books execute primarily around multi-month confluence barriers. "
+            "Reversals and breakouts at 4-month and all-month confluence levels produce the highest-probability trading opportunities in NIFTY 50."
         ),
     },
 

@@ -122,6 +122,12 @@ _sr_cache_data = {
     "periods": {
         "1m": [],
         "2m": [],
+        "3m": [],
+        "4m": [],
+        "1_2m": [],
+        "1_2_3m": [],
+        "all": [],
+        "combined": [],
         "major_1m": [],
         "major_2m": [],
         "local_1m": [],
@@ -172,6 +178,28 @@ def precalculate_sr_levels(
         max_total=max_total,
         future_candles=future_candles,
     )
+
+    try:
+        from RAG.rag_database import RAGDatabase
+        p_dict = res.get("periods", {})
+        if p_dict:
+            for p_tag in ["all", "2m", "4m", "1_2m", "1_2_3m"]:
+                lvls = p_dict.get(p_tag, [])
+                if lvls:
+                    RAGDatabase.get_instance().add_sr_levels(lvls, period_tag=p_tag)
+    except Exception as ex_rag_sync:
+        logger.debug("RAG S&R indexing sync note: %s", ex_rag_sync)
+
+    try:
+        from RAG.rag_database import RAGDatabase
+        p_dict = res.get("periods", {})
+        if p_dict:
+            for p_tag in ["all", "2m", "4m", "1_2m", "1_2_3m"]:
+                lvls = p_dict.get(p_tag, [])
+                if lvls:
+                    RAGDatabase.get_instance().add_sr_levels(lvls, period_tag=p_tag)
+    except Exception as ex_rag_sync:
+        logger.debug("RAG S&R indexing sync note: %s", ex_rag_sync)
 
     with _sr_cache_lock:
         _sr_cache_data = {
@@ -286,10 +314,10 @@ _market_data_cache: Dict[str, Any] = {}
 async def get_market_data(
     timeframe: str = Query("5m", description="Candle timeframe: 5m, 15m, 1h, 1d"),
     force: bool = Query(False, description="Force live market sync"),
-    limit: Optional[int] = Query(None, description="Max historical candles to return (None = all 2-month history)"),
+    limit: Optional[int] = Query(None, description="Max historical candles to return (None = all 4-month history)"),
 ):
     """
-    Returns 2-month OHLCV candles, technical indicators (SMA 20, VWAP, ±2σ Bands),
+    Returns 4-month OHLCV candles, technical indicators (SMA 20, VWAP, ±2σ Bands),
     real-time LTP, strategy execution state, and confirmed signals list.
     Supports strictly: 5m, 15m, 1h, 1d.
     """
@@ -313,7 +341,7 @@ async def get_market_data(
     if not force and cache_key in _market_data_cache:
         return JSONResponse(content=_market_data_cache[cache_key])
 
-    # Format 2-month candles for ultra-high-speed client-side rendering (Vectorized, 80x faster than iterrows)
+    # Format 4-month candles for ultra-high-speed client-side rendering (Vectorized, 80x faster than iterrows)
     candles = []
     if not df.empty:
         n = len(df)
@@ -747,14 +775,23 @@ async def get_support_resistance_levels(
         last_updated = _sr_cache_data.get("last_updated_ist")
         fut_c = _sr_cache_data.get("future_candles", future_candles)
 
-    p_lower = period.lower()
-    if p_lower in ("combined", "both", "1m+2m", "comb", "all"):
-        clean_period = "combined"
+    p_lower = period.lower().replace(" ", "").replace("&", "_").replace("+", "_").replace(",", "_")
+    if p_lower in ("all", "all_m", "all_month", "allmonth", "allmonth(1_2_3_4)", "all(1_2_3_4)", "1_2_3_4m", "combined"):
+        clean_period = "all"
+    elif p_lower in ("1_2_3m", "1_2_3month", "1_2_3months", "123m"):
+        clean_period = "1_2_3m"
+    elif p_lower in ("1_2m", "1_2month", "1_2months", "12m", "1m_2m", "both"):
+        clean_period = "1_2m"
+    elif p_lower in ("4m", "4month", "4months", "4_month"):
+        clean_period = "4m"
     elif p_lower in ("2m", "2month", "2months", "2_month"):
         clean_period = "2m"
-    else:
+    elif p_lower in ("1m", "1month", "1months", "1_month"):
         clean_period = "1m"
-    active_levels = periods_data.get(clean_period, [])
+    else:
+        clean_period = "all"
+
+    active_levels = periods_data.get(clean_period) or periods_data.get("all") or periods_data.get("2m") or []
 
     count_supp = sum(1 for l in active_levels if "Support" in l.get("role", ""))
     count_res = sum(1 for l in active_levels if "Resistance" in l.get("role", ""))
@@ -780,10 +817,17 @@ async def get_support_resistance_levels(
                 "days_back": days_back,
             },
             "levels": active_levels,
-            "levels_1m": periods_data.get("1m", []),
             "levels_2m": periods_data.get("2m", []),
-            "count_1m": len(periods_data.get("1m", [])),
+            "levels_4m": periods_data.get("4m", []),
+            "levels_1_2m": periods_data.get("1_2m", []),
+            "levels_1_2_3m": periods_data.get("1_2_3m", []),
+            "levels_all": periods_data.get("all", []),
+            "levels_1m": periods_data.get("1m", []),
             "count_2m": len(periods_data.get("2m", [])),
+            "count_4m": len(periods_data.get("4m", [])),
+            "count_1_2m": len(periods_data.get("1_2m", [])),
+            "count_1_2_3m": len(periods_data.get("1_2_3m", [])),
+            "count_all": len(periods_data.get("all", [])),
         }
     )
 
@@ -1943,7 +1987,27 @@ async def rag_chat(request: Request, payload: dict = Body(...)):
             "sr_levels_count": len(comb_sr),
             "comb_sr_levels": [
                 {"role": l.get("role"), "price": float(l.get("avg_price", l.get("price1", 0.0))), "bounces": l.get("bounces", 4)}
-                for l in comb_sr[:8]
+                for l in (sr_cache.get("periods", {}).get("all") or comb_sr)[:8]
+            ],
+            "sr_2m_levels": [
+                {"role": l.get("role"), "price": float(l.get("avg_price", l.get("price1", 0.0))), "bounces": l.get("bounces", 4)}
+                for l in (sr_cache.get("periods", {}).get("2m", []))[:6]
+            ],
+            "sr_4m_levels": [
+                {"role": l.get("role"), "price": float(l.get("avg_price", l.get("price1", 0.0))), "bounces": l.get("bounces", 4)}
+                for l in (sr_cache.get("periods", {}).get("4m", []))[:6]
+            ],
+            "sr_1_2m_levels": [
+                {"role": l.get("role"), "price": float(l.get("avg_price", l.get("price1", 0.0))), "bounces": l.get("bounces", 4)}
+                for l in (sr_cache.get("periods", {}).get("1_2m", []))[:6]
+            ],
+            "sr_1_2_3m_levels": [
+                {"role": l.get("role"), "price": float(l.get("avg_price", l.get("price1", 0.0))), "bounces": l.get("bounces", 4)}
+                for l in (sr_cache.get("periods", {}).get("1_2_3m", []))[:6]
+            ],
+            "sr_all_levels": [
+                {"role": l.get("role"), "price": float(l.get("avg_price", l.get("price1", 0.0))), "bounces": l.get("bounces", 4)}
+                for l in (sr_cache.get("periods", {}).get("all", []))[:8]
             ],
         }
 
@@ -2858,7 +2922,7 @@ def main():
     print("\n=======================================================")
     print("NIFTY 50 Pro Terminal -- Pure HTML Local Web Server")
     print(f"URL: http://localhost:{port}")
-    print("In-Memory RAM Cache: 2 Months / ~45 Trading Days (Zero Lag)")
+    print("In-Memory RAM Cache: 4 Months / ~45 Trading Days (Zero Lag)")
     print("On-Chart Drawing Tools: Line, Rect, Erase")
     print("Telegram Alerts: Active & Running 24/7 in Background")
     print("=======================================================\n")

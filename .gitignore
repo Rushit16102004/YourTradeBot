@@ -48,6 +48,7 @@ database/visitor_daily_activity.csv
 temp_storage/*
 !temp_storage/*.py
 !temp_storage/nifty50_volume_5m.csv
+!temp_storage/nifty_50_5m_4mo.csv
 scratch/
 latest_session_url.txt
 

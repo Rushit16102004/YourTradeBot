@@ -96,14 +96,25 @@ class GeminiLLMClient:
             else:
                 sig_block = "CONFIRMED SIGNAL LOG: [Suppressed - User is asking for dynamic trade entry suggestion; formulate your own original technical suggestion from S&R (> 5x touches) and Indicators below].\n\n"
 
-            # Format S&R section (strictly prioritize > 5x touches)
+            # Format S&R section (prioritize multi-month confluence and 4-month / 2-month macro breakdowns)
             sr_lines = []
             if comb_sr:
                 sr_gt5 = [l for l in comb_sr if l.get('bounces', 0) > 5]
                 valid_sr = sr_gt5 if sr_gt5 else comb_sr
-                sr_lines.append("ACTIVE 1M+2M S&R CONFLUENCE LEVELS (STRICTLY > 5 TOUCHES):")
-                for l in valid_sr[:6]:
+                sr_lines.append("ACTIVE MULTI-MONTH S&R CONFLUENCE LEVELS (STRICTLY > 5 TOUCHES):")
+                for l in valid_sr[:8]:
                     sr_lines.append(f"  • {l.get('role', 'S&R')}: ₹{l.get('price')} ({l.get('bounces', 6)} touches)")
+
+            sr_4m = market_state.get("sr_4m_levels", [])
+            sr_2m = market_state.get("sr_2m_levels", [])
+            if sr_4m:
+                sr_lines.append("4-MONTH MACRO INSTITUTIONAL BARRIERS:")
+                for l in sr_4m[:4]:
+                    sr_lines.append(f"  • {l.get('role', 'Macro Barrier')}: ₹{l.get('price')} ({l.get('bounces', 5)}x touches)")
+            if sr_2m:
+                sr_lines.append("2-MONTH INTERMEDIATE LEVELS:")
+                for l in sr_2m[:4]:
+                    sr_lines.append(f"  • {l.get('role', 'S&R')}: ₹{l.get('price')} ({l.get('bounces', 4)}x touches)")
             sr_str = "\n".join(sr_lines)
 
             orb = market_state.get("orb", {})

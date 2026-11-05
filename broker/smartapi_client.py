@@ -189,9 +189,9 @@ class AngelSmartApiClient:
 
         return 17.10
 
-    def get_historical_candles(self, exchange: str = "NSE", token: str = "99926000", interval: str = "FIVE_MINUTE", days: int = 60) -> pd.DataFrame:
+    def get_historical_candles(self, exchange: str = "NSE", token: str = "99926000", interval: str = "FIVE_MINUTE", days: int = 90) -> pd.DataFrame:
         """
-        Fetches official historical candles for the specified number of days (default: 60 days / 2 months).
+        Fetches official historical candles for the specified number of days (default: 90 days / 4 months).
         Defaults to 5-minute (FIVE_MINUTE / 5m) candles.
         Attempts SmartAPI getCandleData first; if rate-limited or restricted,
         seamlessly falls back to real live NIFTY 50 candles (^NSEI) from NSE market feed.
@@ -258,10 +258,25 @@ class AngelSmartApiClient:
                 # Filter regular trading hours (09:15 to 15:30)
                 times = df_real.index.strftime("%H:%M")
                 df_real = df_real[(times >= "09:15") & (times <= "15:30")].copy()
-                # Retain strictly the requested days (e.g. last 5 days for 1m)
+
+                # If 4 months (>60 trading days) requested, check if cache or 1h data has older history
+                if days > 60:
+                    try:
+                        from temp_storage.cache_manager import CandleCacheManager
+                        cached_4m = CandleCacheManager.get_instance().get_candles("NIFTY 50", "5m")
+                        if cached_4m is not None and not cached_4m.empty:
+                            earliest_5m = df_real.index[0]
+                            older_cached = cached_4m[cached_4m.index < earliest_5m].copy()
+                            if not older_cached.empty:
+                                df_real = pd.concat([older_cached[["open", "high", "low", "close", "volume"]], df_real[["open", "high", "low", "close", "volume"]]]).sort_index()
+                                df_real = df_real[~df_real.index.duplicated(keep="last")]
+                    except Exception as e_backfill:
+                        logger.debug("Older candle backfill note: %s", e_backfill)
+
+                # Retain strictly the requested days (e.g. last 90 days for 4m)
                 unique_days = sorted(df_real.index.normalize().unique())[-days:]
                 df_real = df_real[df_real.index.normalize().isin(unique_days)].copy()
-                logger.info("Loaded %d real NIFTY 50 (%s) candles from NSE feed matching TradingView", len(df_real), yf_interval)
+                logger.info("Loaded %d real NIFTY 50 (%s) candles from NSE feed matching TradingView (%d trading days)", len(df_real), yf_interval, len(unique_days))
                 return df_real[["open", "high", "low", "close", "volume"]]
         except Exception as ex:
             logger.error("Error fetching real NSE candles: %s", ex)

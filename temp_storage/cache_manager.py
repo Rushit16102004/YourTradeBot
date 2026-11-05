@@ -3,7 +3,7 @@ temp_storage/cache_manager.py - High-performance In-Memory Cache Manager with di
 Part of the Temp Storage Department.
 1st Priority: RAM Cache Memory (instant tick-by-tick access with zero lag)
 Fallback: Local CSV storage in `temp_storage/` directory (with data_cache/ fallback).
-Supports 2 months of NIFTY 50 candles across 1m, 2m, 3m, 5m, 15m, 1h, and 1d timeframes.
+Supports 4 months of NIFTY 50 candles across 1m, 2m, 3m, 5m, 15m, 1h, and 1d timeframes.
 """
 from __future__ import annotations
 
@@ -48,15 +48,25 @@ class CandleCacheManager:
     def _csv_path(self, symbol: str, timeframe: str) -> str:
         clean_sym = symbol.replace(" ", "_").replace("^", "").lower()
         clean_tf = timeframe.replace(" ", "").lower()
-        primary_path = os.path.join(CACHE_DIR, f"{clean_sym}_{clean_tf}_2mo.csv")
-        legacy_path = os.path.join(LEGACY_CACHE_DIR, f"{clean_sym}_{clean_tf}_2mo.csv")
-        if not os.path.exists(primary_path) and os.path.exists(legacy_path):
-            return legacy_path
-        return primary_path
+        primary_4mo = os.path.join(CACHE_DIR, f"{clean_sym}_{clean_tf}_4mo.csv")
+        legacy_4mo = os.path.join(LEGACY_CACHE_DIR, f"{clean_sym}_{clean_tf}_4mo.csv")
+        if os.path.exists(primary_4mo):
+            return primary_4mo
+        if os.path.exists(legacy_4mo):
+            return legacy_4mo
+
+        # Fallback to 2mo if 4mo does not yet exist
+        primary_2mo = os.path.join(CACHE_DIR, f"{clean_sym}_{clean_tf}_2mo.csv")
+        legacy_2mo = os.path.join(LEGACY_CACHE_DIR, f"{clean_sym}_{clean_tf}_2mo.csv")
+        if os.path.exists(primary_2mo):
+            return primary_2mo
+        if os.path.exists(legacy_2mo):
+            return legacy_2mo
+        return primary_4mo
 
     def get_candles(self, symbol: str = "NIFTY 50", timeframe: str = "5m") -> Optional[pd.DataFrame]:
         """
-        Retrieves 2-month candles.
+        Retrieves 4-month candles.
         1st Priority: In-Memory RAM Cache.
         2nd Priority: Local CSV on disk in temp_storage.
         """
@@ -115,7 +125,7 @@ class CandleCacheManager:
         if persist_csv:
             def _async_save():
                 try:
-                    target_file = os.path.join(CACHE_DIR, f"{symbol.replace(' ', '_').replace('^', '').lower()}_{timeframe.replace(' ', '').lower()}_2mo.csv")
+                    target_file = os.path.join(CACHE_DIR, f"{symbol.replace(' ', '_').replace('^', '').lower()}_{timeframe.replace(' ', '').lower()}_4mo.csv")
                     df_clean.to_csv(target_file, index=True)
                     logger.debug("Persisted %d candles to %s", len(df_clean), target_file)
                 except Exception as e:

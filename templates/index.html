@@ -358,24 +358,32 @@
             background-color: #ffffff;
         }
 
-        .sr-period-selector-row {
-            display: flex;
-            gap: 4px;
+        .sr-period-selector-row, .sr-period-selector-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
             padding: 4px 6px 8px 6px;
         }
 
         .sr-dropdown-period-btn {
-            flex: 1;
             background: #1e222d;
             border: 1px solid #2a2e39;
             color: #94a3b8;
             padding: 6px 4px;
-            border-radius: 4px;
+            border-radius: 6px;
             font-size: 11px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.15s ease;
             text-align: center;
+        }
+
+        .sr-sub-txt {
+            display: block;
+            font-size: 9.5px;
+            opacity: 0.75;
+            font-weight: normal;
+            margin-top: 1px;
         }
 
         .sr-dropdown-period-btn:hover {
@@ -5006,21 +5014,27 @@
                     </div>
 
                     <div class="dropdown-divider"></div>
-                    <div class="dropdown-header">Calculation Period / Basis</div>
+                    <div class="dropdown-header">Multi-Month Calculation Basis</div>
 
-                    <div class="sr-period-selector-row">
-                        <button class="sr-dropdown-period-btn active" id="btn-sr-period-1m" onclick="setSRPeriod('1m')" title="1 Month (Last 20 Days): 4S / 4R, ≥6x Flips, 5-7d Local">
-                            1M <span style="font-size: 10px; opacity: 0.7;">(20d)</span>
+                    <div class="sr-period-selector-grid">
+                        <button class="sr-dropdown-period-btn" id="btn-sr-period-2m" onclick="setSRPeriod('2m')" title="2 Months (Last 45 Days): Intermediate institutional S&R levels">
+                            2M <span class="sr-sub-txt">2 Month</span>
                         </button>
-                        <button class="sr-dropdown-period-btn" id="btn-sr-period-2m" onclick="setSRPeriod('2m')" title="2 Months (Last 45 Days): 4S / 4R, ≥6x Flips, 5-7d Local">
-                            2M <span style="font-size: 10px; opacity: 0.7;">(45d)</span>
+                        <button class="sr-dropdown-period-btn" id="btn-sr-period-4m" onclick="setSRPeriod('4m')" title="4 Months (Last 90 Days): Major macro institutional barriers">
+                            4M <span class="sr-sub-txt">4 Month</span>
                         </button>
-                        <button class="sr-dropdown-period-btn" id="btn-sr-period-comb" onclick="setSRPeriod('combined')" title="Combined 1M + 2M Confluence: Multi-month major barriers & institutional flips">
-                            1M+2M <span style="font-size: 10px; opacity: 0.7;">(Confluence)</span>
+                        <button class="sr-dropdown-period-btn" id="btn-sr-period-1-2m" onclick="setSRPeriod('1_2m')" title="1&2 Month Confluence: High-impact swing & macro barrier overlap">
+                            1&2M <span class="sr-sub-txt">1&2 Month</span>
+                        </button>
+                        <button class="sr-dropdown-period-btn" id="btn-sr-period-1-2-3m" onclick="setSRPeriod('1_2_3m')" title="1,2,3 Month Confluence: Triple-horizon multi-month confluence">
+                            1,2,3M <span class="sr-sub-txt">1,2,3 Month</span>
+                        </button>
+                        <button class="sr-dropdown-period-btn active" id="btn-sr-period-all" onclick="setSRPeriod('all')" title="All Month (1,2,3,4) Confluence: Supreme barrier confluence across all 4 months" style="grid-column: span 2;">
+                            👑 All Month (1,2,3,4) <span class="sr-sub-txt">Supreme 4-Month Confluence</span>
                         </button>
                     </div>
                     <div class="sr-info-tip" id="sr-dropdown-info">
-                        💡 <b>1M+2M Confluence:</b> Evaluates both 1-month swing pivots and 2-month institutional barriers.
+                        👑 <b>All Month (1,2,3,4) Confluence:</b> Maximum multi-month institutional barrier confluence across all 4 months.
                     </div>
                 </div>
             </div>
@@ -6189,10 +6203,10 @@
             }
         }
 
-        // Auto Support & Resistance levels from rolling 1-Month (20d) and 2-Month (45d) datasets
+        // Auto Support & Resistance levels from rolling 2M, 4M, 1&2M, 1,2,3M, and All 4M datasets
         let isSREnabled = false;
-        let currentSRPeriod = '1m'; // '1m', '2m', or 'combined'
-        let srLevelsData = { '1m': [], '2m': [], 'combined': [] };
+        let currentSRPeriod = 'all'; // '2m', '4m', '1_2m', '1_2_3m', 'all'
+        let srLevelsData = { '2m': [], '4m': [], '1_2m': [], '1_2_3m': [], 'all': [], 'combined': [], '1m': [] };
 
         async function toggleSRLevels() {
             isSREnabled = !isSREnabled;
@@ -6229,22 +6243,49 @@
         function updateSRButtonUI() {
             const btn = document.getElementById('btn-sr-toggle');
             const toolBtn = document.getElementById('tool-sr-toggle');
-            const btn1m = document.getElementById('btn-sr-period-1m');
             const btn2m = document.getElementById('btn-sr-period-2m');
-            const btnComb = document.getElementById('btn-sr-period-comb');
+            const btn4m = document.getElementById('btn-sr-period-4m');
+            const btn1_2m = document.getElementById('btn-sr-period-1-2m');
+            const btn1_2_3m = document.getElementById('btn-sr-period-1-2-3m');
+            const btnAll = document.getElementById('btn-sr-period-all');
             const chkSr = document.getElementById('chk-sr-master');
             const srDropLabel = document.getElementById('sr-dropdown-label');
             const srDropBtn = document.getElementById('btn-sr-dropdown');
+            const infoTip = document.getElementById('sr-dropdown-info');
 
             if (chkSr) chkSr.checked = isSREnabled && currentTimeframe === '5m';
 
-            if (btn1m && btn2m) {
-                btn1m.classList.toggle('active', currentSRPeriod === '1m');
-                btn2m.classList.toggle('active', currentSRPeriod === '2m');
-                if (btnComb) btnComb.classList.toggle('active', currentSRPeriod === 'combined');
-            }
+            if (btn2m) btn2m.classList.toggle('active', currentSRPeriod === '2m');
+            if (btn4m) btn4m.classList.toggle('active', currentSRPeriod === '4m');
+            if (btn1_2m) btn1_2m.classList.toggle('active', currentSRPeriod === '1_2m' || currentSRPeriod === '1m+2m');
+            if (btn1_2_3m) btn1_2_3m.classList.toggle('active', currentSRPeriod === '1_2_3m');
+            if (btnAll) btnAll.classList.toggle('active', currentSRPeriod === 'all' || currentSRPeriod === 'combined');
 
-            const periodLabel = currentSRPeriod === 'combined' ? '1M+2M' : (currentSRPeriod === '2m' ? '2M' : '1M');
+            const periodLabelMap = {
+                '2m': '2M',
+                '4m': '4M',
+                '1_2m': '1&2M',
+                '1m+2m': '1&2M',
+                '1_2_3m': '1,2,3M',
+                'all': 'All 4M',
+                'combined': 'All 4M',
+                '1m': '1M'
+            };
+            const periodLabel = periodLabelMap[currentSRPeriod] || 'All 4M';
+
+            if (infoTip) {
+                if (currentSRPeriod === '2m') {
+                    infoTip.innerHTML = '📊 <b>2 Month Intermediate:</b> 45-day institutional swing pivots and barrier levels.';
+                } else if (currentSRPeriod === '4m') {
+                    infoTip.innerHTML = '🏛️ <b>4 Month Macro:</b> Long-term major supply/demand zones and multi-month flip barriers.';
+                } else if (currentSRPeriod === '1_2m' || currentSRPeriod === '1m+2m') {
+                    infoTip.innerHTML = '⚔️ <b>1&2 Month Confluence:</b> High-probability overlap between 1-month swing and 2-month institutional levels.';
+                } else if (currentSRPeriod === '1_2_3m') {
+                    infoTip.innerHTML = '🛡️ <b>1,2,3 Month Confluence:</b> Multi-horizon barriers aligned across 1, 2, and 3 months.';
+                } else {
+                    infoTip.innerHTML = '👑 <b>All Month (1,2,3,4) Confluence:</b> Maximum institutional barrier confluence across all 4 months.';
+                }
+            }
 
             if (srDropLabel) {
                 if (currentTimeframe === '5m') {
@@ -6284,9 +6325,15 @@
                     const data = await res.json();
                     if (data) {
                         lastSRMeta = data;
-                        if (Array.isArray(data.levels_1m)) srLevelsData['1m'] = data.levels_1m;
                         if (Array.isArray(data.levels_2m)) srLevelsData['2m'] = data.levels_2m;
-                        if (Array.isArray(data.levels_combined)) srLevelsData['combined'] = data.levels_combined;
+                        if (Array.isArray(data.levels_4m)) srLevelsData['4m'] = data.levels_4m;
+                        if (Array.isArray(data.levels_1_2m)) srLevelsData['1_2m'] = data.levels_1_2m;
+                        if (Array.isArray(data.levels_1_2_3m)) srLevelsData['1_2_3m'] = data.levels_1_2_3m;
+                        if (Array.isArray(data.levels_all)) {
+                            srLevelsData['all'] = data.levels_all;
+                            srLevelsData['combined'] = data.levels_all;
+                        }
+                        if (Array.isArray(data.levels_1m)) srLevelsData['1m'] = data.levels_1m;
                         if (Array.isArray(data.levels)) {
                             srLevelsData[data.period || currentSRPeriod] = data.levels;
                         }
@@ -12369,7 +12416,7 @@ function showIndicatorLineActionPill(ind, point) {
 
         function renderSRLevels(overlay) {
             if (!isSREnabled || currentTimeframe !== '5m') return;
-            const levels = srLevelsData[currentSRPeriod] || srLevelsData['2m'] || srLevelsData['1m'] || [];
+            const levels = srLevelsData[currentSRPeriod] || srLevelsData['all'] || srLevelsData['combined'] || srLevelsData['2m'] || srLevelsData['4m'] || [];
             if (!Array.isArray(levels) || levels.length === 0) return;
 
             const chartContainer = document.getElementById('chart-container');
