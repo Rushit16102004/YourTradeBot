@@ -3684,7 +3684,7 @@
             height: 100%;
             width: 100%;
             background: linear-gradient(90deg, #38bdf8, #818cf8, #a855f7);
-            animation: toastProgressCountdown 5s linear forwards;
+            animation: toastProgressCountdown 2s linear forwards;
         }
 
         @media (max-width: 600px) {
@@ -4320,6 +4320,140 @@
             background: #ef4444;
             transform: translateY(-1px);
             box-shadow: 0 6px 18px rgba(220, 38, 38, 0.6);
+        }
+
+        /* ══════════════════════════════════════════════════════════ */
+        /* 📱 ULTRA-RESPONSIVE SETTINGS VIEW FOR MOBILE / PHONE SCREENS */
+        /* ══════════════════════════════════════════════════════════ */
+        @media (max-width: 768px) {
+            .settings-modal-overlay {
+                padding: 0 !important;
+                align-items: flex-end !important; /* Bottom-sheet sheet UX on phones */
+            }
+            .settings-modal-container {
+                width: 100% !important;
+                max-width: 100vw !important;
+                height: 94vh !important;
+                max-height: 94vh !important;
+                border-radius: 18px 18px 0 0 !important;
+                border-bottom: none !important;
+                box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.9) !important;
+            }
+            .settings-modal-header {
+                padding: 12px 16px !important;
+            }
+            .settings-modal-title {
+                font-size: 14px !important;
+            }
+            .settings-modal-close {
+                padding: 6px 12px !important;
+                font-size: 20px !important;
+            }
+            .settings-modal-layout {
+                flex-direction: column !important; /* Stack horizontal tab pills above content */
+                min-height: 0 !important;
+                max-height: none !important;
+                flex: 1 !important;
+                overflow: hidden !important;
+            }
+            .settings-dept-sidebar {
+                width: 100% !important;
+                flex-direction: row !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                padding: 8px 12px !important;
+                gap: 6px !important;
+                border-right: none !important;
+                border-bottom: 1px solid #1e293b !important;
+                background: #080d1a !important;
+                flex-shrink: 0 !important;
+                white-space: nowrap !important;
+                scrollbar-width: none !important; /* Firefox */
+            }
+            .settings-dept-sidebar::-webkit-scrollbar {
+                display: none !important; /* Chrome / Safari */
+            }
+            .settings-dept-btn {
+                flex: 0 0 auto !important;
+                width: auto !important;
+                padding: 7px 12px !important;
+                font-size: 12px !important;
+                border-radius: 20px !important;
+                border: 1px solid #1e293b !important;
+                background: #0e1626 !important;
+                gap: 6px !important;
+                box-shadow: none !important;
+            }
+            .settings-dept-btn.active {
+                background: #1e3a8a !important;
+                border-color: #38bdf8 !important;
+                color: #ffffff !important;
+                box-shadow: 0 2px 8px rgba(56, 189, 248, 0.3) !important;
+            }
+            .settings-dept-content {
+                padding: 14px 12px !important;
+                flex: 1 !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
+            .settings-section-card {
+                padding: 12px 14px !important;
+                gap: 10px !important;
+            }
+            .settings-item-row {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 8px !important;
+            }
+            .settings-item-row > div:last-child,
+            .settings-item-row > label.modern-switch-wrap,
+            .settings-item-row > select,
+            .settings-item-row > .settings-color-input-wrap {
+                align-self: flex-start !important;
+            }
+            .settings-preset-pills {
+                gap: 4px !important;
+            }
+            .settings-preset-btn {
+                padding: 3px 8px !important;
+                font-size: 10.5px !important;
+            }
+            .logout-danger-card {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 12px !important;
+            }
+            .btn-logout-prominent {
+                width: 100% !important;
+                justify-content: center !important;
+            }
+            .settings-modal-footer {
+                padding: 10px 14px !important;
+                gap: 8px !important;
+            }
+            .settings-btn-save,
+            .settings-btn-close,
+            .settings-btn-reset {
+                font-size: 11.5px !important;
+                padding: 8px 12px !important;
+            }
+            /* Profile grid responsive on small screens */
+            #dept-pane-profile div[style*="grid-template-columns"] {
+                grid-template-columns: 1fr !important;
+                gap: 8px !important;
+            }
+            /* Developer contact row wrap on small phones */
+            #dept-pane-developer div[style*="justify-content: space-between"] {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 8px !important;
+            }
+            #dept-pane-developer div[style*="justify-content: space-between"] > div:last-child,
+            #dept-pane-developer div[style*="justify-content: space-between"] > button {
+                align-self: stretch !important;
+                display: flex !important;
+                justify-content: flex-start !important;
+            }
         }
 </style>
 
@@ -5754,6 +5888,7 @@
             if (vwapLower2Series) vwapLower2Series.applyOptions({ visible: isBandsEnabled });
             updateIndicatorButtonsUI();
             saveCurrentUserPreferences();
+            setTimeout(() => { closeAllDropdowns(); }, 120);
         }
 
         function toggleVWAPBands() {
@@ -5762,6 +5897,7 @@
             if (vwapLower2Series) vwapLower2Series.applyOptions({ visible: isBandsEnabled });
             updateIndicatorButtonsUI();
             saveCurrentUserPreferences();
+            setTimeout(() => { closeAllDropdowns(); }, 120);
         }
 
         function toggleSMA() {
@@ -5769,6 +5905,7 @@
             if (smaSeries) smaSeries.applyOptions({ visible: isSMAEnabled });
             updateIndicatorButtonsUI();
             saveCurrentUserPreferences();
+            setTimeout(() => { closeAllDropdowns(); }, 120);
         }
 
         function updateIndicatorButtonsUI() {
@@ -6023,6 +6160,7 @@
             }
             
             saveCurrentUserPreferences();
+            setTimeout(() => { closeAllDropdowns(); }, 120);
         }
 
         function updateSignalsButtonUI() {
@@ -6069,6 +6207,7 @@
                 scheduleRenderDrawings();
             }
             saveCurrentUserPreferences();
+            setTimeout(() => { closeAllDropdowns(); }, 120);
         }
 
         async function setSRPeriod(period) {
@@ -6082,6 +6221,7 @@
                 }
             }
             saveCurrentUserPreferences();
+            setTimeout(() => { closeAllDropdowns(); }, 120);
         }
 
         let lastSRMeta = null;
@@ -9356,6 +9496,8 @@ function showIndicatorLineActionPill(ind, point) {
                     });
                 } catch(e) {}
             }
+            // Auto-collapse dropdown menu immediately upon indicator selection / activation
+            setTimeout(() => { closeAllDropdowns(); }, 120);
         }
 
         function syncIndicatorUIDropdown() {
@@ -15424,12 +15566,12 @@ function showIndicatorLineActionPill(ind, point) {
             toast.style.display = 'block';
             toast.style.animation = 'toastSlideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards';
 
-            // Reset countdown progress bar animation to exactly 5 seconds
+            // Reset countdown progress bar animation to exactly 2 seconds
             const bar = document.getElementById('screen-toast-progress-bar');
             if (bar) {
                 bar.style.animation = 'none';
                 void bar.offsetWidth; // trigger reflow
-                bar.style.animation = 'toastProgressCountdown 5s linear forwards';
+                bar.style.animation = 'toastProgressCountdown 2s linear forwards';
             }
 
             // Clear any prior timer
@@ -15438,10 +15580,10 @@ function showIndicatorLineActionPill(ind, point) {
                 window._screenToastTimer = null;
             }
 
-            // Auto-dismiss after exactly 5 seconds (5000ms)
+            // Auto-dismiss after exactly 2 seconds (2000ms)
             window._screenToastTimer = setTimeout(() => {
                 dismissScreenRecommendationToast();
-            }, 5000);
+            }, 2000);
         }
 
         function dismissScreenRecommendationToast() {
