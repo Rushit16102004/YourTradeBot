@@ -5429,6 +5429,12 @@
                     <circle cx="12" cy="12" r="3"></circle>
                 </svg>
             </button>
+            <button class="tool-btn" id="tool-undo" data-tooltip="Undo Drawing (Ctrl+Z) - Up to 5 Steps" onclick="undoDrawingAction()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="1 4 1 10 7 10"></polyline>
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                </svg>
+            </button>
             <button class="tool-btn" id="tool-clear" data-tooltip="Clear All Drawings" onclick="clearAllDrawings()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="3 6 5 6 21 6"></polyline>
@@ -12263,6 +12269,7 @@ function showIndicatorLineActionPill(ind, point) {
                     } else if (activeTool === 'ray') {
                         const id = 'shape_' + Date.now();
                         const newShape = { id, type: 'ray', time1: time, price1: price, color: '#f59e0b', width: 2, remark: '' };
+                        recordCurrentDrawingUndoState();
                         drawings.push(newShape);
                         saveDrawings();
                         renderAllDrawings();
@@ -12272,6 +12279,7 @@ function showIndicatorLineActionPill(ind, point) {
                     } else if (activeTool === 'vline') {
                         const id = 'shape_' + Date.now();
                         const newShape = { id, type: 'vline', time1: time, price1: price, color: '#a855f7', width: 1.5, remark: '' };
+                        recordCurrentDrawingUndoState();
                         drawings.push(newShape);
                         saveDrawings();
                         renderAllDrawings();
@@ -12283,6 +12291,7 @@ function showIndicatorLineActionPill(ind, point) {
                         const note = prompt("Enter note text for this candle/level:", "Key Confluence Level");
                         if (note) {
                             const newShape = { id, type: 'text', time1: time, price1: price, text: note, color: '#38bdf8' };
+                            recordCurrentDrawingUndoState();
                             drawings.push(newShape);
                             saveDrawings();
                             renderAllDrawings();
@@ -12356,6 +12365,7 @@ function showIndicatorLineActionPill(ind, point) {
                     }
 
                     if (newShape) {
+                        recordCurrentDrawingUndoState();
                         drawings.push(newShape);
                         saveDrawings();
                         openPropertiesPanel(newShape.id, true);
@@ -12420,6 +12430,7 @@ function showIndicatorLineActionPill(ind, point) {
                             width: 2.5,
                             remark: 'Freehand Drawing'
                         };
+                        recordCurrentDrawingUndoState();
                         drawings.push(newPencilShape);
                         saveDrawings();
                         createdShape = newPencilShape;
@@ -12468,6 +12479,7 @@ function showIndicatorLineActionPill(ind, point) {
                 color: '#2962ff',
                 remark: 'Trade Setup'
             };
+            recordCurrentDrawingUndoState();
             drawings.push(box);
             saveDrawings();
             renderAllDrawings();
@@ -12917,6 +12929,47 @@ function showIndicatorLineActionPill(ind, point) {
 
         // ========================================================
         // 🎯 CONTROL HANDLES & REPOSITIONING DRAG ENGINE
+        // ========================================================
+        // ↩️ DRAWING UNDO ENGINE (Up to 5 steps back with Ctrl+Z)
+        // ========================================================
+        const MAX_DRAWING_UNDO_STEPS = 5;
+        let drawingUndoStack = [];
+        let preDragDrawingsSnapshot = null;
+
+        function pushDrawingUndoSnapshot(snapshot) {
+            if (!snapshot || !Array.isArray(snapshot)) return;
+            try {
+                const snapStr = safeJSONStringify(snapshot);
+                if (drawingUndoStack.length > 0) {
+                    const topStr = safeJSONStringify(drawingUndoStack[drawingUndoStack.length - 1]);
+                    if (snapStr === topStr) return; // Ignore identical state
+                }
+                drawingUndoStack.push(JSON.parse(snapStr));
+                if (drawingUndoStack.length > MAX_DRAWING_UNDO_STEPS) {
+                    drawingUndoStack.shift(); // Strictly retain last 5 steps back
+                }
+            } catch(e) {}
+        }
+
+        function recordCurrentDrawingUndoState() {
+            pushDrawingUndoSnapshot(JSON.parse(safeJSONStringify(drawings || [])));
+        }
+
+        function undoDrawingAction() {
+            if (!drawingUndoStack || drawingUndoStack.length === 0) {
+                showToast("ℹ️ Nothing to undo (0/5 steps in drawing history)");
+                return;
+            }
+            const previousState = drawingUndoStack.pop();
+            drawings = JSON.parse(safeJSONStringify(previousState));
+            selectedShapeId = null;
+            closePropertiesPanel();
+            hideShapeActionPill();
+            saveDrawings();
+            renderAllDrawings();
+            showToast(`↩️ Undo: Restored previous drawing state (${drawingUndoStack.length}/${MAX_DRAWING_UNDO_STEPS} steps remaining)`);
+        }
+
         function createHandle(cx, cy, color, cursor, onDragFn) {
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             g.style.cursor = cursor || 'pointer';
@@ -12966,9 +13019,11 @@ function showIndicatorLineActionPill(ind, point) {
         function startHandleDrag(e, onDragCallback) {
             if (e.cancelable) e.preventDefault();
             e.stopPropagation();
+            preDragDrawingsSnapshot = JSON.parse(safeJSONStringify(drawings || []));
             draggingState = {
                 type: 'handle',
-                onDrag: onDragCallback
+                onDrag: onDragCallback,
+                hasActuallyMoved: false
             };
         }
 
@@ -13962,6 +14017,47 @@ function showIndicatorLineActionPill(ind, point) {
         // 🎯 CONTROL HANDLES & REPOSITIONING DRAG ENGINE
         // ========================================================
 
+        // ========================================================
+        // ↩️ DRAWING UNDO ENGINE (Up to 5 steps back with Ctrl+Z)
+        // ========================================================
+        const MAX_DRAWING_UNDO_STEPS = 5;
+        let drawingUndoStack = [];
+        let preDragDrawingsSnapshot = null;
+
+        function pushDrawingUndoSnapshot(snapshot) {
+            if (!snapshot || !Array.isArray(snapshot)) return;
+            try {
+                const snapStr = safeJSONStringify(snapshot);
+                if (drawingUndoStack.length > 0) {
+                    const topStr = safeJSONStringify(drawingUndoStack[drawingUndoStack.length - 1]);
+                    if (snapStr === topStr) return; // Ignore identical state
+                }
+                drawingUndoStack.push(JSON.parse(snapStr));
+                if (drawingUndoStack.length > MAX_DRAWING_UNDO_STEPS) {
+                    drawingUndoStack.shift(); // Strictly retain last 5 steps back
+                }
+            } catch(e) {}
+        }
+
+        function recordCurrentDrawingUndoState() {
+            pushDrawingUndoSnapshot(JSON.parse(safeJSONStringify(drawings || [])));
+        }
+
+        function undoDrawingAction() {
+            if (!drawingUndoStack || drawingUndoStack.length === 0) {
+                showToast("ℹ️ Nothing to undo (0/5 steps in drawing history)");
+                return;
+            }
+            const previousState = drawingUndoStack.pop();
+            drawings = JSON.parse(safeJSONStringify(previousState));
+            selectedShapeId = null;
+            closePropertiesPanel();
+            hideShapeActionPill();
+            saveDrawings();
+            renderAllDrawings();
+            showToast(`↩️ Undo: Restored previous drawing state (${drawingUndoStack.length}/${MAX_DRAWING_UNDO_STEPS} steps remaining)`);
+        }
+
         function createHandle(cx, cy, color, cursor, onDragFn) {
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             g.style.cursor = cursor;
@@ -14018,16 +14114,19 @@ function showIndicatorLineActionPill(ind, point) {
             const startX = clientX - rect.left;
             const startY = clientY - rect.top;
 
+            preDragDrawingsSnapshot = JSON.parse(safeJSONStringify(drawings || []));
             draggingState = {
                 type: 'reposition',
                 shape: d,
                 startX, startY,
-                snapshot: JSON.parse(JSON.stringify(d))
+                snapshot: JSON.parse(JSON.stringify(d)),
+                hasActuallyMoved: false
             };
         }
 
         function processDragMove(clientX, clientY) {
             if (!draggingState) return;
+            draggingState.hasActuallyMoved = true;
             const overlay = document.getElementById('drawing-overlay');
             if (!overlay) return;
             const rect = overlay.getBoundingClientRect();
@@ -14119,6 +14218,10 @@ function showIndicatorLineActionPill(ind, point) {
 
             const endDrag = () => {
                 if (draggingState) {
+                    if (draggingState.hasActuallyMoved && preDragDrawingsSnapshot) {
+                        pushDrawingUndoSnapshot(preDragDrawingsSnapshot);
+                    }
+                    preDragDrawingsSnapshot = null;
                     saveDrawings();
                     draggingState = null;
                     if (activeTool === 'select') {
@@ -14131,6 +14234,18 @@ function showIndicatorLineActionPill(ind, point) {
             window.addEventListener('mouseup', endDrag);
             window.addEventListener('touchend', endDrag);
             window.addEventListener('touchcancel', endDrag);
+
+            // Global Ctrl+Z (Undo) Shortcut for drawings
+            window.addEventListener('keydown', (e) => {
+                const targetTag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+                if (targetTag === 'input' || targetTag === 'textarea' || (e.target && e.target.isContentEditable)) {
+                    return; // Allow native input undo
+                }
+                if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z') && !e.shiftKey) {
+                    e.preventDefault();
+                    undoDrawingAction();
+                }
+            });
         }
 
         function renderLabel(x, y, text, color, parent) {
@@ -14542,7 +14657,8 @@ function showIndicatorLineActionPill(ind, point) {
 
         function changeSelectedColor(color) {
             const shape = drawings.find(d => d.id === selectedShapeId);
-            if (shape) {
+            if (shape && shape.color !== color) {
+                recordCurrentDrawingUndoState();
                 shape.color = color;
                 saveDrawings();
                 renderAllDrawings();
@@ -14560,6 +14676,7 @@ function showIndicatorLineActionPill(ind, point) {
 
         function deleteSelectedShape() {
             if (!selectedShapeId) return;
+            recordCurrentDrawingUndoState();
             const delId = selectedShapeId;
             drawings = drawings.filter(d => d.id !== delId);
             closePropertiesPanel();
@@ -14595,6 +14712,7 @@ function showIndicatorLineActionPill(ind, point) {
 
         function clearAllDrawings() {
             if (confirm("Clear all lines, arrows, arcs, zones, and risk-reward boxes?")) {
+                recordCurrentDrawingUndoState();
                 drawings = [];
                 pencilStrokes = [];
                 const canvas = document.getElementById('pencil-canvas');

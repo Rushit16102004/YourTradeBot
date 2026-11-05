@@ -1,0 +1,479 @@
+{
+  "last_sync_ist": "2026-11-05T13:34:48.219770+05:30",
+  "source": "https://archives.nseindia.com/content/indices/ind_nifty50list.csv",
+  "total_count": 50,
+  "symbols": [
+    "ADANIENT",
+    "ADANIPORTS",
+    "APOLLOHOSP",
+    "ASIANPAINT",
+    "AXISBANK",
+    "BAJAJ-AUTO",
+    "BAJAJFINSV",
+    "BAJFINANCE",
+    "BEL",
+    "BHARTIARTL",
+    "BSE",
+    "CIPLA",
+    "COALINDIA",
+    "DRREDDY",
+    "EICHERMOT",
+    "ETERNAL",
+    "GRASIM",
+    "HCLTECH",
+    "HDFCBANK",
+    "HDFCLIFE",
+    "HINDALCO",
+    "HINDUNILVR",
+    "ICICIBANK",
+    "INDIGO",
+    "INFY",
+    "ITC",
+    "JIOFIN",
+    "JSWSTEEL",
+    "KOTAKBANK",
+    "LT",
+    "M&M",
+    "MARUTI",
+    "MAXHEALTH",
+    "NESTLEIND",
+    "NTPC",
+    "ONGC",
+    "POWERGRID",
+    "RELIANCE",
+    "SBILIFE",
+    "SBIN",
+    "SHRIRAMFIN",
+    "SUNPHARMA",
+    "TATACONSUM",
+    "TATASTEEL",
+    "TCS",
+    "TECHM",
+    "TITAN",
+    "TMPV",
+    "TRENT",
+    "ULTRACEMCO"
+  ],
+  "tickers": [
+    "ADANIENT.NS",
+    "ADANIPORTS.NS",
+    "APOLLOHOSP.NS",
+    "ASIANPAINT.NS",
+    "AXISBANK.NS",
+    "BAJAJ-AUTO.NS",
+    "BAJAJFINSV.NS",
+    "BAJFINANCE.NS",
+    "BEL.NS",
+    "BHARTIARTL.NS",
+    "BSE.NS",
+    "CIPLA.NS",
+    "COALINDIA.NS",
+    "DRREDDY.NS",
+    "EICHERMOT.NS",
+    "ETERNAL.NS",
+    "GRASIM.NS",
+    "HCLTECH.NS",
+    "HDFCBANK.NS",
+    "HDFCLIFE.NS",
+    "HINDALCO.NS",
+    "HINDUNILVR.NS",
+    "ICICIBANK.NS",
+    "INDIGO.NS",
+    "INFY.NS",
+    "ITC.NS",
+    "JIOFIN.NS",
+    "JSWSTEEL.NS",
+    "KOTAKBANK.NS",
+    "LT.NS",
+    "M&M.NS",
+    "MARUTI.NS",
+    "MAXHEALTH.NS",
+    "NESTLEIND.NS",
+    "NTPC.NS",
+    "ONGC.NS",
+    "POWERGRID.NS",
+    "RELIANCE.NS",
+    "SBILIFE.NS",
+    "SBIN.NS",
+    "SHRIRAMFIN.NS",
+    "SUNPHARMA.NS",
+    "TATACONSUM.NS",
+    "TATASTEEL.NS",
+    "TCS.NS",
+    "TECHM.NS",
+    "TITAN.NS",
+    "TMPV.NS",
+    "TRENT.NS",
+    "ULTRACEMCO.NS"
+  ],
+  "constituents": [
+    {
+      "symbol": "ADANIENT",
+      "company": "Adani Enterprises Ltd.",
+      "industry": "Metals & Mining",
+      "isin": "INE423A01024",
+      "ticker": "ADANIENT.NS"
+    },
+    {
+      "symbol": "ADANIPORTS",
+      "company": "Adani Ports and Special Economic Zone Ltd.",
+      "industry": "Services",
+      "isin": "INE742F01042",
+      "ticker": "ADANIPORTS.NS"
+    },
+    {
+      "symbol": "APOLLOHOSP",
+      "company": "Apollo Hospitals Enterprise Ltd.",
+      "industry": "Healthcare",
+      "isin": "INE437A01024",
+      "ticker": "APOLLOHOSP.NS"
+    },
+    {
+      "symbol": "ASIANPAINT",
+      "company": "Asian Paints Ltd.",
+      "industry": "Consumer Durables",
+      "isin": "INE021A01026",
+      "ticker": "ASIANPAINT.NS"
+    },
+    {
+      "symbol": "AXISBANK",
+      "company": "Axis Bank Ltd.",
+      "industry": "Financial Services",
+      "isin": "INE238A01034",
+      "ticker": "AXISBANK.NS"
+    },
+    {
+      "symbol": "BSE",
+      "company": "BSE Ltd.",
+      "industry": "Financial Services",
+      "isin": "INE118H01025",
+      "ticker": "BSE.NS"
+    },
+    {
+      "symbol": "BAJAJ-AUTO",
+      "company": "Bajaj Auto Ltd.",
+      "industry": "Automobile and Auto Components",
+      "isin": "INE917I01010",
+      "ticker": "BAJAJ-AUTO.NS"
+    },
+    {
+      "symbol": "BAJFINANCE",
+      "company": "Bajaj Finance Ltd.",
+      "industry": "Financial Services",
+      "isin": "INE296A01032",
+      "ticker": "BAJFINANCE.NS"
+    },
+    {
+      "symbol": "BAJAJFINSV",
+      "company": "Bajaj Finserv Ltd.",
+      "industry": "Financial Services",
+      "isin": "INE918I01026",
+      "ticker": "BAJAJFINSV.NS"
+    },
+    {
+      "symbol": "BEL",
+      "company": "Bharat Electronics Ltd.",
+      "industry": "Capital Goods",
+      "isin": "INE263A01024",
+      "ticker": "BEL.NS"
+    },
+    {
+      "symbol": "BHARTIARTL",
+      "company": "Bharti Airtel Ltd.",
+      "industry": "Telecommunication",
+      "isin": "INE397D01024",
+      "ticker": "BHARTIARTL.NS"
+    },
+    {
+      "symbol": "CIPLA",
+      "company": "Cipla Ltd.",
+      "industry": "Healthcare",
+      "isin": "INE059A01026",
+      "ticker": "CIPLA.NS"
+    },
+    {
+      "symbol": "COALINDIA",
+      "company": "Coal India Ltd.",
+      "industry": "Oil Gas & Consumable Fuels",
+      "isin": "INE522F01014",
+      "ticker": "COALINDIA.NS"
+    },
+    {
+      "symbol": "DRREDDY",
+      "company": "Dr. Reddy's Laboratories Ltd.",
+      "industry": "Healthcare",
+      "isin": "INE089A01031",
+      "ticker": "DRREDDY.NS"
+    },
+    {
+      "symbol": "EICHERMOT",
+      "company": "Eicher Motors Ltd.",
+      "industry": "Automobile and Auto Components",
+      "isin": "INE066A01021",
+      "ticker": "EICHERMOT.NS"
+    },
+    {
+      "symbol": "ETERNAL",
+      "company": "Eternal Ltd.",
+      "industry": "Consumer Services",
+      "isin": "INE758T01015",
+      "ticker": "ETERNAL.NS"
+    },
+    {
+      "symbol": "GRASIM",
+      "company": "Grasim Industries Ltd.",
+      "industry": "Construction Materials",
+      "isin": "INE047A01021",
+      "ticker": "GRASIM.NS"
+    },
+    {
+      "symbol": "HCLTECH",
+      "company": "HCL Technologies Ltd.",
+      "industry": "Information Technology",
+      "isin": "INE860A01027",
+      "ticker": "HCLTECH.NS"
+    },
+    {
+      "symbol": "HDFCBANK",
+      "company": "HDFC Bank Ltd.",
+      "industry": "Financial Services",
+      "isin": "INE040A01034",
+      "ticker": "HDFCBANK.NS"
+    },
+    {
+      "symbol": "HDFCLIFE",
+      "company": "HDFC Life Insurance Company Ltd.",
+      "industry": "Financial Services",
+      "isin": "INE795G01014",
+      "ticker": "HDFCLIFE.NS"
+    },
+    {
+      "symbol": "HINDALCO",
+      "company": "Hindalco Industries Ltd.",
+      "industry": "Metals & Mining",
+      "isin": "INE038A01020",
+      "ticker": "HINDALCO.NS"
+    },
+    {
+      "symbol": "HINDUNILVR",
+      "company": "Hindustan Unilever Ltd.",
+      "industry": "Fast Moving Consumer Goods",
+      "isin": "INE030A01027",
+      "ticker": "HINDUNILVR.NS"
+    },
+    {
+      "symbol": "ICICIBANK",
+      "company": "ICICI Bank Ltd.",
+      "industry": "Financial Services",
+      "isin": "INE090A01021",
+      "ticker": "ICICIBANK.NS"
+    },
+    {
+      "symbol": "ITC",
+      "company": "ITC Ltd.",
+      "industry": "Fast Moving Consumer Goods",
+      "isin": "INE154A01025",
+      "ticker": "ITC.NS"
+    },
+    {
+      "symbol": "INFY",
+      "company": "Infosys Ltd.",
+      "industry": "Information Technology",
+      "isin": "INE009A01021",
+      "ticker": "INFY.NS"
+    },
+    {
+      "symbol": "INDIGO",
+      "company": "InterGlobe Aviation Ltd.",
+      "industry": "Services",
+      "isin": "INE646L01027",
+      "ticker": "INDIGO.NS"
+    },
+    {
+      "symbol": "JSWSTEEL",
+      "company": "JSW Steel Ltd.",
+      "industry": "Metals & Mining",
+      "isin": "INE019A01038",
+      "ticker": "JSWSTEEL.NS"
+    },
+    {
+      "symbol": "JIOFIN",
+      "company": "Jio Financial Services Ltd.",
+      "industry": "Financial Services",
+      "isin": "INE758E01017",
+      "ticker": "JIOFIN.NS"
+    },
+    {
+      "symbol": "KOTAKBANK",
+      "company": "Kotak Mahindra Bank Ltd.",
+      "industry": "Financial Services",
+      "isin": "INE237A01036",
+      "ticker": "KOTAKBANK.NS"
+    },
+    {
+      "symbol": "LT",
+      "company": "Larsen & Toubro Ltd.",
+      "industry": "Construction",
+      "isin": "INE018A01030",
+      "ticker": "LT.NS"
+    },
+    {
+      "symbol": "M&M",
+      "company": "Mahindra & Mahindra Ltd.",
+      "industry": "Automobile and Auto Components",
+      "isin": "INE101A01026",
+      "ticker": "M&M.NS"
+    },
+    {
+      "symbol": "MARUTI",
+      "company": "Maruti Suzuki India Ltd.",
+      "industry": "Automobile and Auto Components",
+      "isin": "INE585B01010",
+      "ticker": "MARUTI.NS"
+    },
+    {
+      "symbol": "MAXHEALTH",
+      "company": "Max Healthcare Institute Ltd.",
+      "industry": "Healthcare",
+      "isin": "INE027H01010",
+      "ticker": "MAXHEALTH.NS"
+    },
+    {
+      "symbol": "NTPC",
+      "company": "NTPC Ltd.",
+      "industry": "Power",
+      "isin": "INE733E01010",
+      "ticker": "NTPC.NS"
+    },
+    {
+      "symbol": "NESTLEIND",
+      "company": "Nestle India Ltd.",
+      "industry": "Fast Moving Consumer Goods",
+      "isin": "INE239A01024",
+      "ticker": "NESTLEIND.NS"
+    },
+    {
+      "symbol": "ONGC",
+      "company": "Oil & Natural Gas Corporation Ltd.",
+      "industry": "Oil Gas & Consumable Fuels",
+      "isin": "INE213A01029",
+      "ticker": "ONGC.NS"
+    },
+    {
+      "symbol": "POWERGRID",
+      "company": "Power Grid Corporation of India Ltd.",
+      "industry": "Power",
+      "isin": "INE752E01010",
+      "ticker": "POWERGRID.NS"
+    },
+    {
+      "symbol": "RELIANCE",
+      "company": "Reliance Industries Ltd.",
+      "industry": "Oil Gas & Consumable Fuels",
+      "isin": "INE002A01018",
+      "ticker": "RELIANCE.NS"
+    },
+    {
+      "symbol": "SBILIFE",
+      "company": "SBI Life Insurance Company Ltd.",
+      "industry": "Financial Services",
+      "isin": "INE123W01016",
+      "ticker": "SBILIFE.NS"
+    },
+    {
+      "symbol": "SHRIRAMFIN",
+      "company": "Shriram Finance Ltd.",
+      "industry": "Financial Services",
+      "isin": "INE721A01047",
+      "ticker": "SHRIRAMFIN.NS"
+    },
+    {
+      "symbol": "SBIN",
+      "company": "State Bank of India",
+      "industry": "Financial Services",
+      "isin": "INE062A01020",
+      "ticker": "SBIN.NS"
+    },
+    {
+      "symbol": "SUNPHARMA",
+      "company": "Sun Pharmaceutical Industries Ltd.",
+      "industry": "Healthcare",
+      "isin": "INE044A01036",
+      "ticker": "SUNPHARMA.NS"
+    },
+    {
+      "symbol": "TCS",
+      "company": "Tata Consultancy Services Ltd.",
+      "industry": "Information Technology",
+      "isin": "INE467B01029",
+      "ticker": "TCS.NS"
+    },
+    {
+      "symbol": "TATACONSUM",
+      "company": "Tata Consumer Products Ltd.",
+      "industry": "Fast Moving Consumer Goods",
+      "isin": "INE192A01025",
+      "ticker": "TATACONSUM.NS"
+    },
+    {
+      "symbol": "TMPV",
+      "company": "Tata Motors Passenger Vehicles Ltd.",
+      "industry": "Automobile and Auto Components",
+      "isin": "INE155A01022",
+      "ticker": "TMPV.NS"
+    },
+    {
+      "symbol": "TATASTEEL",
+      "company": "Tata Steel Ltd.",
+      "industry": "Metals & Mining",
+      "isin": "INE081A01020",
+      "ticker": "TATASTEEL.NS"
+    },
+    {
+      "symbol": "TECHM",
+      "company": "Tech Mahindra Ltd.",
+      "industry": "Information Technology",
+      "isin": "INE669C01036",
+      "ticker": "TECHM.NS"
+    },
+    {
+      "symbol": "TITAN",
+      "company": "Titan Company Ltd.",
+      "industry": "Consumer Durables",
+      "isin": "INE280A01028",
+      "ticker": "TITAN.NS"
+    },
+    {
+      "symbol": "TRENT",
+      "company": "Trent Ltd.",
+      "industry": "Consumer Services",
+      "isin": "INE849A01020",
+      "ticker": "TRENT.NS"
+    },
+    {
+      "symbol": "ULTRACEMCO",
+      "company": "UltraTech Cement Ltd.",
+      "industry": "Construction Materials",
+      "isin": "INE481G01011",
+      "ticker": "ULTRACEMCO.NS"
+    }
+  ],
+  "recent_changes": {
+    "last_checked": "2026-11-05T13:34:48.219770+05:30",
+    "added": [
+      "BSE",
+      "ETERNAL",
+      "INDIGO",
+      "JIOFIN",
+      "MAXHEALTH"
+    ],
+    "removed": [
+      "BPCL",
+      "BRITANNIA",
+      "HEROMOTOCO",
+      "INDUSINDBK",
+      "WIPRO"
+    ],
+    "note": "Verified against official NSE India index constituents."
+  }
+}

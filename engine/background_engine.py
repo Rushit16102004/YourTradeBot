@@ -346,6 +346,15 @@ class BackgroundTradingEngine:
                                 self.latest_vix = rv
                     except Exception:
                         pass
+
+                # Automated Weekly Sunday Check: Verify official NSE NIFTY 50 constituents
+                if tick_counter % 1800 == 0:  # Check once per hour
+                    try:
+                        from broker.nifty50_volume_aggregator import get_volume_aggregator
+                        get_volume_aggregator().sync_official_constituents_from_nse(force=False)
+                    except Exception as ex_nse_sync:
+                        logger.debug('Automated Sunday constituent check note: %s', ex_nse_sync)
+
                 if tick_counter % 2 == 0:
                     sess = get_market_session_info(now_ist)
                     quote = None

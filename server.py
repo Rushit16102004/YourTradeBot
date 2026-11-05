@@ -2098,6 +2098,21 @@ async def get_volume_constituents():
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+@app.post("/api/volume/sync-constituents")
+async def sync_volume_constituents():
+    """
+    Forces a live synchronization of NIFTY 50 constituent stocks directly from NSE India archives.
+    Automatically detects added/removed stocks and updates volume tracking.
+    """
+    try:
+        from broker.nifty50_volume_aggregator import get_volume_aggregator
+        agg = get_volume_aggregator()
+        result = agg.sync_official_constituents_from_nse(force=True)
+        return JSONResponse(content=result)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 
 # -------------------------------------------------------------
 # 📋 Copilot Query Review & Multi-User Audit Endpoints (HTML + JSON + CSV)
