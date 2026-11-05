@@ -997,15 +997,18 @@ async def api_admin_users(
     users = user_db.get_all_registered_users_admin()
     guests = user_db.get_all_guests_admin(limit=200)
     blocked = user_db.get_blocked_entities_admin()
+    feedbacks = user_db.get_all_feedback_admin(limit=200)
 
     if wants_json:
         return JSONResponse(content={
             "status": "ok",
             "users_count": len(users),
             "guests_count": len(guests),
+            "feedback_count": len(feedbacks),
             "users": users,
             "guests": guests,
-            "blocked": blocked
+            "blocked": blocked,
+            "feedbacks": feedbacks
         })
 
     html_content = admin_center.render_admin_command_center_html(
@@ -1013,9 +1016,131 @@ async def api_admin_users(
         guests=guests,
         blocked=blocked,
         admin_key=master_key or user_db.ADMIN_MASTER_KEY,
-        active_tab=tab
+        active_tab=tab,
+        feedbacks=feedbacks
     )
     return HTMLResponse(content=html_content)
+
+
+@app.post("/api/feedback")
+async def api_submit_feedback(request: Request, payload: dict = Body(...)):
+    """
+    Receives feedback / bug report / feature requests from both registered users and guests.
+    Stores messages in user_feedback SQLite table for developer review.
+    """
+    message = (payload.get("message") or "").strip()
+    if not message:
+        return JSONResponse(status_code=400, content={"error": "Message cannot be empty"})
+
+    client_ip = request.headers.get("x-forwarded-for") or (request.client.host if request.client else "127.0.0.1")
+    if "," in client_ip:
+        client_ip = client_ip.split(",")[0].strip()
+
+    user_id = "guest"
+    username = f"Guest ({client_ip})"
+    email = ""
+
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+        try:
+            token_data = user_db.decode_access_token(token)
+            if token_data and "sub" in token_data:
+                user = user_db.get_user_by_id(token_data["sub"])
+                if user:
+                    user_id = user["id"]
+                    username = user["username"]
+                    email = user.get("email", "")
+        except Exception:
+            pass
+
+    feedback_id = user_db.save_user_feedback(
+        user_id=user_id,
+        username=username,
+        email=email,
+        ip_address=client_ip,
+        message=message
+    )
+
+    try:
+        user_db.record_visitor_action(
+            visitor_id=user_id if user_id != "guest" else f"vis_{client_ip.replace('.', '_')}",
+            ip_address=client_ip,
+            action="submit_feedback",
+            details=f"Feedback #{feedback_id}: {message[:60]}"
+        )
+    except Exception:
+        pass
+
+    return JSONResponse(content={
+        "status": "ok",
+        "feedback_id": feedback_id,
+        "message": "Feedback submitted successfully"
+    })
+
+
+@app.get("/api/admin/feedback")
+async def api_admin_feedback(
+    request: Request,
+    admin_key: str = Query(""),
+    key: str = Query(""),
+    token: str = Query(""),
+    format: Optional[str] = Query(None)
+):
+    """Dedicated Admin endpoint to view all submitted user feedback and requests."""
+    u = get_current_user_from_request(request)
+    if not u and token:
+        u = user_db.decode_access_token(token)
+
+    master_key = (admin_key or key or "").strip()
+    is_master = (master_key == user_db.ADMIN_MASTER_KEY)
+    is_admin_user = bool(u and u.get("role") == "admin")
+
+    wants_json = (format == "json") or (request.headers.get("x-requested-with") == "XMLHttpRequest")
+
+    if not is_master and not is_admin_user:
+        if not wants_json:
+            return HTMLResponse(content=render_copilot_admin_auth_html(error="Please enter your Admin Master Key to view User Feedback."))
+        return JSONResponse(status_code=403, content={"status": "error", "message": "Unauthorized: Admin Master Key required."})
+
+    users = user_db.get_all_registered_users_admin()
+    guests = user_db.get_all_guests_admin(limit=200)
+    blocked = user_db.get_blocked_entities_admin()
+    feedbacks = user_db.get_all_feedback_admin(limit=200)
+
+    if wants_json:
+        return JSONResponse(content={
+            "status": "ok",
+            "feedback_count": len(feedbacks),
+            "feedbacks": feedbacks
+        })
+
+    html_content = admin_center.render_admin_command_center_html(
+        users=users,
+        guests=guests,
+        blocked=blocked,
+        admin_key=master_key or user_db.ADMIN_MASTER_KEY,
+        active_tab="feedback",
+        feedbacks=feedbacks
+    )
+    return HTMLResponse(content=html_content)
+
+
+@app.post("/api/admin/feedback/status")
+async def api_admin_feedback_status(request: Request, payload: dict = Body(...), admin_key: str = Query(""), key: str = Query("")):
+    """Updates status of a feedback item (e.g. read, resolved)."""
+    master_key = (admin_key or key or payload.get("admin_key") or "").strip()
+    u = get_current_user_from_request(request)
+    if master_key != user_db.ADMIN_MASTER_KEY and not (u and u.get("role") == "admin"):
+        return JSONResponse(status_code=403, content={"status": "error", "message": "Unauthorized"})
+
+    fid = payload.get("id")
+    new_status = payload.get("status", "read")
+    if not fid:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Missing feedback ID"})
+
+    ok = user_db.update_feedback_status_admin(int(fid), str(new_status))
+    return JSONResponse(content={"status": "ok" if ok else "error", "updated": ok})
 
 
 @app.get("/api/admin/user-timeline")

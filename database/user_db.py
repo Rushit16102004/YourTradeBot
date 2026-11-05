@@ -1122,6 +1122,22 @@ def init_database():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_pageviews_ts ON site_pageviews(timestamp DESC);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_pageviews_vis ON site_pageviews(visitor_id);")
 
+        # 14. User Feedback & Support Messages Table
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_feedback (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT DEFAULT 'guest',
+            username TEXT DEFAULT 'Guest Trader',
+            email TEXT DEFAULT '',
+            ip_address TEXT DEFAULT '',
+            message TEXT NOT NULL,
+            status TEXT DEFAULT 'unread',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_feedback_created_at ON user_feedback(created_at DESC);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_feedback_status ON user_feedback(status);")
+
         # Seed master admin if not exists
         cursor.execute("SELECT id FROM users WHERE username = 'admin' OR email = 'admin@vwapterminal.com'")
         admin_row = cursor.fetchone()
@@ -3431,5 +3447,75 @@ def get_visitor_analytics_summary() -> Dict[str, Any]:
                 "device_breakdown": {"mobile_pct": 50.0, "desktop_pct": 50.0, "raw": {}},
                 "timestamp": datetime.now().strftime("%I:%M:%S %p")
             }
+        finally:
+            conn.close()
+# -------------------------------------------------------------
+# 📩 USER FEEDBACK & DEVELOPER REQUESTS ENGINE
+# -------------------------------------------------------------
+
+def save_user_feedback(user_id: str = "guest", username: str = "Guest Trader", email: str = "", ip_address: str = "", message: str = "") -> int:
+    """Stores a user or guest feedback/support request into SQLite database."""
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO user_feedback (user_id, username, email, ip_address, message, status, created_at)
+                VALUES (?, ?, ?, ?, ?, 'unread', CURRENT_TIMESTAMP)
+            """, (user_id, username, email, ip_address, message.strip()))
+            conn.commit()
+            last_id = cursor.lastrowid
+            logger.info("Saved user feedback #%d from %s (%s)", last_id, username, ip_address)
+            return last_id
+        finally:
+            conn.close()
+
+
+def get_all_feedback_admin(limit: int = 200, status_filter: str = "all") -> List[Dict[str, Any]]:
+    """Retrieves feedback/custom requests for the admin command center."""
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            if status_filter in ("unread", "read", "resolved"):
+                cursor.execute("""
+                    SELECT id, user_id, username, email, ip_address, message, status, created_at
+                    FROM user_feedback
+                    WHERE status = ?
+                    ORDER BY id DESC LIMIT ?
+                """, (status_filter, limit))
+            else:
+                cursor.execute("""
+                    SELECT id, user_id, username, email, ip_address, message, status, created_at
+                    FROM user_feedback
+                    ORDER BY id DESC LIMIT ?
+                """, (limit,))
+            rows = cursor.fetchall()
+            res = []
+            for r in rows:
+                res.append({
+                    "id": r["id"],
+                    "user_id": r["user_id"] or "guest",
+                    "username": r["username"] or "Guest Trader",
+                    "email": r["email"] or "",
+                    "ip_address": r["ip_address"] or "",
+                    "message": r["message"] or "",
+                    "status": r["status"] or "unread",
+                    "created_at": str(r["created_at"])
+                })
+            return res
+        finally:
+            conn.close()
+
+
+def update_feedback_status_admin(feedback_id: int, new_status: str) -> bool:
+    """Updates status of a feedback entry ('unread', 'read', 'resolved')."""
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE user_feedback SET status = ? WHERE id = ?", (new_status, feedback_id))
+            conn.commit()
+            return cursor.rowcount > 0
         finally:
             conn.close()

@@ -5713,7 +5713,7 @@
 
             <!-- Loading Overlay -->
             <div id="loading-overlay">
-                <div class="spinner"></div> Loading 2-Month TradingView Candles...
+                <div class="spinner"></div> Loading 4-Month TradingView Candles...
             </div>
         </div>
     </div>
@@ -6723,16 +6723,18 @@
             const txt = document.getElementById('settings-dev-msg');
             const status = document.getElementById('settings-dev-status');
             if (!txt || !txt.value.trim()) return;
+            const userMsg = txt.value.trim();
             try {
-                await fetch('/api/copilot/chat', {
+                const res = await fetch('/api/feedback', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: `[USER_FEEDBACK_TO_DEVELOPER]: ${txt.value.trim()}` })
-                }).catch(() => {});
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ message: userMsg })
+                });
+                const d = await res.json();
                 if (status) {
                     status.style.display = 'block';
                     status.style.color = '#22c55e';
-                    status.textContent = 'Thank you! Your feedback has been sent directly to developer desk. 🚀';
+                    status.textContent = 'Thank you! Your message has been sent directly to the developer desk. 🚀';
                 }
                 txt.value = '';
                 setTimeout(() => { if (status) status.style.display = 'none'; }, 4000);
@@ -6740,7 +6742,7 @@
                 if (status) {
                     status.style.display = 'block';
                     status.style.color = '#22c55e';
-                    status.textContent = 'Message logged! You can also WhatsApp directly at +91 81600 34453.';
+                    status.textContent = 'Thank you! Your message has been recorded. 🚀';
                 }
             }
         }

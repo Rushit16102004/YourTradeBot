@@ -132,7 +132,8 @@ def render_admin_command_center_html(
     guests: List[Dict[str, Any]],
     blocked: Dict[str, Any],
     admin_key: str,
-    active_tab: str = "users"
+    active_tab: str = "users",
+    feedbacks: Optional[List[Dict[str, Any]]] = None
 ) -> str:
     """
     Renders the Master User & Guest Intelligence Command Center.
@@ -149,6 +150,53 @@ def render_admin_command_center_html(
     frozen_users = blocked.get("frozen_users", [])
     blocked_ips = blocked.get("blocked_ips", [])
     total_blocked = len(frozen_users) + len(blocked_ips)
+
+    feedbacks_list = feedbacks or []
+    feedback_count = len(feedbacks_list)
+
+    # Build Feedback Table Rows
+    feedback_rows = []
+    for fb in feedbacks_list:
+        fid = fb.get("id", "")
+        fcreated = html.escape(str(fb.get("created_at", "")))
+        fuid = html.escape(str(fb.get("user_id", "")))
+        funame = html.escape(str(fb.get("username", "Guest Trader")))
+        femail = html.escape(str(fb.get("email", "")))
+        fip = html.escape(str(fb.get("ip_address", "")))
+        fmsg = html.escape(str(fb.get("message", "")))
+        fstatus = fb.get("status", "unread")
+
+        is_registered = bool(fuid and fuid != "guest")
+        type_badge = '<span class="badge" style="background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3);">👤 Registered</span>' if is_registered else '<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">🕵️ Guest</span>'
+        status_badge = '<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">🔴 Unread</span>' if fstatus == "unread" else ('<span class="badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">🔵 Read</span>' if fstatus == "read" else '<span class="badge" style="background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3);">✅ Resolved</span>')
+
+        email_link = f'<a href="mailto:{femail}?subject=Reply to your VWAP Terminal Feedback" style="color: #38bdf8; text-decoration: underline;">{femail}</a>' if femail else '<span style="color: #64748b;">No Email</span>'
+
+        btn_read = f'<button class="btn btn-freeze" style="padding: 4px 8px; font-size: 11px;" onclick="updateFeedbackStatus({fid}, \'read\')">Mark Read</button>' if fstatus == "unread" else ''
+        btn_resolve = f'<button class="btn btn-unfreeze" style="padding: 4px 8px; font-size: 11px;" onclick="updateFeedbackStatus({fid}, \'resolved\')">Resolve</button>' if fstatus != "resolved" else '<span style="color: #4ade80; font-size: 11px;">✓ Resolved</span>'
+
+        feedback_rows.append(f'''
+            <tr class="feedback-row" data-msg="{fmsg.lower()}" data-username="{funame.lower()}" data-email="{femail.lower()}" data-ip="{fip}">
+                <td style="color: #64748b; font-family: monospace;">#{fid}</td>
+                <td style="color: #94a3b8; font-size: 12px; font-family: monospace;">{fcreated}</td>
+                <td>{type_badge}</td>
+                <td>
+                    <div style="font-weight: 700; color: #f8fafc;">{funame}</div>
+                    <div style="font-size: 11.5px;">{email_link}</div>
+                </td>
+                <td style="font-family: monospace; color: #94a3b8; font-size: 12px;">{fip}</td>
+                <td style="max-width: 420px; white-space: pre-wrap; word-break: break-word; color: #e2e8f0; font-size: 12.5px; line-height: 1.5; background: rgba(15, 23, 42, 0.4); padding: 8px 12px; border-radius: 6px;">{fmsg}</td>
+                <td>{status_badge}</td>
+                <td style="text-align: right;">
+                    <div style="display: flex; gap: 6px; justify-content: flex-end;">
+                        {btn_read}
+                        {btn_resolve}
+                    </div>
+                </td>
+            </tr>
+        ''')
+
+    feedback_table_content = "".join(feedback_rows) if feedback_rows else '<tr><td colspan="8" style="text-align: center; color: #64748b; padding: 30px;">No user feedback or custom requests received yet.</td></tr>'
 
     # 1. Build Registered Users Table Rows
     users_rows = []
@@ -753,6 +801,9 @@ def render_admin_command_center_html(
         <button class="tab-btn" id="tabBlockedBtn" onclick="switchTab('blocked')">
             🚫 Blocked & Frozen <span class="tab-count" style="background: rgba(239, 68, 68, 0.25); color: #f87171;">{total_blocked}</span>
         </button>
+        <button class="tab-btn" id="tabFeedbackBtn" onclick="switchTab('feedback')">
+            📩 User Feedback & Messages <span class="tab-count" style="background: rgba(56, 189, 248, 0.25); color: #38bdf8;">{feedback_count}</span>
+        </button>
     </div>
 
     <!-- TAB 1: REGISTERED USERS -->
@@ -834,6 +885,37 @@ def render_admin_command_center_html(
                     </thead>
                     <tbody>
                         {blocked_table_content}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 4: USER FEEDBACK & CUSTOM REQUESTS -->
+    <div id="sectionFeedback" style="display: none;">
+        <div class="filter-bar">
+            <span style="font-size: 13px; font-weight: 700; color: #94a3b8;">Filter Messages:</span>
+            <input type="text" id="feedbackSearch" class="search-input" placeholder="Search feedback text, username, email, or IP address..." onkeyup="filterFeedbackTable()">
+            <div style="font-size: 12px; color: #64748b;">Showing <strong>{feedback_count}</strong> feedback & support messages</div>
+        </div>
+
+        <div class="table-card">
+            <div class="table-responsive">
+                <table id="feedbackTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">ID</th>
+                            <th style="width: 140px;">Timestamp (IST)</th>
+                            <th style="width: 120px;">User Type</th>
+                            <th style="width: 180px;">User / Email</th>
+                            <th style="width: 120px;">IP Address</th>
+                            <th>Message / Request Content</th>
+                            <th style="width: 100px;">Status</th>
+                            <th style="width: 140px; text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {feedback_table_content}
                     </tbody>
                 </table>
             </div>
@@ -995,10 +1077,44 @@ def render_admin_command_center_html(
             document.getElementById('sectionUsers').style.display = tab === 'users' ? 'block' : 'none';
             document.getElementById('sectionGuests').style.display = tab === 'guests' ? 'block' : 'none';
             document.getElementById('sectionBlocked').style.display = tab === 'blocked' ? 'block' : 'none';
+            const secFb = document.getElementById('sectionFeedback');
+            if (secFb) secFb.style.display = tab === 'feedback' ? 'block' : 'none';
 
             document.getElementById('tabUsersBtn').classList.toggle('active', tab === 'users');
             document.getElementById('tabGuestsBtn').classList.toggle('active', tab === 'guests');
             document.getElementById('tabBlockedBtn').classList.toggle('active', tab === 'blocked');
+            const btnFb = document.getElementById('tabFeedbackBtn');
+            if (btnFb) btnFb.classList.toggle('active', tab === 'feedback');
+        }}
+
+        function filterFeedbackTable() {{
+            const q = (document.getElementById('feedbackSearch').value || '').toLowerCase();
+            const rows = document.querySelectorAll('#feedbackTable tbody tr.feedback-row');
+            rows.forEach(r => {{
+                const msg = (r.getAttribute('data-msg') || '').toLowerCase();
+                const u = (r.getAttribute('data-username') || '').toLowerCase();
+                const e = (r.getAttribute('data-email') || '').toLowerCase();
+                const ip = (r.getAttribute('data-ip') || '').toLowerCase();
+                r.style.display = (msg.includes(q) || u.includes(q) || e.includes(q) || ip.includes(q)) ? '' : 'none';
+            }});
+        }}
+
+        async function updateFeedbackStatus(id, newStatus) {{
+            try {{
+                const res = await fetch('/api/admin/feedback/status?admin_key=' + encodeURIComponent(ADMIN_KEY), {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{ id: id, status: newStatus }})
+                }});
+                const d = await res.json();
+                if (d.status === 'ok') {{
+                    location.reload();
+                }} else {{
+                    alert('Error: ' + (d.message || 'Could not update status'));
+                }}
+            }} catch(e) {{
+                alert('Request failed');
+            }}
         }}
 
         function filterUsersTable() {{
