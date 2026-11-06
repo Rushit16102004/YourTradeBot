@@ -1994,19 +1994,41 @@ def save_user_chat_message(user_id: str, role: str, message: str):
             conn.close()
 
 
-def get_user_chat_history(user_id: str, limit: int = 10) -> List[Dict[str, str]]:
-    """Fetches recent chat messages for conversational context."""
+def get_user_chat_history(user_id: str, limit: int = 40, hours: int = 24) -> List[Dict[str, str]]:
+    """Fetches recent chat messages within the last 24 hours for conversational context."""
     with _db_lock:
         conn = get_db_connection()
         cursor = conn.cursor()
         try:
             cursor.execute(
+                """
+                SELECT role, message FROM chat_history 
+                WHERE user_id = ? 
+                  AND (created_at >= datetime('now', '-' || ? || ' hours') OR created_at IS NULL)
+                ORDER BY id ASC LIMIT ?
+                """,
+                (user_id, hours, limit)
+            )
+            rows = cursor.fetchall()
+            if rows:
+                return [{"role": r["role"], "message": r["message"]} for r in rows]
+            # Fallback if created_at condition matched zero rows or table lacks timestamps
+            cursor.execute(
                 "SELECT role, message FROM chat_history WHERE user_id = ? ORDER BY id DESC LIMIT ?",
                 (user_id, limit)
             )
             rows = cursor.fetchall()
-            messages = [{"role": r["role"], "message": r["message"]} for r in reversed(rows)]
-            return messages
+            return [{"role": r["role"], "message": r["message"]} for r in reversed(rows)]
+        except Exception:
+            try:
+                cursor.execute(
+                    "SELECT role, message FROM chat_history WHERE user_id = ? ORDER BY id DESC LIMIT ?",
+                    (user_id, limit)
+                )
+                rows = cursor.fetchall()
+                return [{"role": r["role"], "message": r["message"]} for r in reversed(rows)]
+            except Exception:
+                return []
         finally:
             conn.close()
 

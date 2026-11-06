@@ -12378,12 +12378,62 @@ function showIndicatorLineActionPill(ind, point) {
                 }
             }
 
+            const handlePencilMove = (clientX, clientY) => {
+                const rect = overlay.getBoundingClientRect();
+                const curX = clientX - rect.left;
+                const curY = clientY - rect.top;
+                updateDrawingCrosshair(curX, curY);
+
+                if (!isDrawing || activeTool !== 'pencil') return;
+                const t = xToTime(curX);
+                const p = yToPrice(curY);
+                if (t != null && p != null && currentPencilPoints.length > 0) {
+                    const lastPt = currentPencilPoints[currentPencilPoints.length - 1];
+                    const dist = Math.hypot(curX - lastPt.screenX, curY - lastPt.screenY);
+                    if (dist >= 3) {
+                        currentPencilPoints.push({ time: t, price: p, screenX: curX, screenY: curY });
+                        renderLivePencilPreview(currentPencilPoints);
+                    }
+                }
+            };
+
+            const finishPencilDrawing = () => {
+                if (activeTool === 'pencil' && isDrawing) {
+                    isDrawing = false;
+                    if (currentPencilPoints && currentPencilPoints.length >= 2) {
+                        const newPencilShape = {
+                            id: 'shape_' + Date.now(),
+                            type: 'pencil',
+                            points: currentPencilPoints.map(pt => ({ time: pt.time, price: pt.price })),
+                            color: '#ffd600',
+                            width: 2.5,
+                            remark: 'Freehand Drawing'
+                        };
+                        recordCurrentDrawingUndoState();
+                        drawings.push(newPencilShape);
+                        saveDrawings();
+                    }
+                    currentPencilPoints = [];
+                    removeLivePencilPreview();
+                    hideDrawingCrosshair();
+                    renderAllDrawings();
+                }
+            };
+
             overlay.addEventListener('mousedown', handleDrawingPointerDown);
             overlay.addEventListener('touchstart', (e) => {
                 if (e.touches && e.touches.length === 1 && activeTool !== 'select' && !drawingsHidden) {
                     if (e.cancelable) e.preventDefault();
                     const t = e.touches[0];
                     handleDrawingPointerDown({ clientX: t.clientX, clientY: t.clientY });
+                }
+            }, { passive: false });
+
+            overlay.addEventListener('touchmove', (e) => {
+                if (e.touches && e.touches.length === 1 && isDrawing && activeTool === 'pencil') {
+                    if (e.cancelable) e.preventDefault();
+                    const t = e.touches[0];
+                    handlePencilMove(t.clientX, t.clientY);
                 }
             }, { passive: false });
 
@@ -12401,16 +12451,7 @@ function showIndicatorLineActionPill(ind, point) {
 
                 // Active freehand pencil drawing: smooth point sampling at exact pointer position
                 if (activeTool === 'pencil') {
-                    const t = xToTime(curX);
-                    const p = yToPrice(curY);
-                    if (t != null && p != null && currentPencilPoints.length > 0) {
-                        const lastPt = currentPencilPoints[currentPencilPoints.length - 1];
-                        const dist = Math.hypot(curX - lastPt.screenX, curY - lastPt.screenY);
-                        if (dist >= 3) {
-                            currentPencilPoints.push({ time: t, price: p, screenX: curX, screenY: curY });
-                            renderLivePencilPreview(currentPencilPoints);
-                        }
-                    }
+                    handlePencilMove(e.clientX, e.clientY);
                     return;
                 }
 
@@ -12419,47 +12460,28 @@ function showIndicatorLineActionPill(ind, point) {
                 }
             });
 
-            overlay.addEventListener('mouseup', e => {
+            overlay.addEventListener('mouseup', () => {
                 if (activeTool === 'pencil' && isDrawing) {
-                    isDrawing = false;
-                    let createdShape = null;
-                    if (currentPencilPoints && currentPencilPoints.length >= 2) {
-                        const newPencilShape = {
-                            id: 'shape_' + Date.now(),
-                            type: 'pencil',
-                            points: currentPencilPoints.map(pt => ({ time: pt.time, price: pt.price })),
-                            color: '#ffd600',
-                            width: 2.5,
-                            remark: 'Freehand Drawing'
-                        };
-                        recordCurrentDrawingUndoState();
-                        drawings.push(newPencilShape);
-                        saveDrawings();
-                        createdShape = newPencilShape;
-                    }
-                    currentPencilPoints = [];
-                    removeLivePencilPreview();
+                    finishPencilDrawing();
+                }
+            });
 
-                    // Switch back to Cursor / Select tool automatically once drawing is complete
-                    selectTool('select');
-                    hideDrawingCrosshair();
-                    renderAllDrawings();
+            overlay.addEventListener('touchend', () => {
+                if (activeTool === 'pencil' && isDrawing) {
+                    finishPencilDrawing();
+                }
+            });
 
-                    if (createdShape) {
-                        openPropertiesPanel(createdShape.id);
-                        showShapeActionPill(e.clientX, e.clientY, createdShape);
-                    }
-                    return;
+            overlay.addEventListener('touchcancel', () => {
+                if (activeTool === 'pencil' && isDrawing) {
+                    finishPencilDrawing();
                 }
             });
 
             overlay.addEventListener('mouseleave', () => {
                 hideDrawingCrosshair();
                 if (activeTool === 'pencil' && isDrawing) {
-                    isDrawing = false;
-                    currentPencilPoints = [];
-                    removeLivePencilPreview();
-                    selectTool('select');
+                    finishPencilDrawing();
                 }
             });
         }
@@ -12747,8 +12769,26 @@ function showIndicatorLineActionPill(ind, point) {
         }
 
                 // ========================================================
-        // ✏️ NATIVE SVG FREEHAND PENCIL ENGINE (TIME/PRICE ANCHORED, CLICK-TO-DELETE)
+        // ✏️ NATIVE SVG FREEHAND PENCIL ENGINE (BÉZIER SMOOTHED, MOBILE-RESPONSIVE)
         // ========================================================
+        function buildSmoothBezierPath(screenPts) {
+            if (!screenPts || screenPts.length === 0) return '';
+            if (screenPts.length === 1) {
+                return `M ${screenPts[0].x.toFixed(1)} ${screenPts[0].y.toFixed(1)} l 0.1 0.1`;
+            }
+            if (screenPts.length === 2) {
+                return `M ${screenPts[0].x.toFixed(1)} ${screenPts[0].y.toFixed(1)} L ${screenPts[1].x.toFixed(1)} ${screenPts[1].y.toFixed(1)}`;
+            }
+            let d = `M ${screenPts[0].x.toFixed(1)} ${screenPts[0].y.toFixed(1)}`;
+            for (let i = 1; i < screenPts.length - 1; i++) {
+                const xc = ((screenPts[i].x + screenPts[i + 1].x) / 2).toFixed(1);
+                const yc = ((screenPts[i].y + screenPts[i + 1].y) / 2).toFixed(1);
+                d += ` Q ${screenPts[i].x.toFixed(1)} ${screenPts[i].y.toFixed(1)}, ${xc} ${yc}`;
+            }
+            d += ` L ${screenPts[screenPts.length - 1].x.toFixed(1)} ${screenPts[screenPts.length - 1].y.toFixed(1)}`;
+            return d;
+        }
+
         function renderLivePencilPreview(pts) {
             if (!pts || pts.length < 2) return;
             const overlay = document.getElementById('drawing-overlay');
@@ -12767,11 +12807,8 @@ function showIndicatorLineActionPill(ind, point) {
                 overlay.appendChild(pEl);
             }
 
-            let d = `M ${pts[0].screenX.toFixed(1)} ${pts[0].screenY.toFixed(1)}`;
-            for (let i = 1; i < pts.length; i++) {
-                d += ` L ${pts[i].screenX.toFixed(1)} ${pts[i].screenY.toFixed(1)}`;
-            }
-            pEl.setAttribute('d', d);
+            const screenPts = pts.map(p => ({ x: p.screenX, y: p.screenY }));
+            pEl.setAttribute('d', buildSmoothBezierPath(screenPts));
         }
 
         function removeLivePencilPreview() {
@@ -12799,10 +12836,7 @@ function showIndicatorLineActionPill(ind, point) {
             g.style.cursor = 'pointer';
             g.style.pointerEvents = 'all';
 
-            let pathD = `M ${screenPts[0].x.toFixed(1)} ${screenPts[0].y.toFixed(1)}`;
-            for (let i = 1; i < screenPts.length; i++) {
-                pathD += ` L ${screenPts[i].x.toFixed(1)} ${screenPts[i].y.toFixed(1)}`;
-            }
+            const pathD = buildSmoothBezierPath(screenPts);
 
             // 1. Invisible wide hit area for effortless click detection and selection
             const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -12997,9 +13031,13 @@ function showIndicatorLineActionPill(ind, point) {
             const handleStart = (e) => {
                 if (e.cancelable) e.preventDefault();
                 e.stopPropagation();
+                const overlay = document.getElementById('drawing-overlay');
+                cachedDragOverlayRect = overlay ? overlay.getBoundingClientRect() : null;
+                preDragDrawingsSnapshot = JSON.parse(safeJSONStringify(drawings || []));
                 draggingState = {
                     type: 'handle',
-                    onDrag: onDragFn
+                    onDrag: onDragFn,
+                    hasActuallyMoved: false
                 };
             };
 
@@ -14015,6 +14053,10 @@ function showIndicatorLineActionPill(ind, point) {
             overlay.appendChild(g);
         }
 
+        let cachedDragOverlayRect = null;
+        let rafDragId = null;
+        let pendingDragCoords = null;
+
         function startRepositionDrag(e, d) {
             const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
             const clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
@@ -14022,14 +14064,10 @@ function showIndicatorLineActionPill(ind, point) {
             e.stopPropagation();
 
             selectedShapeId = d.id;
-            openPropertiesPanel(d.id);
-            showShapeActionPill(clientX, clientY, d);
-            renderAllDrawings();
-
             const overlay = document.getElementById('drawing-overlay');
-            const rect = overlay.getBoundingClientRect();
-            const startX = clientX - rect.left;
-            const startY = clientY - rect.top;
+            cachedDragOverlayRect = overlay ? overlay.getBoundingClientRect() : null;
+            const startX = cachedDragOverlayRect ? (clientX - cachedDragOverlayRect.left) : clientX;
+            const startY = cachedDragOverlayRect ? (clientY - cachedDragOverlayRect.top) : clientY;
 
             preDragDrawingsSnapshot = JSON.parse(safeJSONStringify(drawings || []));
             draggingState = {
@@ -14037,31 +14075,40 @@ function showIndicatorLineActionPill(ind, point) {
                 shape: d,
                 startX, startY,
                 snapshot: JSON.parse(JSON.stringify(d)),
-                hasActuallyMoved: false
+                hasActuallyMoved: false,
+                clickClientX: clientX,
+                clickClientY: clientY
             };
+            renderAllDrawings();
         }
 
         function processDragMove(clientX, clientY) {
             if (!draggingState) return;
             draggingState.hasActuallyMoved = true;
-            const overlay = document.getElementById('drawing-overlay');
-            if (!overlay) return;
-            const rect = overlay.getBoundingClientRect();
-            const curX = clientX - rect.left;
-            const curY = clientY - rect.top;
+            pendingDragCoords = { clientX, clientY };
+            if (!rafDragId) {
+                rafDragId = requestAnimationFrame(performDragStep);
+            }
+        }
+
+        function performDragStep() {
+            rafDragId = null;
+            if (!draggingState || !pendingDragCoords) return;
+            const { clientX, clientY } = pendingDragCoords;
+            if (!cachedDragOverlayRect) {
+                const overlay = document.getElementById('drawing-overlay');
+                if (overlay) cachedDragOverlayRect = overlay.getBoundingClientRect();
+            }
+            if (!cachedDragOverlayRect) return;
+
+            const curX = clientX - cachedDragOverlayRect.left;
+            const curY = clientY - cachedDragOverlayRect.top;
 
             updateDrawingCrosshair(curX, curY);
 
             if (draggingState.type === 'handle') {
                 draggingState.onDrag(curX, curY);
                 renderAllDrawings();
-                if (selectedShapeId) {
-                    const s = drawings.find(x => x.id === selectedShapeId);
-                    if (s) {
-                        if (s.type === 'target_sl') updateRRInfo(s);
-                        updateShapeCoordsInfo(s);
-                    }
-                }
             } else if (draggingState.type === 'reposition') {
                 const snap = draggingState.snapshot;
                 const d = draggingState.shape;
@@ -14071,52 +14118,45 @@ function showIndicatorLineActionPill(ind, point) {
                 const curP = yToPrice(curY);
                 const startP = yToPrice(draggingState.startY);
 
-                if (!curT || !startT || !curP || !startP) return;
-                const dt = curT - startT;
-                const dp = curP - startP;
+                if (curT != null && startT != null && curP != null && startP != null) {
+                    const dt = curT - startT;
+                    const dp = curP - startP;
 
-                if (d.type === 'line' || d.type === 'arrow' || d.type === 'rect' || d.type === 'fibonacci' || d.type === 'channel' || d.type === 'price_range') {
-                    d.time1 = snap.time1 + dt;
-                    d.price1 = snap.price1 + dp;
-                    d.time2 = snap.time2 + dt;
-                    d.price2 = snap.price2 + dp;
-                } else if (d.type === 'ray') {
-                    d.time1 = snap.time1 + dt;
-                    d.price1 = snap.price1 + dp;
-                } else if (d.type === 'vline') {
-                    d.time1 = snap.time1 + dt;
-                } else if (d.type === 'text') {
-                    d.time1 = snap.time1 + dt;
-                    d.price1 = snap.price1 + dp;
-                } else if (d.type === 'arc') {
-                    d.time1 = snap.time1 + dt;
-                    d.price1 = snap.price1 + dp;
-                    d.time2 = snap.time2 + dt;
-                    d.price2 = snap.price2 + dp;
-                    d.midTime = snap.midTime + dt;
-                    d.midPrice = snap.midPrice + dp;
-                } else if (d.type === 'target_sl') {
-                    d.entry = snap.entry + dp;
-                    d.target = snap.target + dp;
-                    d.stop = snap.stop + dp;
-                    d.timeStart = snap.timeStart + dt;
-                    d.timeEnd = snap.timeEnd + dt;
-                    updateRRInfo(d);
-                } else if (d.type === 'pencil') {
-                    if (snap.points && Array.isArray(snap.points)) {
-                        d.points = snap.points.map(pt => ({
-                            time: pt.time + dt,
-                            price: pt.price + dp
-                        }));
+                    if (d.type === 'line' || d.type === 'arrow' || d.type === 'rect' || d.type === 'fibonacci' || d.type === 'channel' || d.type === 'price_range') {
+                        d.time1 = snap.time1 + dt;
+                        d.price1 = snap.price1 + dp;
+                        d.time2 = snap.time2 + dt;
+                        d.price2 = snap.price2 + dp;
+                    } else if (d.type === 'ray') {
+                        d.time1 = snap.time1 + dt;
+                        d.price1 = snap.price1 + dp;
+                    } else if (d.type === 'vline') {
+                        d.time1 = snap.time1 + dt;
+                    } else if (d.type === 'text') {
+                        d.time1 = snap.time1 + dt;
+                        d.price1 = snap.price1 + dp;
+                    } else if (d.type === 'arc') {
+                        d.time1 = snap.time1 + dt;
+                        d.price1 = snap.price1 + dp;
+                        d.time2 = snap.time2 + dt;
+                        d.price2 = snap.price2 + dp;
+                        d.midTime = snap.midTime + dt;
+                        d.midPrice = snap.midPrice + dp;
+                    } else if (d.type === 'target_sl') {
+                        d.entry = snap.entry + dp;
+                        d.target = snap.target + dp;
+                        d.stop = snap.stop + dp;
+                        d.timeStart = snap.timeStart + dt;
+                        d.timeEnd = snap.timeEnd + dt;
+                    } else if (d.type === 'pencil') {
+                        if (snap.points && Array.isArray(snap.points)) {
+                            d.points = snap.points.map(pt => ({
+                                time: pt.time + dt,
+                                price: pt.price + dp
+                            }));
+                        }
                     }
-                }
-                renderAllDrawings();
-                if (selectedShapeId) {
-                    const s = drawings.find(x => x.id === selectedShapeId);
-                    if (s) {
-                        if (s.type === 'target_sl') updateRRInfo(s);
-                        updateShapeCoordsInfo(s);
-                    }
+                    renderAllDrawings();
                 }
             }
         }
@@ -14133,13 +14173,38 @@ function showIndicatorLineActionPill(ind, point) {
                 }
             }, { passive: false });
 
-            const endDrag = () => {
+            const endDrag = (e) => {
+                if (rafDragId) {
+                    cancelAnimationFrame(rafDragId);
+                    rafDragId = null;
+                }
+                pendingDragCoords = null;
+                cachedDragOverlayRect = null;
+
                 if (draggingState) {
-                    if (draggingState.hasActuallyMoved && preDragDrawingsSnapshot) {
-                        pushDrawingUndoSnapshot(preDragDrawingsSnapshot);
+                    if (draggingState.hasActuallyMoved) {
+                        if (preDragDrawingsSnapshot) {
+                            pushDrawingUndoSnapshot(preDragDrawingsSnapshot);
+                        }
+                        saveDrawings();
+                        if (selectedShapeId) {
+                            const s = drawings.find(x => x.id === selectedShapeId);
+                            if (s) {
+                                if (s.type === 'target_sl') updateRRInfo(s);
+                                updateShapeCoordsInfo(s);
+                            }
+                        }
+                    } else {
+                        // User clicked or tapped without dragging: show properties modal & action pill!
+                        if (selectedShapeId) {
+                            openPropertiesPanel(selectedShapeId);
+                            const clickX = draggingState.clickClientX || (e && e.clientX) || 150;
+                            const clickY = draggingState.clickClientY || (e && e.clientY) || 150;
+                            const s = drawings.find(x => x.id === selectedShapeId);
+                            if (s) showShapeActionPill(clickX, clickY, s);
+                        }
                     }
                     preDragDrawingsSnapshot = null;
-                    saveDrawings();
                     draggingState = null;
                     if (activeTool === 'select') {
                         hideDrawingCrosshair();
@@ -15335,6 +15400,56 @@ function showIndicatorLineActionPill(ind, point) {
             html = html.replace(/^###\s+(.*$)/gm, '<div style="font-weight:700; font-size:13.5px; color:#93c5fd; margin:16px 0 8px 0;">$1</div>');
             html = html.replace(/^##\s+(.*$)/gm, '<div style="font-weight:800; font-size:14.5px; color:#60a5fa; margin:18px 0 10px 0;">$1</div>');
 
+            // Transform Quick Trade Execution Summary into a high-visibility interactive HUD card
+            const tradeCardRegex = /(?:[━—\-]{4,}\s*)?🎯\s*(?:QUICK\s*)?TRADE\s*EXECUTION\s*SUMMARY[\s\S]*?(?:[━—\-]{4,}|$)/i;
+            const tradeCardMatch = html.match(tradeCardRegex);
+            let renderedCard = '';
+            if (tradeCardMatch) {
+                const block = tradeCardMatch[0];
+                const dirMatch = block.match(/Direction\s*->\s*([^\n\r<]+)/i);
+                const entryMatch = block.match(/Entry(?:\s*Price)?\s*->\s*([^\n\r<]+)/i);
+                const tgtMatch = block.match(/(?:Exit|Target)(?:\/Exit)?\s*->\s*([^\n\r<]+)/i);
+                const slMatch = block.match(/Stop(?:\s*Loss)?\s*->\s*([^\n\r<]+)/i);
+                const rrMatch = block.match(/Risk:Reward\s*->\s*([^\n\r<]+)/i);
+
+                if (dirMatch || entryMatch || tgtMatch || slMatch) {
+                    const dirVal = dirMatch ? dirMatch[1].trim() : 'SETUP';
+                    const entryVal = entryMatch ? entryMatch[1].trim() : 'Market Price';
+                    const tgtVal = tgtMatch ? tgtMatch[1].trim() : 'Trailing S&R';
+                    const slVal = slMatch ? slMatch[1].trim() : 'Structural SL';
+                    const rrVal = rrMatch ? rrMatch[1].trim() : '1 : 2.0';
+                    const isBuy = /buy|call|bull/i.test(dirVal);
+
+                    renderedCard = `
+                        <div class="trade-summary-hud-card" style="margin: 16px 0 8px 0; background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.90)); border: 1.5px solid rgba(56, 189, 248, 0.35); border-radius: 10px; padding: 12px 14px; box-shadow: 0 4px 16px rgba(0,0,0,0.45);">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                <span style="font-weight: 800; font-size: 13px; color: #38bdf8; letter-spacing: 0.5px;">🎯 QUICK TRADE EXECUTION SUMMARY</span>
+                                <span style="font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 800; background: ${isBuy ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}; color: ${isBuy ? '#22c55e' : '#ef4444'}; border: 1px solid ${isBuy ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)'};">${dirVal}</span>
+                            </div>
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12.5px;">
+                                <div style="background: rgba(255,255,255,0.03); padding: 6px 8px; border-radius: 6px; border-left: 3px solid #38bdf8;">
+                                    <div style="color: #94a3b8; font-size: 10.5px; font-weight: 600;">ENTRY</div>
+                                    <div style="color: #e2e8f0; font-weight: 700;">${entryVal}</div>
+                                </div>
+                                <div style="background: rgba(255,255,255,0.03); padding: 6px 8px; border-radius: 6px; border-left: 3px solid #f59e0b;">
+                                    <div style="color: #94a3b8; font-size: 10.5px; font-weight: 600;">RISK:REWARD</div>
+                                    <div style="color: #f59e0b; font-weight: 700;">${rrVal}</div>
+                                </div>
+                                <div style="background: rgba(34,197,94,0.08); padding: 6px 8px; border-radius: 6px; border-left: 3px solid #22c55e;">
+                                    <div style="color: #86efac; font-size: 10.5px; font-weight: 600;">TARGET / EXIT</div>
+                                    <div style="color: #22c55e; font-weight: 700;">${tgtVal}</div>
+                                </div>
+                                <div style="background: rgba(239,68,68,0.08); padding: 6px 8px; border-radius: 6px; border-left: 3px solid #ef4444;">
+                                    <div style="color: #fca5a5; font-size: 10.5px; font-weight: 600;">STOP LOSS</div>
+                                    <div style="color: #ef4444; font-weight: 700;">${slVal}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    html = html.replace(block, '[[TRADE_CARD_PLACEHOLDER]]');
+                }
+            }
+
             // CRITICAL: Normalize inline bullets / numbered points into separate lines so they never bunch together
             html = html.replace(/([^\n])\s*([•●■]|\d+\.)\s+/g, '$1\n$2 ');
 
@@ -15375,7 +15490,15 @@ function showIndicatorLineActionPill(ind, point) {
                 }
             }
 
-            return formatted.join('');
+            let finalHtml = formatted.join('');
+            if (renderedCard) {
+                if (finalHtml.includes('[[TRADE_CARD_PLACEHOLDER]]')) {
+                    finalHtml = finalHtml.replace(/<div[^>]*>\[\[TRADE_CARD_PLACEHOLDER\]\]<\/div>/g, renderedCard).replace('[[TRADE_CARD_PLACEHOLDER]]', renderedCard);
+                } else {
+                    finalHtml += renderedCard;
+                }
+            }
+            return finalHtml;
         }
 
         async function sendCopilotMessage(promptOverride = null) {
@@ -15492,7 +15615,14 @@ function showIndicatorLineActionPill(ind, point) {
                         time1: d.time1,
                         time2: d.time2,
                         angle: d.angle,
-                        channelWidth: d.channelWidth
+                        channelWidth: d.channelWidth,
+                        entry: d.entry,
+                        target: d.target,
+                        stop: d.stop,
+                        timeStart: d.timeStart,
+                        timeEnd: d.timeEnd,
+                        midTime: d.midTime,
+                        midPrice: d.midPrice
                     };
                     if (Array.isArray(d.points)) {
                         cd.points = d.points.map(pt => ({ time: pt.time, price: pt.price }));

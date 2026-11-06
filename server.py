@@ -1991,13 +1991,13 @@ async def rag_chat(request: Request, payload: dict = Body(...)):
         from indicators.indicators import evaluate_market_indicators
         tech_eval = evaluate_market_indicators(df_5m, engine.latest_price, comb_sr=comb_sr, custom_indicators=custom_indicators)
 
-        # Retrieve user recent conversational memory for personalized continuity
+        # Retrieve user recent conversational memory (past 24 hours) for continuous session intelligence
+        effective_chat_id = user_id or (f"guest_{client_ip}" if client_ip else "guest_session")
         recent_chat_history = []
-        if user_id:
-            try:
-                recent_chat_history = user_db.get_user_chat_history(user_id, limit=6)
-            except Exception:
-                recent_chat_history = []
+        try:
+            recent_chat_history = user_db.get_user_chat_history(effective_chat_id, limit=30, hours=24)
+        except Exception:
+            recent_chat_history = []
 
         # Compute ORB (9:15-9:45 AM) & Trade Doctor Analytics
         from RAG.analytics import ORBAnalyzer, TradeDoctor
@@ -2139,13 +2139,12 @@ async def rag_chat(request: Request, payload: dict = Body(...)):
         # Ask RAG service with user_id drawing context isolation
         res = service.ask(query=user_message, market_state=market_state, user_id=user_id)
 
-        # Save to user's conversational memory in SQLite
-        if user_id:
-            try:
-                user_db.save_user_chat_message(user_id, "user", user_message)
-                user_db.save_user_chat_message(user_id, "assistant", res.get("reply", ""))
-            except Exception:
-                pass
+        # Save to conversational memory in SQLite (supports both authenticated traders & guests)
+        try:
+            user_db.save_user_chat_message(effective_chat_id, "user", user_message)
+            user_db.save_user_chat_message(effective_chat_id, "assistant", res.get("reply", ""))
+        except Exception:
+            pass
 
         # Save query and response to dedicated user table and master review table
         try:

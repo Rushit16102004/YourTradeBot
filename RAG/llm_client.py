@@ -405,7 +405,52 @@ class GeminiLLMClient:
             p2 = d.get("price2", p1) or p1
             ang = d.get("angle")
             ang_str = f", Angle={ang}°" if ang is not None else ""
-            if dtype == "fibonacci":
+            if dtype == "target_sl":
+                entry = float(d.get("entry", 0.0) or 0.0)
+                target = float(d.get("target", 0.0) or 0.0)
+                stop = float(d.get("stop", 0.0) or 0.0)
+                is_long = target >= entry
+                direction = "LONG / BUY (CALL)" if is_long else "SHORT / SELL (PUT)"
+                reward_pts = abs(target - entry)
+                risk_pts = abs(entry - stop)
+                rr_ratio = (reward_pts / risk_pts) if risk_pts > 0 else 0.0
+                tgt_pct = (reward_pts / entry * 100) if entry > 0 else 0.0
+                stp_pct = (risk_pts / entry * 100) if entry > 0 else 0.0
+
+                status_str = ""
+                cur_p = market_state.get("price") if market_state else None
+                if cur_p and entry > 0:
+                    try:
+                        cur_p = float(cur_p)
+                        if is_long:
+                            pnl_pts = cur_p - entry
+                            if cur_p >= target:
+                                status_str = f" [STATUS: 🏆 Target HIT! (+{reward_pts:.2f} pts profit)]"
+                            elif cur_p <= stop:
+                                status_str = f" [STATUS: 🛑 Stop Loss HIT! (-{risk_pts:.2f} pts loss)]"
+                            elif cur_p > entry:
+                                status_str = f" [STATUS: 🟢 ACTIVE IN PROFIT (+{pnl_pts:.2f} pts), {target - cur_p:.2f} pts to Target]"
+                            else:
+                                status_str = f" [STATUS: 🟡 ACTIVE IN DRAWDOWN ({pnl_pts:.2f} pts), {cur_p - stop:.2f} pts above SL]"
+                        else:
+                            pnl_pts = entry - cur_p
+                            if cur_p <= target:
+                                status_str = f" [STATUS: 🏆 Target HIT! (+{reward_pts:.2f} pts profit)]"
+                            elif cur_p >= stop:
+                                status_str = f" [STATUS: 🛑 Stop Loss HIT! (-{risk_pts:.2f} pts loss)]"
+                            elif cur_p < entry:
+                                status_str = f" [STATUS: 🟢 ACTIVE IN PROFIT (+{pnl_pts:.2f} pts), {cur_p - target:.2f} pts to Target]"
+                            else:
+                                status_str = f" [STATUS: 🟡 ACTIVE IN DRAWDOWN ({pnl_pts:.2f} pts), {stop - cur_p:.2f} pts below SL]"
+                    except Exception:
+                        status_str = ""
+
+                return (
+                    f"{prefix}RISK-REWARD BOX ({direction}) '{rem}': Entry=₹{entry:.2f}, Target=₹{target:.2f} "
+                    f"(+{reward_pts:.2f} pts / +{tgt_pct:.2f}%), StopLoss=₹{stop:.2f} (-{risk_pts:.2f} pts / -{stp_pct:.2f}%), "
+                    f"R:R=1:{rr_ratio:.2f}{status_str}\n"
+                )
+            elif dtype == "fibonacci":
                 diff = float(p2) - float(p1)
                 g50 = float(p2) - 0.500 * diff
                 g618 = float(p2) - 0.618 * diff
@@ -439,10 +484,13 @@ class GeminiLLMClient:
         chat_hist_str = ""
         if chat_hist:
             lines = []
-            for m in chat_hist:
+            for m in chat_hist[-20:]:
                 r = uname if m.get("role") == "user" else "Copilot"
-                lines.append(f"  {r}: {m.get('message', '')[:130]}")
-            chat_hist_str = f"PREVIOUS CONVERSATION MEMORY WITH {uname.upper()}:\n" + "\n".join(lines) + "\n\n"
+                m_text = (m.get('message', '') or '').strip()
+                if len(m_text) > 800:
+                    m_text = m_text[:800] + "..."
+                lines.append(f"  {r}: {m_text}")
+            chat_hist_str = f"TODAY'S CONVERSATION HISTORY (PAST 24 HOURS WITH {uname.upper()}):\n" + "\n".join(lines) + "\n\n"
 
         full_prompt = (
             f"{system_instructions}\n\n"
@@ -490,7 +538,26 @@ class GeminiLLMClient:
             f"     - Step 1 (Structure): Clean breakout or retest at verified S&R (> 5 touches)?\n"
             f"     - Step 2 (Momentum): Does RVOL (> 1.5) and VWAP slope confirm?\n"
             f"     - Step 3 (Risk Mitigation): Can Devil's Advocate objections be solved by adjusting Stop-Loss (1.2 × ATR or 12–15 pts) or reducing position size (1 Lot = 65 qty)?\n"
-            f"     - Step 4 (Verdict): Concrete Entry, Stop-Loss, Target Runway, and R:R ratio (≥ 1:2.0)."
+            f"     - Step 4 (Verdict): Concrete Entry, Stop-Loss, Target Runway, and R:R ratio (≥ 1:2.0).\n"
+            f"15. CONVERSATIONAL CONTINUITY & PAST SETUP (RR BOX) EVALUATION RULES:\n"
+            f"   • You have full access to today's 24-hour conversation memory with {uname} in the prompt above. Always maintain continuous context (e.g. if {uname} asks 'is my previous setup ok?', 'what about the last trade we discussed?', or asks about their drawn Target/SL box).\n"
+            f"   • When {uname} asks about their drawn Risk-Reward (TARGET_SL) setup or previous trade:\n"
+            f"     a) FIRST evaluate their SPECIFIC EXISTING SETUP against current market price and structure (Session VWAP, S&R, trend, and OI walls).\n"
+            f"     b) DO NOT forcefully or blindly discard their drawn setup to manufacture an unrelated new one! If the setup is valid or manageable, advise on active trade management: e.g. 'Trail Stop Loss to breakeven at ₹...', 'Take 50% partial profit at ₹...', or 'Hold with current SL at ₹...'.\n"
+            f"     c) ONLY suggest abandoning the setup if the thesis has failed, market structure broke down, or the Stop Loss was hit. If so, clearly explain what failed before suggesting an adjusted setup.\n"
+            f"16. STANDARDIZED QUICK TRADE EXECUTION SUMMARY (MANDATORY FORMAT):\n"
+            f"   • Whenever providing, analyzing, or adjusting a trade setup (Entry, Target, Stop Loss):\n"
+            f"     1. First explain the rationale clearly and concisely (2–3 bullet points on WHY: confluence, indicators, S&R level).\n"
+            f"     2. AFTER completing the explanation, ALWAYS end your response with this EXACT standardized execution summary block so the trader can read all execution values at a quick glance without reading paragraphs:\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🎯 QUICK TRADE EXECUTION SUMMARY\n"
+            f"• Direction   -> [BUY (CALL) / SELL (PUT)]\n"
+            f"• Entry Price -> ₹[Exact Price]\n"
+            f"• Exit/Target -> ₹[Exact Price] (+[Pts] pts / +[%]%)\n"
+            f"• Stop Loss   -> ₹[Exact Price] (-[Pts] pts / -[%]%)\n"
+            f"• Risk:Reward -> 1 : [Ratio]\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"   Never omit this quick execution summary whenever a trade setup is discussed or advised."
         )
 
         # If API key is not configured, return high-value local synthesis
