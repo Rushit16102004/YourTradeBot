@@ -156,6 +156,27 @@ class GeminiLLMClient:
                         p_lines.append(f"  {pr.get('content', pr)}")
                 pred_str = '\n'.join(p_lines) + '\n\n'
 
+            # Active Trade Setup in Conversation Memory
+            act_trade = market_state.get("active_trade")
+            act_trade_str = ""
+            if act_trade and act_trade.get("entry_price"):
+                act_dir = act_trade.get("direction", "CALL")
+                act_entry = float(act_trade.get("entry_price", 0.0) or 0.0)
+                act_tgt = float(act_trade.get("target", 0.0) or 0.0)
+                act_sl = float(act_trade.get("initial_sl", 0.0) or 0.0)
+                act_cur_p = float(market_state.get("price", act_entry) or act_entry)
+                act_pnl = round(act_cur_p - act_entry if act_dir == "CALL" else act_entry - act_cur_p, 1)
+                act_trade_str = (
+                    f"PREVIOUS / ACTIVE TRADE SETUP DISCUSSED WITH {uname.upper()} IN THIS CONVERSATION:\n"
+                    f"• Direction: {act_dir}\n"
+                    f"• Entry Level: ₹{act_entry:,.1f}\n"
+                    f"• Target Level: ₹{act_tgt:,.1f} ({abs(act_tgt - act_entry):.1f} pts target runway)\n"
+                    f"• Stop Loss: ₹{act_sl:,.1f} ({abs(act_entry - act_sl):.1f} pts risk)\n"
+                    f"• Current PnL: {act_pnl:+.1f} pts (Current Spot: ₹{act_cur_p:,.1f})\n"
+                    f"• Status: ACTIVE IN CONVERSATION\n"
+                    f"💡 CRITICAL INSTRUCTION: If {uname} asks 'how to decide target', 'why this target', 'target logic', or asks about this trade, you MUST explain the exact logic behind THESE EXACT LEVELS (Target ₹{act_tgt:,.1f}, Entry ₹{act_entry:,.1f}, SL ₹{act_sl:,.1f}). Do NOT invent a different setup and do NOT output a new trade summary card!\n\n"
+                )
+
             # Technical evaluation breakdown
             v = tech.get("vwap", {})
             e = tech.get("ema", {})
@@ -441,6 +462,7 @@ class GeminiLLMClient:
                 f"{orb_str}"
                 f"{doc_str}"
                 f"{pred_str}"
+                f"{act_trade_str}"
                 f"{sig_block}"
                 f"{sr_str}\n"
             )
@@ -555,8 +577,29 @@ class GeminiLLMClient:
             f"RETRIEVED VECTOR DATABASE KNOWLEDGE & RECENT SETUPS:\n"
             f"{context_str}\n\n"
             f"TRADER QUESTION:\n{user_query}\n\n"
-            f"CRITICAL INSTRUCTIONS - CONCISE, TARGETED & COMPLETE:\n"
-            f"1. DIRECT & CRISP: Answer ONLY what {uname} asks in 2 to 4 clear bullet points. Avoid unnecessary background lectures, filler words, or unsolicited developer contact.\n"
+            f"CRITICAL INSTRUCTIONS - INTENT OBSERVATION & REAL HUMAN SENIOR TRADER VOICE:\n"
+            f"0. MANDATORY INTENT OBSERVATION (REVIEW QUESTION BEFORE ANSWERING):\n"
+            f"   • Categorize what {uname} is actually asking before generating your response:\n"
+            f"     a) [LOGIC / 'HOW' / 'WHY' QUESTION] (e.g. 'how to decide target', 'why this target', 'target logic', 'why this sl', 'sl logic', 'how did you calculate?'):\n"
+            f"        -> EXPLAIN the exact institutional reasoning of the active trade levels discussed earlier in chat (Confluence Wall defense, 5m ATR runway, 1:2.5+ R:R math).\n"
+            f"        -> ABSOLUTE RULE: NEVER output the 🎯 QUICK TRADE EXECUTION SUMMARY card! Do NOT give a new trade setup! Answer in a direct, natural mentor voice.\n"
+            f"     b) [EXPLICIT TRADE SETUP REQUEST] (e.g. 'where to enter?', 'can I buy call/put?', 'should I enter now?', 'give me a setup'):\n"
+            f"        -> Provide 2 to 3 bullet points of technical rationale + conclude with the 🎯 QUICK TRADE EXECUTION SUMMARY card.\n"
+            f"     c) [CONCEPTUAL / EDUCATIONAL] (e.g. 'what is PCR?', 'explain VWAP'):\n"
+            f"        -> Explain the concept in clear trader terms. NO trade summary card.\n"
+            f"     d) [TRADE MANAGEMENT / FOLLOW-UP] (e.g. 'should I exit now?', 'trail sl'):\n"
+            f"        -> Advise on active trade management (trailing SL, partial profit). NO new trade setup card.\n"
+            f"1. REAL HUMAN SENIOR PROP TRADER VOICE & NATURAL CONVERSATION:\n"
+            f"   • Speak like a real, experienced human senior prop desk trader / trading mentor sitting right next to {uname} at the desk.\n"
+            f"   • Talk naturally, conversationally, concisely, and with sharp trading desk wisdom.\n"
+            f"   • ABSOLUTELY FORBIDDEN ROBOTIC PATTERNS: NEVER use robotic customer-service or chatbot openings like:\n"
+            f"     - 'Regarding your question...'\n"
+            f"     - 'Hello admin! Regarding your question \"how to decide target\", here is the institutional framework...'\n"
+            f"     - 'As an AI language model...'\n"
+            f"     - 'Here is the institutional framework professional traders use to calculate...'\n"
+            f"     - Robotic exam-style headings or textbook definitions.\n"
+            f"   • Use natural conversational openings when answering logic questions, e.g.:\n"
+            f"     'Good question, {uname}! When we set that target on our earlier setup, we didn't just guess a round number—here is the exact 3-step logic we used:'\n"
             f"2. CONTRACT SIZING: 1 Lot is STRICTLY 65 Quantity (Units). All lot calculations must use multiples of 65 (1 Lot = 65, 2 Lots = 130, 3 Lots = 195). Never say 25 or 75.\n"
             f"3. WEEKLY EXPIRY: Weekly expiry is on TUESDAY.\n"
             f"4. DERIVATIVES & OI ('IO'): 'IO' is Open Interest (OI). Quote the exact Put-Call Ratio (PCR), Max Call OI ceiling, Max Put OI floor, and directional bias.\n"
@@ -591,16 +634,26 @@ class GeminiLLMClient:
             f"     - Step 2 (Momentum): Does RVOL (> 1.5) and VWAP slope confirm?\n"
             f"     - Step 3 (Risk Mitigation): Can Devil's Advocate objections be solved by adjusting Stop-Loss (1.2 × ATR or 12–15 pts) or reducing position size (1 Lot = 65 qty)?\n"
             f"     - Step 4 (Verdict): Concrete Entry, Stop-Loss, Target Runway, and R:R ratio (≥ 1:2.0).\n"
-            f"15. CONVERSATIONAL CONTINUITY & PAST SETUP (RR BOX) EVALUATION RULES:\n"
-            f"   • You have full access to today's 24-hour conversation memory with {uname} in the prompt above. Always maintain continuous context (e.g. if {uname} asks 'is my previous setup ok?', 'what about the last trade we discussed?', or asks about their drawn Target/SL box).\n"
+            f"15. CONVERSATIONAL CONTINUITY & EXPLAINING PREVIOUS TARGET/SL LOGIC:\n"
+            f"   • You have full access to today's 24-hour conversation memory and PREVIOUS / ACTIVE TRADE SETUP in the prompt above. Always maintain continuous context.\n"
+            f"   • When {uname} asks 'how to decide target?', 'why this target?', 'target logic', or asks why a previous target/SL was chosen:\n"
+            f"     1. Specifically reference the exact active trade levels from PREVIOUS / ACTIVE TRADE SETUP above (e.g. Target ₹[Target], Entry ₹[Entry], SL ₹[SL]).\n"
+            f"     2. Explain the 3 institutional pillars in natural conversational language:\n"
+            f"        - S&R / OI Confluence Wall: Target is set right ahead of the Max Call/Put OI wall or multi-month S&R (> 5 touches) to bank profits before institutional friction creates a stall/pullback.\n"
+            f"        - Intraday Volatility Runway (ATR): 14-period ATR gives realistic momentum runway (40 to 70 pts) without overstaying into theta decay.\n"
+            f"        - Asymmetric Risk-to-Reward Math: Minimum 1:2.0 to 1:2.8 R:R ensuring reward significantly exceeds risk.\n"
+            f"     3. DO NOT invent new trade numbers or output an unsolicited trade card!\n"
             f"   • When {uname} asks about their drawn Risk-Reward (TARGET_SL) setup or previous trade:\n"
             f"     a) FIRST evaluate their SPECIFIC EXISTING SETUP against current market price and structure (Session VWAP, S&R, trend, and OI walls).\n"
             f"     b) DO NOT forcefully or blindly discard their drawn setup to manufacture an unrelated new one! If the setup is valid or manageable, advise on active trade management: e.g. 'Trail Stop Loss to breakeven at ₹...', 'Take 50% partial profit at ₹...', or 'Hold with current SL at ₹...'.\n"
             f"     c) ONLY suggest abandoning the setup if the thesis has failed, market structure broke down, or the Stop Loss was hit. If so, clearly explain what failed before suggesting an adjusted setup.\n"
-            f"16. STANDARDIZED QUICK TRADE EXECUTION SUMMARY (MANDATORY FORMAT):\n"
-            f"   • Whenever providing, analyzing, or adjusting a trade setup (Entry, Target, Stop Loss):\n"
-            f"     1. First explain the rationale clearly and concisely (2–3 bullet points on WHY: confluence, indicators, S&R level).\n"
-            f"     2. AFTER completing the explanation, ALWAYS end your response with this EXACT standardized execution summary block so the trader can read all execution values at a quick glance without reading paragraphs:\n\n"
+            f"16. STANDARDIZED QUICK TRADE EXECUTION SUMMARY (STRICT TRIGGER RULE):\n"
+            f"   • STRICT TRIGGER: You must ONLY output this summary card when {uname} EXPLICITLY asks for a new actionable trade entry / setup (e.g. 'where to enter?', 'can I buy call/put?', 'give me a setup', 'should I enter now?').\n"
+            f"   • ABSOLUTELY FORBIDDEN: NEVER output this execution summary card when:\n"
+            f"     - {uname} asks a 'how', 'why', or 'logic' question (e.g. 'how to decide target?', 'why this target?', 'target logic', 'why this sl?', 'sl logic').\n"
+            f"     - {uname} asks conceptual, educational, or indicator questions ('what is PCR?', 'explain VWAP').\n"
+            f"     - {uname} asks about their existing trade, line angle, or chart drawings.\n"
+            f"   • When triggered for an actionable setup, place it at the very bottom in this exact format:\n\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"🎯 QUICK TRADE EXECUTION SUMMARY\n"
             f"• Direction   -> [BUY (CALL) / SELL (PUT)]\n"
@@ -609,7 +662,6 @@ class GeminiLLMClient:
             f"• Stop Loss   -> ₹[Exact Price] (-[Pts] pts / -[%]%)\n"
             f"• Risk:Reward -> 1 : [Ratio]\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"   Never omit this quick execution summary whenever a trade setup is discussed or advised.\n"
             f"17. INSTITUTIONAL 3-ENGINE AUTONOMOUS PROTOCOL & DRAWINGS FUSION:\n"
             f"   • Synthesize your trading conviction from the 3 Core Institutional Engines in the prompt:\n"
             f"     - Engine 1: Heavyweight Fuel (Top 5 point contribution: HDFC Bank, Reliance, ICICI Bank, Infosys, TCS)\n"
@@ -636,6 +688,36 @@ class GeminiLLMClient:
         # If API key is not configured, return high-value local synthesis
         if not self.api_key:
             return self._local_fallback(user_query, retrieved_context, market_state)
+
+        # Detect if user is asking for logic/how/why (to prevent unsolicited trade card)
+        target_logic_terms = [
+            "how to decide target", "how to deside target", "target logic", "why this target",
+            "why target", "target kaise", "target calculation", "how did you calculate target",
+            "logic of target", "explain target", "target kyu"
+        ]
+        sl_logic_terms = [
+            "how to decide sl", "how to deside sl", "sl logic", "stop loss logic", "why this sl",
+            "why sl", "sl kaise", "stop loss calculation", "how did you calculate sl",
+            "logic of stop loss", "explain sl", "sl kyu"
+        ]
+        is_logic_query = any(p in user_query.lower() for p in (target_logic_terms + sl_logic_terms)) or any(w in user_query.lower() for w in ["how to calculate", "how do you decide", "what is the logic"])
+
+        def _clean_reply(raw_text: str) -> str:
+            txt = raw_text.strip()
+            # Strip robotic conversational openers like 'Regarding your question "how to decide target", here is...'
+            txt = re.sub(
+                r"^(?:Hello\s+[a-zA-Z0-9_-]+[!\.,]?\s*)?Regarding\s+(?:your\s+question\s+)?[\"'].*?[\"'][,\s:]*(?:here\s+is\s+[^:\n]+[:\n])?",
+                "",
+                txt,
+                flags=re.IGNORECASE
+            ).strip()
+            # Strip canned AI intros
+            txt = re.sub(r"^(?:As\s+an\s+AI|As\s+a\s+language\s+model|Here\s+is\s+the\s+institutional\s+framework)[^\n]*\n*", "", txt, flags=re.IGNORECASE).strip()
+            # If user asked for logic / why / how, strictly strip any execution summary card
+            if is_logic_query:
+                txt = re.sub(r"━+\s*🎯\s*QUICK TRADE EXECUTION SUMMARY[\s\S]*?(?:━+|$)", "", txt).strip()
+                txt = re.sub(r"🎯\s*QUICK TRADE EXECUTION SUMMARY[\s\S]*$", "", txt).strip()
+            return txt
 
         # Call Gemini REST endpoint with auto-fallback across high-quota models
         candidate_models = ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-flash-latest", "gemini-flash-lite-latest"]
@@ -677,7 +759,7 @@ class GeminiLLMClient:
                         parts = candidates[0].get("content", {}).get("parts", [])
                         reply_text = "".join(p.get("text", "") for p in parts)
                         return {
-                            "reply": reply_text.strip(),
+                            "reply": _clean_reply(reply_text),
                             "model": mod,
                             "status": "success",
                             "is_live_llm": True,
@@ -694,7 +776,7 @@ class GeminiLLMClient:
                                 pts = cands_r[0].get("content", {}).get("parts", [])
                                 rep = "".join(p.get("text", "") for p in pts)
                                 if rep.strip():
-                                    return {"reply": rep.strip(), "model": mod, "status": "success", "is_live_llm": True}
+                                    return {"reply": _clean_reply(rep), "model": mod, "status": "success", "is_live_llm": True}
                     except Exception:
                         pass
                 last_error = f"HTTP {e.code}: {e.reason}"
@@ -935,6 +1017,78 @@ class GeminiLLMClient:
                     f"• **NIFTY 50 Directional Guidance:** **{dir_bias}** — {verdict}\n\n"
                     f"• **Latest Market Headlines:**\n{hl_text}\n\n"
                     f"💡 *Strict High-Impact Engine: Routine stock tips and opinions are filtered out so you only react when significant macro news moves the tape.*"
+                )
+
+        # 0.008 Dedicated answers for Target Logic & Stop Loss Logic
+        target_logic_terms = [
+            "how to decide target", "how to deside target", "target logic", "why this target",
+            "why target", "target kaise", "target calculation", "how did you calculate target",
+            "logic of target", "explain target", "target kyu"
+        ]
+        sl_logic_terms = [
+            "how to decide sl", "how to deside sl", "sl logic", "stop loss logic", "why this sl",
+            "why sl", "sl kaise", "stop loss calculation", "how did you calculate sl",
+            "logic of stop loss", "explain sl", "sl kyu"
+        ]
+        is_target_logic = any(p in q_lower for p in target_logic_terms)
+        is_sl_logic = any(p in q_lower for p in sl_logic_terms)
+
+        act_trade = market_state.get("active_trade") if market_state else None
+        oc = market_state.get("option_chain", {}) if market_state else {}
+        call_wall = oc.get("max_call_oi_strike", 25400)
+        put_floor = oc.get("max_put_oi_strike", 25200)
+        atr_val = round(float(tech.get("oscillators", {}).get("atr_14", 45.0) or 45.0), 1)
+
+        if not synthesis and is_target_logic:
+            if act_trade and act_trade.get("entry_price"):
+                act_dir = act_trade.get("direction", "CALL")
+                act_entry = float(act_trade.get("entry_price", cur_p))
+                act_tgt = float(act_trade.get("target", cur_p + 70.0))
+                act_sl = float(act_trade.get("initial_sl", cur_p - 25.0))
+                reward_pts = abs(act_tgt - act_entry)
+                risk_pts = abs(act_entry - act_sl)
+                rr_val = round(reward_pts / max(risk_pts, 1.0), 1)
+                synthesis = (
+                    f"Good question, {uname}! When we set that ₹{act_tgt:,.1f} target on the earlier {act_dir} setup (from ₹{act_entry:,.1f} entry), we didn't just guess a round number—here's the exact 3-step institutional logic we used:\n\n"
+                    f"1. **Institutional S&R / OI Confluence Wall:**\n"
+                    f"   Our target sits right ahead of the major institutional resistance at ₹{call_wall:,.0f} (and Upper +2σ band). Big institutional option writers defend these strikes heavily. Taking profit right as price pushes into that wall lets us lock in peak gains before sellers create friction.\n\n"
+                    f"2. **Intraday Volatility Runway (ATR Scaling):**\n"
+                    f"   NIFTY's current 14-period ATR is running around ~{atr_val:.1f} points. A +{reward_pts:.0f}-point target runway gives us a realistic intraday expansion move that can be captured in 1 to 2 momentum pushes without overstaying into late-session theta decay.\n\n"
+                    f"3. **Favorable Risk-to-Reward Math (1 : {rr_val}):**\n"
+                    f"   With our Stop Loss safely anchored at ₹{act_sl:,.1f} (risking only {risk_pts:.0f} points below support), aiming for ₹{act_tgt:,.1f} secures a clean 1 : {rr_val} Risk-to-Reward ratio. As a disciplined rule, we never take an intraday setup unless we get at least 2x to 2.5x our risk.\n\n"
+                    f"Always bank profit into strength rather than hoping for a breakout. Does this logic make sense to you?"
+                )
+            else:
+                synthesis = (
+                    f"Good question, {uname}! Here is the exact 3-step logic we use to decide intraday NIFTY targets:\n\n"
+                    f"1. **Institutional S&R / OI Walls:** Always place your target 5 to 10 points ahead of the nearest Max Call/Put OI strike or multi-month S&R level (> 5 touches). Never place a target beyond a major OI barrier because call/put writers will defend it.\n\n"
+                    f"2. **ATR Runway:** Use current 14-period ATR (~{atr_val:.1f} pts) to gauge realistic intraday expansion (typically 40 to 70 points).\n\n"
+                    f"3. **Risk-to-Reward (Minimum 1:2.0):** If your stop loss is 20–25 points, your target must provide at least 50–70 points of clean runway to justify the trade.\n\n"
+                    f"Lock in profits into resistance rather than hoping for miracles. Let me know if you want to review a specific level!"
+                )
+
+        if not synthesis and is_sl_logic:
+            if act_trade and act_trade.get("entry_price"):
+                act_dir = act_trade.get("direction", "CALL")
+                act_entry = float(act_trade.get("entry_price", cur_p))
+                act_sl = float(act_trade.get("initial_sl", cur_p - 25.0))
+                risk_pts = abs(act_entry - act_sl)
+                synthesis = (
+                    f"Great question, {uname}! When we placed that ₹{act_sl:,.1f} Stop Loss on our {act_dir} setup (from ₹{act_entry:,.1f}), here's why that specific level was chosen:\n\n"
+                    f"1. **Structural Support Buffer:**\n"
+                    f"   ₹{act_sl:,.1f} is tucked safely {risk_pts:.0f} points below our entry level and beneath the verified institutional support floor / Session VWAP. Placing the stop behind structural support prevents normal market noise and minor wicks from knocking us out prematurely.\n\n"
+                    f"2. **ATR Volatility Sizing (1.2 × ATR):**\n"
+                    f"   A {risk_pts:.0f}-point stop aligns with 1.2x of our 5m ATR (~{atr_val:.1f} pts). This gives the trade enough breathing room to develop while strictly capping our risk at ~₹{int(risk_pts * 65):,} per lot (65 units).\n\n"
+                    f"3. **Definitive Invalidation Point:**\n"
+                    f"   If a 5-minute candle closes below ₹{act_sl:,.1f}, it means the institutional buyer defense has completely failed. At that point, our trade thesis is dead, and we exit immediately without hoping or averaging down.\n\n"
+                    f"Strict stop-loss discipline is what keeps us alive in this game. Let me know if you have any questions on this!"
+                )
+            else:
+                synthesis = (
+                    f"Great question, {uname}! Here is how we calculate an institutional Stop Loss on NIFTY:\n\n"
+                    f"1. **Structural S&R / VWAP Placement:** Always place the stop behind the nearest swing low/high, Session VWAP, or verified S&R level (> 5 touches), not at an arbitrary point.\n\n"
+                    f"2. **Dynamic Volatility Buffer (1.2 × ATR):** Keep a 15 to 25 point buffer based on current ATR so intraday noise doesn't trigger it.\n\n"
+                    f"3. **Strict Thesis Invalidation:** If price breaches your SL, your thesis is broken—cut the loss immediately without hesitation."
                 )
 
         # 0.01 Direct answer for Time-of-Day Window queries
@@ -1743,7 +1897,8 @@ class GeminiLLMClient:
                 synthesis = f"Hey {uname},\n\nCurrent NIFTY 50 LTP: ₹{cur_p}. Main Strategy is active on 5m timeframe following Session VWAP and S&R confluence rules."
 
         reply = synthesis.strip()
-        if ("CALL SETUP" in reply or "PUT SETUP" in reply or "MOMENTUM SCALP" in reply or "BREAKDOWN SCALP" in reply) and "QUICK TRADE EXECUTION SUMMARY" not in reply:
+        is_explicit_entry_ask = (asks_call or asks_put or asks_timing) and not (is_target_logic or is_sl_logic)
+        if is_explicit_entry_ask and ("CALL SETUP" in reply or "PUT SETUP" in reply or "MOMENTUM SCALP" in reply or "BREAKDOWN SCALP" in reply) and "QUICK TRADE EXECUTION SUMMARY" not in reply:
             is_call = "CALL" in reply or "BULLISH" in reply or "DIP" in reply
             dir_str = "BUY (CALL)" if is_call else "SELL (PUT)"
             tgt_dist = 50.0

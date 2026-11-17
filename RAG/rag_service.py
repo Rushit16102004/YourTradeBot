@@ -14,7 +14,7 @@ from .config import RAGConfig
 logger = logging.getLogger("RAGService")
 
 SYSTEM_INSTRUCTIONS = (
-    "You are an elite quantitative AI Strategy Copilot for NIFTY 50 (NSE). "
+    "You are an elite senior quantitative prop trader and trading desk mentor for NIFTY 50 (NSE). "
     "You provide high-precision technical intelligence evaluating Session VWAP, ±2σ Exhaustion Bands, "
     "Multi-period EMAs (9, 20, 50, 200), RSI, MACD, Volume dynamics, S&R confluence breakouts, "
     "trend continuation, and reversal start timing.\n\n"
@@ -22,7 +22,10 @@ SYSTEM_INSTRUCTIONS = (
     "• Lead Strategy Provider & Developer: Rushit Bodra (rushitbodra@gmail.com)\n"
     "• Only provide developer contact if explicitly asked who created or developed the bot.\n\n"
     "CORE OPERATIONAL RULES:\n"
-    "1. CONCISE & TARGETED MANDATE: Answer ONLY what the trader asks. Do NOT lecture on unrelated indicators or provide unsolicited developer info. Keep responses crisp, direct, and complete (typically 2 to 4 bullet points max).\n"
+    "1. REAL HUMAN SENIOR PROP TRADER VOICE & BEHAVIOR:\n"
+    "   • Speak like a real, experienced human senior prop desk trader / trading mentor sitting right beside the trader at the desk.\n"
+    "   • Use natural, direct, conversational phrasing and authentic Indian market terminology (NIFTY, spot, points, strikes, Call writers, PCR, fakeout, wick rejection, trailing).\n"
+    "   • ABSOLUTELY FORBIDDEN ROBOTIC PATTERNS: NEVER use robotic customer-service or chatbot openings like 'Regarding your question...', 'Hello admin! Regarding your question \"how to decide target\", here is the institutional framework...', 'As an AI language model...', or textbook-style academic lectures. Answer directly with real trading desk wisdom.\n"
     "2. STRATEGY NAMING MANDATE: NEVER write or display 'ZFTF' or 'Zero-Lag Trend Following'. Always refer to it simply as 'Main Strategy' or 'Institutional Strategy'.\n"
     "3. PERSONALIZED ENGAGEMENT: Address the trader warmly and directly by their username (e.g. 'Rahul,').\n"
     "4. VERTICAL SPACING & READABILITY: Format answers with clear bold headings and distinct bullet points, separated by double newlines.\n"
@@ -32,10 +35,15 @@ SYSTEM_INSTRUCTIONS = (
     "8. REAL INDIA VIX: Always state the real authentic India VIX quote (~17.16) and market regime directly. NEVER calculate or output proxy VIX.\n"
     "9. TRADE ENTRY SUGGESTION MANDATE: When asked general entry questions ('where to enter?', 'call or put?'), synthesize your own original technical setup (Suggested Bias, Trigger Condition, Stop-Loss, and Target Runway toward S&R > 5 touches). If and ONLY if explicitly asked about 'main signal' or 'signal log', quote the confirmed strategy signal.\n"
     "10. COMPLETE ANSWERS: Never truncate or stop in the middle of a sentence. Finish every point completely.\n"
-    "11. PERSONAL TRADING BRAIN & MULTI-FACTOR CONFLUENCE MANDATE: You operate with a seasoned pro-trader Personal Brain, NOT a rigid mechanical checklist. Never reject a trade idea simply because one single indicator or time window is contrary. Pro traders weigh multi-factor confluence (Price Action, Volume, S&R, Market Breadth, and Indicators). When indicators conflict (e.g. price is trending above VWAP with strong volume, but RSI is overbought or it is nearing lunch hour), evaluate the probability and provide adaptive, actionable execution suggestions: (1) Tactical Scalp Mode with 1 Lot (65 qty) and tight 12–15 pt SL, or (2) High-Probability Pullback Entry waiting for a 5m retest of VWAP or S&R. Help the trader navigate the market intelligently rather than giving a rigid binary rejection.\n"
+    "11. PERSONAL TRADING BRAIN & MULTI-FACTOR CONFLUENCE MANDATE: You operate with a seasoned pro-trader Personal Brain, NOT a rigid mechanical checklist. Never reject a trade idea simply because one single indicator or time window is contrary. Pro traders weigh multi-factor confluence (Price Action, Volume, S&R, Market Breadth, and Indicators). When indicators conflict, evaluate the probability and provide adaptive, actionable execution suggestions: (1) Tactical Scalp Mode with 1 Lot (65 qty) and tight 12–15 pt SL, or (2) High-Probability Pullback Entry waiting for a 5m retest of VWAP or S&R.\n"
     "12. NATURAL CONVERSATIONAL INTELLIGENCE & WARMTH: When the trader greets you ('hello', 'hi', 'hyy', 'how are you', 'kese ho', etc.) or asks friendly personal questions, always respond warmly, politely, and like an approachable human trading partner before giving technical analysis.\n"
-    "13. CONVERSATIONAL CONTINUITY & PAST SETUP (RR BOX) EVALUATION: When the trader asks about their previous setup or drawn Risk-Reward (TARGET_SL) box, first evaluate that existing setup against current market structure. Do not arbitrarily replace it if it can be managed with trailing stops or partial booking.\n"
-    "14. STANDARDIZED QUICK TRADE EXECUTION SUMMARY: Whenever giving or reviewing a trade setup, explain the technical thesis first, and always conclude with the standardized summary box:\n"
+    "13. CONVERSATIONAL CONTINUITY & EXPLAINING PREVIOUS TARGET/SL LOGIC:\n"
+    "   • When the trader asks 'how to decide target?', 'why this target?', 'target logic', or asks about previous trade levels, YOU MUST EXPLAIN THE EXACT TECHNICAL REASONING of the active trade levels discussed earlier in chat (Confluence Wall defense, ATR runway, 1:2.5+ R:R math).\n"
+    "   • DO NOT invent a new trade setup and DO NOT alter the numbers when asked for target/SL logic!\n"
+    "14. STANDARDIZED QUICK TRADE EXECUTION SUMMARY (STRICT TRIGGER RULE):\n"
+    "   • STRICT TRIGGER: You must ONLY output the standardized execution summary box when the trader EXPLICITLY asks for a new actionable trade entry / setup (e.g. 'where to enter?', 'can I buy call/put?', 'give me a setup', 'should I enter now?').\n"
+    "   • ABSOLUTELY FORBIDDEN: NEVER output this execution summary box when the trader asks a 'how', 'why', or 'logic' question (e.g. 'how to decide target?', 'why this target?', 'target logic', 'why this sl?', 'sl logic'), or conceptual questions ('what is PCR?').\n"
+    "   • When triggered for an actionable setup, always end with this standardized format:\n"
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     "🎯 QUICK TRADE EXECUTION SUMMARY\n"
     "• Direction   -> [BUY (CALL) / SELL (PUT)]\n"
@@ -245,7 +253,21 @@ class ConversationMemoryEngine:
     def get_active_trade(self, user_id: Optional[str]) -> Optional[Dict[str, Any]]:
         key = self._get_key(user_id)
         with self._lock:
-            return dict(self._active_trades[key]) if key in self._active_trades else None
+            active = self._active_trades.get(key)
+            if active and active.get("entry_price"):
+                return dict(active)
+            # Resilient Fallback: If not explicitly set, search backwards in history buffer for a previous setup card
+            buf = self._buffers.get(key)
+            if buf:
+                for item in reversed(buf):
+                    if item.get("role") in ("assistant", "Copilot"):
+                        txt = item.get("message", "")
+                        if "QUICK TRADE EXECUTION SUMMARY" in txt or "Exit/Target" in txt or "Entry Price" in txt:
+                            self.parse_and_record_trade(user_id, "", txt)
+                            rec = self._active_trades.get(key)
+                            if rec and rec.get("entry_price"):
+                                return dict(rec)
+            return None
 
     def set_active_trade(self, user_id: Optional[str], trade: Dict[str, Any]):
         key = self._get_key(user_id)
@@ -260,55 +282,60 @@ class ConversationMemoryEngine:
     def parse_and_record_trade(self, user_id: Optional[str], user_query: str, ai_reply: str):
         """
         Extracts recommended or taken trade details and logs into Active Trade State.
+        Supports both the standardized HUD execution summary card and free-form messages.
         """
         combined = user_query + " " + ai_reply
         q_lower = user_query.lower()
         r_lower = ai_reply.lower()
 
+        # 1. Parse Direction
         direction = None
-        if "call" in q_lower or "buy" in q_lower or "call" in r_lower:
-            direction = "CALL"
-        elif "put" in q_lower or "sell" in q_lower or "put" in r_lower:
-            direction = "PUT"
+        dir_m = re.search(r"(?:Direction|Action|Bias)\s*(?:->|-&gt;|:|=|>)\s*([^\n\r]+)", ai_reply, re.IGNORECASE)
+        if dir_m:
+            raw_dir = dir_m.group(1).upper()
+            if "PUT" in raw_dir or "SELL" in raw_dir:
+                direction = "PUT"
+            elif "CALL" in raw_dir or "BUY" in raw_dir:
+                direction = "CALL"
+            elif "CONDITIONAL" in raw_dir:
+                direction = "CALL" if ("CALL" in raw_dir or "BUY" in raw_dir or "ORB" in raw_dir) else "CONDITIONAL"
+        if not direction:
+            if "call" in q_lower or "buy" in q_lower or "call" in r_lower:
+                direction = "CALL"
+            elif "put" in q_lower or "sell" in q_lower or "put" in r_lower:
+                direction = "PUT"
 
-        # Check entry price (e.g. 22720, 22,720)
-        entry_match = re.search(r"\b(2\d{1}[,\s]?\d{3})\b", user_query)
-        entry_p = None
-        if entry_match:
-            try:
-                entry_p = float(entry_match.group(1).replace(",", "").replace(" ", ""))
-            except Exception:
-                pass
-
-        if not entry_p:
-            entry_match_r = re.search(r"(?:enter|at|entry|buy|sell)\s*(?:call|put|at)?\s*(?:₹|rs\.?)?\s*(2\d{1}[,\s]?\d{3})", combined, re.IGNORECASE)
-            if entry_match_r:
+        # 2. Price extraction helper
+        def _extract_price(pattern: str, text: str) -> Optional[float]:
+            m = re.search(pattern, text, re.IGNORECASE)
+            if m:
+                cleaned = m.group(1).replace(",", "").strip()
                 try:
-                    entry_p = float(entry_match_r.group(1).replace(",", "").replace(" ", ""))
-                except Exception:
-                    pass
+                    return float(cleaned)
+                except ValueError:
+                    return None
+            return None
 
-        # Check SL (e.g. SL at 22,705 or SL: 22705)
-        sl_match = re.search(r"sl\s*(?:at|:)?\s*(?:₹|rs\.?)?\s*(2\d{1}[,\s]?\d{3})", combined, re.IGNORECASE)
-        sl_p = None
-        if sl_match:
-            try:
-                sl_p = float(sl_match.group(1).replace(",", "").replace(" ", ""))
-            except Exception:
-                pass
+        # 3. Parse Entry Price (優先 HUD execution card: "Entry Price -> ₹25,350.0")
+        entry_p = _extract_price(r"(?:Entry(?:\s*Price)?)\s*(?:->|-&gt;|:|=|>)\s*₹?\s*([0-9,]+(?:\.[0-9]+)?)", ai_reply)
+        if not entry_p:
+            entry_p = _extract_price(r"(?:enter|at|entry|buy|sell)\s*(?:call|put|at)?\s*(?:₹|rs\.?)?\s*([0-9,]+(?:\.[0-9]+)?)", combined)
+        if not entry_p:
+            entry_p = _extract_price(r"\b(2\d{1}[,\s]?\d{3}(?:\.\d+)?)\b", user_query)
 
-        # Check Target (e.g. Target at 22,770 or Target: 22770)
-        tgt_match = re.search(r"target\s*(?:at|:)?\s*(?:₹|rs\.?)?\s*(2\d{1}[,\s]?\d{3})", combined, re.IGNORECASE)
-        tgt_p = None
-        if tgt_match:
-            try:
-                tgt_p = float(tgt_match.group(1).replace(",", "").replace(" ", ""))
-            except Exception:
-                pass
+        # 4. Parse Exit / Target (HUD execution card: "Exit/Target -> ₹25,420.0")
+        tgt_p = _extract_price(r"(?:Exit/Target|Target|Exit)\s*(?:->|-&gt;|:|=|>)\s*₹?\s*([0-9,]+(?:\.[0-9]+)?)", ai_reply)
+        if not tgt_p:
+            tgt_p = _extract_price(r"target\s*(?:at|:)?\s*(?:₹|rs\.?)?\s*([0-9,]+(?:\.[0-9]+)?)", combined)
+
+        # 5. Parse Stop Loss (HUD execution card: "Stop Loss -> ₹25,325.0")
+        sl_p = _extract_price(r"(?:Stop\s*Loss|Initial\s*SL|SL)\s*(?:->|-&gt;|:|=|>)\s*₹?\s*([0-9,]+(?:\.[0-9]+)?)", ai_reply)
+        if not sl_p:
+            sl_p = _extract_price(r"sl\s*(?:at|:)?\s*(?:₹|rs\.?)?\s*([0-9,]+(?:\.[0-9]+)?)", combined)
 
         if direction and entry_p:
             if not sl_p:
-                sl_p = (entry_p - 15.0) if direction == "CALL" else (entry_p + 15.0)
+                sl_p = (entry_p - 20.0) if direction == "CALL" else (entry_p + 20.0)
             if not tgt_p:
                 tgt_p = (entry_p + 50.0) if direction == "CALL" else (entry_p - 50.0)
 
