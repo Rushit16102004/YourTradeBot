@@ -4604,6 +4604,12 @@
                             <span class="macro-sep hide-on-mobile">•</span>
                             <span class="macro-item hide-on-mobile">OI <b id="macro-oi-val">--</b></span>
                         </div>
+                        <!-- ⚡ Heavyweight Fuel Mini-Ticker (Top 5 Stocks Net Impact - Updates every 10s) -->
+                        <div id="heavyweights-badge" class="macro-metrics-badge" title="Top 5 Heavyweights Point Contribution to NIFTY 50" style="border-color: rgba(99, 102, 241, 0.35); background: rgba(30, 27, 75, 0.4);">
+                            <span class="macro-item" style="color: #a5b4fc;">⚡ Top 5: <b id="hw-net-val" style="color: #cbd5e1;">-- pts</b></span>
+                            <span class="macro-sep hide-on-mobile">•</span>
+                            <span class="macro-item hide-on-mobile" id="hw-leaders-ticker" style="font-size: 10.5px; color: #94a3b8;">HDFC -- | REL --</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -12510,6 +12516,61 @@ function showIndicatorLineActionPill(ind, point) {
             openPropertiesPanel(box.id);
         }
 
+        function plotTradeSetupOnChart(dir, entry, target, stop) {
+            try {
+                const curCandle = (typeof activeCandles !== 'undefined' && activeCandles && activeCandles.length > 0)
+                    ? activeCandles[activeCandles.length - 1]
+                    : null;
+                const startTime = curCandle ? curCandle.time : Math.floor(Date.now() / 1000);
+                const tfSec = (typeof getTimeframeSeconds === 'function') ? getTimeframeSeconds() : 300;
+                const endTime = startTime + (25 * tfSec);
+
+                const isBuy = /buy|call|bull/i.test(dir);
+                const remarkText = `AI ${isBuy ? 'CALL' : 'PUT'} Setup`;
+
+                const box = {
+                    id: 'shape_' + Date.now(),
+                    type: 'target_sl',
+                    entry: Number(entry),
+                    target: Number(target),
+                    stop: Number(stop),
+                    timeStart: startTime,
+                    timeEnd: endTime,
+                    color: isBuy ? '#22c55e' : '#ef4444',
+                    remark: remarkText
+                };
+
+                if (typeof recordCurrentDrawingUndoState === 'function') {
+                    recordCurrentDrawingUndoState();
+                }
+                if (typeof drawings !== 'undefined') {
+                    drawings.push(box);
+                }
+                if (typeof saveDrawings === 'function') {
+                    saveDrawings();
+                }
+                if (typeof renderAllDrawings === 'function') {
+                    renderAllDrawings();
+                }
+                if (typeof openPropertiesPanel === 'function') {
+                    openPropertiesPanel(box.id);
+                }
+
+                // Show visual confirmation toast notification
+                const toast = document.createElement('div');
+                toast.style.cssText = 'position: fixed; bottom: 80px; right: 24px; z-index: 999999; background: #0284c7; color: white; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.25); display: flex; align-items: center; gap: 8px; pointer-events: none; transition: opacity 0.4s ease;';
+                toast.innerHTML = `<span>🎯</span> Plotted AI ${isBuy ? 'CALL' : 'PUT'} Setup (Entry ₹${entry}) on Chart!`;
+                document.body.appendChild(toast);
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 400);
+                }, 3000);
+            } catch (err) {
+                console.error("Failed to plot trade setup on chart:", err);
+                alert("Failed to plot setup on chart: " + err.message);
+            }
+        }
+
         function getTimeframeSeconds() {
             if (currentTimeframe === '15m') return 900;
             if (currentTimeframe === '1h') return 3600;
@@ -15419,6 +15480,21 @@ function showIndicatorLineActionPill(ind, point) {
                     const slVal = slMatch ? slMatch[1].trim() : 'Structural SL';
                     const rrVal = rrMatch ? rrMatch[1].trim() : '1 : 2.0';
                     const isBuy = /buy|call|bull/i.test(dirVal);
+                    const entryNum = parseFloat(entryVal.replace(/[^0-9.]/g, '')) || 0;
+                    const tgtNum = parseFloat(tgtVal.replace(/[^0-9.]/g, '')) || 0;
+                    const slNum = parseFloat(slVal.replace(/[^0-9.]/g, '')) || 0;
+                    let plotBtnHtml = '';
+                    if (entryNum > 0 && tgtNum > 0 && slNum > 0) {
+                        const plotDir = isBuy ? 'CALL' : 'PUT';
+                        plotBtnHtml = `
+                            <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.12); display: flex; justify-content: flex-end; align-items: center; gap: 8px;">
+                                <span style="font-size: 11px; color: #94a3b8;">1-Click Chart Action:</span>
+                                <button class="btn-plot-trade-chart" onclick="plotTradeSetupOnChart('${plotDir}', ${entryNum}, ${tgtNum}, ${slNum})" style="background: linear-gradient(135deg, #0284c7, #2563eb); color: #ffffff; border: none; border-radius: 6px; padding: 5px 12px; font-size: 11.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(2,132,199,0.35); transition: all 0.15s ease;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(2,132,199,0.5)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 2px 8px rgba(2,132,199,0.35)';">
+                                    <span>🎯</span> Plot on Chart
+                                </button>
+                            </div>
+                        `;
+                    }
 
                     renderedCard = `
                         <div class="trade-summary-hud-card" style="margin: 16px 0 8px 0; background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.90)); border: 1.5px solid rgba(56, 189, 248, 0.35); border-radius: 10px; padding: 12px 14px; box-shadow: 0 4px 16px rgba(0,0,0,0.45);">
@@ -15444,6 +15520,7 @@ function showIndicatorLineActionPill(ind, point) {
                                     <div style="color: #ef4444; font-weight: 700;">${slVal}</div>
                                 </div>
                             </div>
+                            ${plotBtnHtml}
                         </div>
                     `;
                     html = html.replace(block, '[[TRADE_CARD_PLACEHOLDER]]');
@@ -15853,6 +15930,27 @@ function showIndicatorLineActionPill(ind, point) {
 
                 if (badge && d.sentiment) {
                     badge.title = `Macro Derivatives (10s):\n• India VIX: ${d.vix}\n• PCR: ${d.pcr} (${d.sentiment})\n• Total OI: ${d.total_oi_str} (CE: ${d.tot_ce_oi_str} / PE: ${d.tot_pe_oi_str})\n• Call Wall: ₹${d.max_call_oi} | Put Wall: ₹${d.max_put_oi} | Max Pain: ₹${d.max_pain}`;
+                }
+
+                // Heavyweights Ticker
+                const hwNetEl = document.getElementById('hw-net-val');
+                const hwLeadersEl = document.getElementById('hw-leaders-ticker');
+                const hwBadge = document.getElementById('heavyweights-badge');
+                if (d.heavyweights) {
+                    const netPts = Number(d.heavyweights.net_nifty_points || 0);
+                    if (hwNetEl) {
+                        hwNetEl.textContent = (netPts >= 0 ? '+' : '') + netPts.toFixed(1) + ' pts';
+                        hwNetEl.style.color = (netPts > 5) ? '#10b981' : ((netPts < -5) ? '#ef4444' : '#cbd5e1');
+                    }
+                    if (hwLeadersEl && Array.isArray(d.heavyweights.stocks)) {
+                        const top2 = d.heavyweights.stocks.slice(0, 2).map(s => `${s.symbol.replace('BANK','').replace('RELIANCE','REL')}: ${(s.net_impact_pts >= 0 ? '+' : '') + s.net_impact_pts.toFixed(0)}`).join(' | ');
+                        hwLeadersEl.textContent = top2 || '--';
+                    }
+                    if (hwBadge) {
+                        const basisStr = d.futures_basis != null ? `${Number(d.futures_basis).toFixed(1)} pts` : '--';
+                        const fiiStr = d.fii_long_ratio != null ? `${Number(d.fii_long_ratio).toFixed(1)}%` : '--';
+                        hwBadge.title = `⚡ Heavyweights Fuel: ${d.heavyweights.net_nifty_points >= 0 ? '+' : ''}${d.heavyweights.net_nifty_points || 0} pts (${d.heavyweights.state || 'NEUTRAL'})\n• Nifty Futures Basis: ${basisStr}\n• FII Long/Short Ratio: ${fiiStr}`;
+                    }
                 }
             } catch (err) {
                 // Ignore silent network fluctuation

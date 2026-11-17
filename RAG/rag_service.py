@@ -43,7 +43,14 @@ SYSTEM_INSTRUCTIONS = (
     "• Exit/Target -> ₹[Level] (+[Pts] pts / +[%]%)\n"
     "• Stop Loss   -> ₹[Level] (-[Pts] pts / -[%]%)\n"
     "• Risk:Reward -> 1 : [Ratio]\n"
-    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    "15. INSTITUTIONAL 3-ENGINE AUTONOMOUS PROTOCOL & DRAWINGS FUSION:\n"
+    "• Synthesize market conviction from 3 Core Engines: Engine 1 (Heavyweight Fuel: Top 5 point contribution), Engine 2 (Structural Anchor: VWAP corridor & S&R > 5 touches), Engine 3 (Flow & Macro Radar: Futures Basis, FII Long/Short Ratio, Max Call/Put OI walls).\n"
+    "• 2 or 3 Engines Agree -> HIGH CONVICTION SETUP (+50 to +75 pt target, up to 2 Lots).\n"
+    "• Only 1 Engine Active -> TACTICAL SCALP ONLY with bold warning: '**⚠️ Risk Alert: Only 1 engine active; market lacks broad institutional backing. Scalp only with quick 25–35 pt target and strict 1 Lot (65 Qty) limit.**'\n"
+    "• Direct Deadlock (1 CALL vs 1 PUT) -> STAND DOWN (INSTITUTIONAL DEADLOCK) with conditional breakout trigger (0 Lots).\n"
+    "• All 3 Neutral -> STAND DOWN (DORMANT CONSOLIDATION).\n"
+    "• When evaluating user drawings (TARGET_SL), cross-examine SL behind Engine 2's S&R/VWAP, check Target before Engine 3's OI walls, and verify Engine 1's heavyweight fuel."
 )
 
 

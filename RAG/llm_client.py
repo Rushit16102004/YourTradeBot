@@ -370,11 +370,63 @@ class GeminiLLMClient:
                     f"• Tactical Options Guidance: {news_s.get('trading_verdict', 'Trade Session VWAP & S&R')}\n\n"
                 )
 
+            # 3-Engine Institutional Framework & Quantitative Consensus
+            three_eng = market_state.get("three_engine_decision", {})
+            if not three_eng:
+                try:
+                    from institutional_engine import InstitutionalEngine
+                    vwap_val_num = float(v.get("value", 0.0) or 0.0)
+                    cur_p_num = float(market_state.get("price", 0.0) or 0.0)
+                    e2_eval = "CALL" if (cur_p_num > vwap_val_num and vwap_val_num > 0) else ("PUT" if (cur_p_num < vwap_val_num and vwap_val_num > 0) else "NEUTRAL")
+                    three_eng = InstitutionalEngine.get_instance().evaluate_three_engines(
+                        engine_2_state=e2_eval,
+                        e2_reason="Session VWAP corridor bias",
+                        spot_price=cur_p_num or 24400.0
+                    )
+                except Exception:
+                    three_eng = {}
+
+            three_engine_str = ""
+            if three_eng:
+                e1 = three_eng.get("engine_1_fuel") or three_eng.get("engine_1", {})
+                e2 = three_eng.get("engine_2_anchor") or three_eng.get("engine_2", {})
+                e3 = three_eng.get("engine_3_flow") or three_eng.get("engine_3", {})
+                scenario = three_eng.get("scenario", "UNKNOWN")
+                verdict = three_eng.get("verdict", "NO_TRADE")
+                conviction = three_eng.get("conviction", "NEUTRAL")
+                trade_mode = three_eng.get("trade_mode", "STAND_DOWN")
+                allowed_lots = three_eng.get("allowed_lots", 1)
+                risk_alert = three_eng.get("risk_alert", False)
+                directive = three_eng.get("actionable_directive") or (
+                    f"Setup: {scenario} ({verdict}). Conviction: {conviction}. Sizing: {allowed_lots} Lot(s) ({allowed_lots * 65} Qty)."
+                )
+
+                top_stocks = e1.get("stocks", []) or e1.get("top_movers", [])
+                hw_detail = ", ".join([f"{s['symbol']}: {s.get('points_impact', s.get('net_impact_pts', 0)):+.1f} pts" for s in top_stocks[:3]]) if top_stocks else ""
+                net_hw_pts = e1.get("net_points", e1.get("net_nifty_points", 0.0))
+                basis_pts = e3.get("basis", e3.get("futures_basis_pts", 35.0))
+                basis_stat = e3.get("basis_status", "HEALTHY_PREMIUM")
+                fii_pct = e3.get("fii_long_ratio", e3.get("fii_long_ratio_pct", 40.0))
+
+                three_engine_str = (
+                    f"INSTITUTIONAL 3-ENGINE DECISION MATRIX (CORE MARKET DRIVERS):\n"
+                    f"• Consensus Scenario: {scenario} | Verdict: {verdict} | Conviction: {conviction}\n"
+                    f"• Trade Sizing Governance: {trade_mode} | Max Allowed Position: {allowed_lots} Lot(s) ({allowed_lots * 65} Qty)\n"
+                    f"• Risk Alert Flag: {'⚠️ HIGH RISK ALERT - TACTICAL SCALP ONLY (1 LOT LIMIT)' if risk_alert else 'Normal Risk Profile'}\n"
+                    f"• Actionable Synthesis: {directive}\n"
+                    f"• Engine Breakdown:\n"
+                    f"  1. Engine 1 (Heavyweight Fuel): {e1.get('state', 'NEUTRAL')} ({net_hw_pts:+.1f} pts contribution from Top 5) [{hw_detail}]\n"
+                    f"  2. Engine 2 (Structural Anchor): {e2.get('state', 'NEUTRAL')} -> {e2.get('reason', '')}\n"
+                    f"  3. Engine 3 (Flow & Macro Radar): {e3.get('state', 'NEUTRAL')} "
+                    f"[Futures Basis: {basis_pts:+.1f} pts ({basis_stat}) | FII Long: {fii_pct:.1f}% | Max Call OI: ₹{e3.get('max_call_oi', '--')}, Max Put OI: ₹{e3.get('max_put_oi', '--')}]\n\n"
+                )
+
             market_context_str = (
                 f"CURRENT REAL-TIME MARKET STATE:\n"
                 f"- Symbol: NIFTY 50 (NSE 5m)\n"
                 f"- Current LTP: ₹{market_state.get('price', '--')}\n"
                 f"- MTF Confluence Ribbon: {market_state.get('mtf_confluence', 'Mixed')}\n\n"
+                f"{three_engine_str}"
                 f"{news_str}"
                 f"{tw_str}"
                 f"{oc_str}"
@@ -557,7 +609,28 @@ class GeminiLLMClient:
             f"• Stop Loss   -> ₹[Exact Price] (-[Pts] pts / -[%]%)\n"
             f"• Risk:Reward -> 1 : [Ratio]\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"   Never omit this quick execution summary whenever a trade setup is discussed or advised."
+            f"   Never omit this quick execution summary whenever a trade setup is discussed or advised.\n"
+            f"17. INSTITUTIONAL 3-ENGINE AUTONOMOUS PROTOCOL & DRAWINGS FUSION:\n"
+            f"   • Synthesize your trading conviction from the 3 Core Institutional Engines in the prompt:\n"
+            f"     - Engine 1: Heavyweight Fuel (Top 5 point contribution: HDFC Bank, Reliance, ICICI Bank, Infosys, TCS)\n"
+            f"     - Engine 2: Structural Anchor (Session VWAP corridor, Multi-Month S&R clusters > 5 touches, rejection wicks)\n"
+            f"     - Engine 3: Flow & Macro Radar (Nifty Futures Basis premium/discount, NSE FII Long/Short Ratio, Max Call/Put OI walls)\n"
+            f"   • CONVICTION SCENARIOS:\n"
+            f"     1. [2 or 3 Engines Agree on CALL or PUT]: Declare HIGH CONVICTION SETUP. Target runway +50 to +75 pts. Position size: up to 2 Lots (130 Qty).\n"
+            f"     2. [Only 1 Engine Active (Other 2 are Neutral)]: Declare TACTICAL SCALP ONLY. You MUST include this explicit bold warning: '**⚠️ Risk Alert: Only 1 engine active; market lacks broad institutional backing. Scalp only with quick 25–35 pt target and strict 1 Lot (65 Qty) limit.**'\n"
+            f"     3. [Direct Deadlock (1 CALL vs 1 PUT)]: Declare STAND DOWN (INSTITUTIONAL DEADLOCK). Do NOT enter immediately. Explain the institutional tug-of-war (e.g. Heavyweights pushing up, but Futures discount and Call OI wall blocking). Provide a CONDITIONAL BREAKOUT TRIGGER (e.g., 'Wait for price to decisively breach and hold above ₹... before entering'). Position size: 0 Lots.\n"
+            f"     4. [All 3 Neutral]: Declare STAND DOWN (DORMANT CONSOLIDATION). Advise waiting for the opening bell or volume expansion.\n"
+            f"   • HUMAN-LIKE FUSION WITH USER ON-CHART DRAWINGS:\n"
+            f"     When {uname} asks about their drawn Risk-Reward (TARGET_SL) box or trendlines, critically cross-examine it against the 3 Engines:\n"
+            f"     - Is Stop Loss protected behind Engine 2's S&R cluster / VWAP?\n"
+            f"     - Is Target achievable before hitting Engine 3's Call/Put OI wall?\n"
+            f"     - Are Top 5 heavyweights providing fuel in that direction?\n"
+            f"     - If active in profit, recommend trailing SL to breakeven or locking gains; if thesis is intact, hold; if broken, suggest an adjusted setup.\n"
+            f"   • TRADE DOCTOR RISK GOVERNANCE:\n"
+            f"     - If user suffered a recent loss, enforce defensive sizing (1 Lot = 65 Qty) to prevent revenge trading.\n"
+            f"     - If user has hit targets or discipline score is high, acknowledge good risk discipline and protect locked capital.\n"
+            f"   • CRISP 2-3 BULLET EXPLANATION:\n"
+            f"     Explain WHY the setup was chosen in 2 to 3 concise bullet points before concluding with the Quick Trade Execution Summary."
         )
 
         # If API key is not configured, return high-value local synthesis
@@ -731,6 +804,23 @@ class GeminiLLMClient:
                 f"• **Capital Rule:** Strictly 1 Lot = 65 Quantity on NIFTY."
             )
 
+        action_val = "BUY (CALL)" if is_bull else "SELL (PUT)"
+        entry_val = round(cur_p, 1)
+        tgt_val = round(cur_p + target_pts if is_bull else cur_p - target_pts, 1)
+        sl_val = round(cur_p - sl_pts if is_bull else cur_p + sl_pts, 1)
+        rr_calc = round(target_pts / max(sl_pts, 1.0), 1)
+
+        summary_block = (
+            f"\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🎯 QUICK TRADE EXECUTION SUMMARY\n"
+            f"• Direction   -> {action_val}\n"
+            f"• Entry Price -> ₹{entry_val:,.1f}\n"
+            f"• Exit/Target -> ₹{tgt_val:,.1f} (+{target_pts:.1f} pts / +{round(target_pts/max(entry_val,1.0)*100, 2)}%)\n"
+            f"• Stop Loss   -> ₹{sl_val:,.1f} (-{sl_pts:.1f} pts / -{round(sl_pts/max(entry_val,1.0)*100, 2)}%)\n"
+            f"• Risk:Reward -> 1 : {rr_calc}\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        )
+
         return (
             f"Hey {uname},\n\n"
             f"Here is my quantitative entry suggestion based on real-time S&R confluence (> 5 touches) and technical indicators synthesized via the Multi-Agent Architecture:\n\n"
@@ -744,6 +834,7 @@ class GeminiLLMClient:
             f"• **Step 3 (Risk Mitigation):** {step3_mitig}\n"
             f"• **Step 4 (Verdict):**\n"
             f"{step4_verdict}"
+            f"{summary_block}"
         )
 
     def _local_fallback(
@@ -1652,6 +1743,23 @@ class GeminiLLMClient:
                 synthesis = f"Hey {uname},\n\nCurrent NIFTY 50 LTP: ₹{cur_p}. Main Strategy is active on 5m timeframe following Session VWAP and S&R confluence rules."
 
         reply = synthesis.strip()
+        if ("CALL SETUP" in reply or "PUT SETUP" in reply or "MOMENTUM SCALP" in reply or "BREAKDOWN SCALP" in reply) and "QUICK TRADE EXECUTION SUMMARY" not in reply:
+            is_call = "CALL" in reply or "BULLISH" in reply or "DIP" in reply
+            dir_str = "BUY (CALL)" if is_call else "SELL (PUT)"
+            tgt_dist = 50.0
+            sl_dist = 20.0
+            tgt_val = round(cur_p + tgt_dist if is_call else cur_p - tgt_dist, 1)
+            sl_val = round(cur_p - sl_dist if is_call else cur_p + sl_dist, 1)
+            reply += (
+                f"\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"🎯 QUICK TRADE EXECUTION SUMMARY\n"
+                f"• Direction   -> {dir_str}\n"
+                f"• Entry Price -> ₹{cur_p:,.1f}\n"
+                f"• Exit/Target -> ₹{tgt_val:,.1f} (+{tgt_dist:.1f} pts / +{round(tgt_dist/cur_p*100, 2)}%)\n"
+                f"• Stop Loss   -> ₹{sl_val:,.1f} (-{sl_dist:.1f} pts / -{round(sl_dist/cur_p*100, 2)}%)\n"
+                f"• Risk:Reward -> 1 : 2.5\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            )
 
         return {
             "reply": reply,

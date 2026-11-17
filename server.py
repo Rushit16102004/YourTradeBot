@@ -114,6 +114,11 @@ _load_drawings_from_disk()
 # Initialize background trading engine singleton
 engine = BackgroundTradingEngine.get_instance()
 
+# Initialize institutional engine for real-time Heavyweights, Futures Basis & FII flow
+from institutional_engine import InstitutionalEngine
+inst_engine = InstitutionalEngine.get_instance()
+inst_engine.start()
+
 # In-memory RAM cache for pre-calculated S&R levels (Sub-millisecond response, zero lag)
 _sr_cache_lock = threading.Lock()
 _sr_cache_data = {
@@ -606,6 +611,15 @@ async def get_macro_metrics(request: Request):
         except Exception:
             breadth = {"advances": 25, "declines": 25, "total": 50}
 
+        # Ingest live Heavyweight point impact & Futures Basis from institutional engine
+        try:
+            inst_matrix = inst_engine.get_latest_matrix()
+            hw_data = inst_matrix.get("engine_1_fuel", {})
+            flow_data = inst_matrix.get("engine_3_flow", {})
+        except Exception:
+            hw_data = {}
+            flow_data = {}
+
         return JSONResponse(content={
             "status": "ok",
             "vix": vix_val,
@@ -621,6 +635,9 @@ async def get_macro_metrics(request: Request):
             "max_pain": max_pain,
             "sentiment": sentiment,
             "breadth": breadth,
+            "heavyweights": hw_data,
+            "futures_basis": flow_data.get("basis", 35.0),
+            "fii_long_ratio": flow_data.get("fii_long_ratio", 40.0),
             "timestamp": datetime.now(IST).strftime("%H:%M:%S")
         })
     except Exception as e:
@@ -642,6 +659,16 @@ async def get_macro_metrics(request: Request):
             "breadth": {"advances": 25, "declines": 25, "total": 50},
             "timestamp": datetime.now(IST).strftime("%H:%M:%S")
         })
+
+
+@app.get("/api/market/heavyweights")
+async def get_heavyweights_data():
+    """Returns live Top 5 Heavyweights point contribution and Futures Basis."""
+    try:
+        matrix = inst_engine.get_latest_matrix()
+        return JSONResponse(content={"status": "success", "data": matrix})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @app.get("/api/signal-history")
 async def get_signal_history():
@@ -2079,7 +2106,47 @@ async def rag_chat(request: Request, payload: dict = Body(...)):
             mtf_data=mtf_data,
         )
 
+        # Evaluate 3-Engine Institutional Pipeline (Heavyweights, S&R Anchor, Derivatives Flow)
+        cur_spot = float(engine.latest_price or 24400.0)
+        vwap_val = float(indicators.get("vwap", cur_spot) or cur_spot)
+        vwap_diff = cur_spot - vwap_val
+
+        e2_state = "NEUTRAL"
+        e2_reason = "Consolidating near Session VWAP"
+        nearest_sr = None
+        min_sr_dist = 999999.0
+        for lvl in comb_sr:
+            lp = float(lvl.get("avg_price", lvl.get("price1", 0.0)) or 0.0)
+            if lp > 0:
+                dist_val = abs(cur_spot - lp)
+                if dist_val < min_sr_dist:
+                    min_sr_dist = dist_val
+                    nearest_sr = lvl
+
+        if nearest_sr and min_sr_dist <= 25.0:
+            role = str(nearest_sr.get("role", "")).upper()
+            if "SUPPORT" in role:
+                e2_state = "CALL"
+                e2_reason = f"Holding {nearest_sr.get('role')} at ₹{float(nearest_sr.get('avg_price', 0)):.1f}"
+            elif "RESISTANCE" in role:
+                e2_state = "PUT"
+                e2_reason = f"Testing {nearest_sr.get('role')} at ₹{float(nearest_sr.get('avg_price', 0)):.1f}"
+        elif vwap_diff >= 15.0:
+            e2_state = "CALL"
+            e2_reason = f"Trending +{vwap_diff:.1f} pts above Session VWAP"
+        elif vwap_diff <= -15.0:
+            e2_state = "PUT"
+            e2_reason = f"Trading {vwap_diff:.1f} pts below Session VWAP"
+
+        three_engine_decision = inst_engine.evaluate_three_engines(
+            engine_2_state=e2_state,
+            e2_reason=e2_reason,
+            spot_price=cur_spot
+        )
+
         market_state = {
+            "three_engine_decision": three_engine_decision,
+            "institutional_matrix": inst_engine.get_latest_matrix(),
             "trap_radar": trap_radar,
             "patterns": patterns_eval,
             "preflight": preflight_eval,
