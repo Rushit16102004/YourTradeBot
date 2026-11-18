@@ -622,7 +622,10 @@ async def get_macro_metrics(request: Request):
                 "net_points": 0.0,
                 "stocks": [
                     {"symbol": "HDFCBANK", "points_impact": 0.0},
-                    {"symbol": "RELIANCE", "points_impact": 0.0}
+                    {"symbol": "RELIANCE", "points_impact": 0.0},
+                    {"symbol": "ICICIBANK", "points_impact": 0.0},
+                    {"symbol": "INFY", "points_impact": 0.0},
+                    {"symbol": "TCS", "points_impact": 0.0}
                 ]
             }
             flow_data = {}

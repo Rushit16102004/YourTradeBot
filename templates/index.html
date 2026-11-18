@@ -2699,6 +2699,23 @@
                 min-width: 220px !important;
             }
 
+            #panel-patterns-dropdown {
+                width: min(94vw, 380px) !important;
+                min-width: 0 !important;
+                max-width: 95vw !important;
+            }
+
+            #heavyweights-badge {
+                max-width: 88vw;
+                overflow-x: auto;
+                scrollbar-width: none;
+                -webkit-overflow-scrolling: touch;
+                flex-shrink: 0;
+            }
+            #heavyweights-badge::-webkit-scrollbar {
+                display: none;
+            }
+
             #user-dropdown-menu {
                 position: fixed !important;
                 top: 76px !important;
@@ -4661,8 +4678,8 @@
                         <!-- ⚡ Heavyweight Fuel Mini-Ticker (Top 5 Stocks Net Impact - Updates every 10s) -->
                         <div id="heavyweights-badge" class="macro-metrics-badge" title="Top 5 Heavyweights Point Contribution to NIFTY 50" style="border-color: rgba(99, 102, 241, 0.35); background: rgba(30, 27, 75, 0.4);">
                             <span class="macro-item" style="color: #a5b4fc;">⚡ Top 5: <b id="hw-net-val" style="color: #cbd5e1;">-- pts</b></span>
-                            <span class="macro-sep hide-on-mobile">•</span>
-                            <span class="macro-item hide-on-mobile" id="hw-leaders-ticker" style="font-size: 10.5px; color: #94a3b8;">HDFC -- | REL --</span>
+                            <span class="macro-sep">•</span>
+                            <span class="macro-item" id="hw-leaders-ticker" style="font-size: 10.5px; color: #94a3b8;">HDFC -- | REL -- | ICICI -- | INFY -- | TCS --</span>
                         </div>
                     </div>
                 </div>
@@ -7237,7 +7254,40 @@
                 viewport.addEventListener('wheel', () => {
                     scheduleRenderDrawings();
                 }, { passive: true });
+
+                // 📱 MOBILE TOUCH CHART PAN & PINCH-ZOOM DRAWING SYNC
+                viewport.addEventListener('touchstart', () => {
+                    scheduleRenderDrawings();
+                    updateYAxisCandleTimerPosition();
+                }, { passive: true });
+                viewport.addEventListener('touchmove', () => {
+                    scheduleRenderDrawings();
+                    updateYAxisCandleTimerPosition();
+                }, { passive: true });
+                viewport.addEventListener('touchend', () => {
+                    scheduleRenderDrawings();
+                    updateYAxisCandleTimerPosition();
+                }, { passive: true });
+                viewport.addEventListener('touchcancel', () => {
+                    scheduleRenderDrawings();
+                    updateYAxisCandleTimerPosition();
+                }, { passive: true });
             }
+
+            // Mobile visual viewport and orientation change sync
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', () => {
+                    scheduleRenderDrawings();
+                }, { passive: true });
+                window.visualViewport.addEventListener('scroll', () => {
+                    scheduleRenderDrawings();
+                }, { passive: true });
+            }
+            window.addEventListener('orientationchange', () => {
+                setTimeout(() => {
+                    scheduleRenderDrawings();
+                }, 200);
+            });
 
             // Resize observer
             const resizeObserver = new ResizeObserver(entries => {
@@ -11462,12 +11512,25 @@ function showIndicatorLineActionPill(ind, point) {
         let currentHistoryTab = 'original'; // 'original' or 'sr'
         let currentSRSubFilter = 'all';     // 'all', 'breakout', 'reversal'
 
-        function openSignalHistoryModal() {
+        async function openSignalHistoryModal() {
             if (!requireAuth('view confirmed strategy signal history and performance metrics')) return;
             const modal = document.getElementById('signal-history-modal');
             if (modal) {
                 modal.style.display = 'flex';
                 renderSignalHistory();
+                try {
+                    const resp = await fetch('/api/signal-history');
+                    if (resp.ok) {
+                        const d = await resp.json();
+                        if (d && d.original_zftf) rawOriginalSignals = d.original_zftf;
+                        if (d && d.sr_signals && Array.isArray(d.sr_signals.all)) {
+                            rawSRSignals = d.sr_signals.all;
+                        }
+                        renderSignalHistory();
+                    }
+                } catch (e) {
+                    console.debug("Signal history sync notice:", e);
+                }
             }
         }
 
@@ -13820,7 +13883,7 @@ function showIndicatorLineActionPill(ind, point) {
             hit.setAttribute('x2', maxX); hit.setAttribute('y2', y1);
             hit.setAttribute('stroke', 'transparent');
             hit.setAttribute('stroke-width', '16');
-            hit.onmousedown = (e) => startRepositionDrag(e, d);
+            attachRepositionDrag(hit, d);
             g.appendChild(hit);
 
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -13863,7 +13926,7 @@ function showIndicatorLineActionPill(ind, point) {
             hit.setAttribute('x2', x1); hit.setAttribute('y2', maxY);
             hit.setAttribute('stroke', 'transparent');
             hit.setAttribute('stroke-width', '18');
-            hit.onmousedown = (e) => startRepositionDrag(e, d);
+            attachRepositionDrag(hit, d);
             g.appendChild(hit);
 
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -14175,7 +14238,7 @@ function showIndicatorLineActionPill(ind, point) {
             card.setAttribute('fill', '#0f172a');
             card.setAttribute('stroke', isSel ? '#38bdf8' : (d.color || '#334155'));
             card.setAttribute('stroke-width', isSel ? '2' : '1.2');
-            card.onmousedown = (e) => startRepositionDrag(e, d);
+            attachRepositionDrag(card, d);
             g.appendChild(card);
 
             const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -14213,6 +14276,7 @@ function showIndicatorLineActionPill(ind, point) {
             h.style.cursor = 'ns-resize';
             h.style.pointerEvents = 'all';
             h.onmousedown = (e) => startHandleDrag(e, onDragCallback);
+            h.ontouchstart = (e) => startHandleDrag(e, onDragCallback);
             parentG.appendChild(h);
         }
 
@@ -14235,7 +14299,7 @@ function showIndicatorLineActionPill(ind, point) {
             hitLine.setAttribute('x2', x2); hitLine.setAttribute('y2', y2);
             hitLine.setAttribute('stroke', 'transparent');
             hitLine.setAttribute('stroke-width', '16');
-            hitLine.onmousedown = (e) => startRepositionDrag(e, d);
+            attachRepositionDrag(hitLine, d);
             g.appendChild(hitLine);
 
             // Visual line
@@ -14302,7 +14366,7 @@ function showIndicatorLineActionPill(ind, point) {
             hitLine.setAttribute('x2', x2); hitLine.setAttribute('y2', y2);
             hitLine.setAttribute('stroke', 'transparent');
             hitLine.setAttribute('stroke-width', '16');
-            hitLine.onmousedown = (e) => startRepositionDrag(e, d);
+            attachRepositionDrag(hitLine, d);
             g.appendChild(hitLine);
 
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -14350,7 +14414,7 @@ function showIndicatorLineActionPill(ind, point) {
             hitPath.setAttribute('fill', 'none');
             hitPath.setAttribute('stroke', 'transparent');
             hitPath.setAttribute('stroke-width', '22');
-            hitPath.onmousedown = (e) => startRepositionDrag(e, d);
+            attachRepositionDrag(hitPath, d);
             g.appendChild(hitPath);
 
             // Visual curve
@@ -14661,6 +14725,16 @@ function showIndicatorLineActionPill(ind, point) {
         let cachedDragOverlayRect = null;
         let rafDragId = null;
         let pendingDragCoords = null;
+
+        function attachRepositionDrag(el, d) {
+            if (!el) return;
+            el.onmousedown = (e) => startRepositionDrag(e, d);
+            el.ontouchstart = (e) => {
+                if (e.touches && e.touches.length > 0) {
+                    startRepositionDrag(e, d);
+                }
+            };
+        }
 
         function startRepositionDrag(e, d) {
             const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
@@ -16505,14 +16579,16 @@ function showIndicatorLineActionPill(ind, point) {
                     }
                     if (hwLeadersEl) {
                         if (Array.isArray(d.heavyweights.stocks) && d.heavyweights.stocks.length > 0) {
-                            const top2 = d.heavyweights.stocks.slice(0, 2).map(s => {
-                                const pts = (s.points_impact != null) ? s.points_impact : (s.net_impact_pts != null ? s.net_impact_pts : 0);
+                            const top5Html = d.heavyweights.stocks.slice(0, 5).map(s => {
+                                const pts = Number((s.points_impact != null) ? s.points_impact : (s.net_impact_pts != null ? s.net_impact_pts : 0));
                                 const symName = (s.symbol || '').replace('BANK', '').replace('RELIANCE', 'REL');
-                                return `${symName} ${(pts >= 0 ? '+' : '') + Number(pts).toFixed(1)}`;
-                            }).join(' | ');
-                            hwLeadersEl.textContent = top2 || 'HDFC +0.0 | REL +0.0';
+                                const col = pts > 0.05 ? '#10b981' : (pts < -0.05 ? '#ef4444' : '#94a3b8');
+                                const sign = pts >= 0 ? '+' : '';
+                                return `<span style="color:#cbd5e1">${symName}</span> <span style="color:${col};font-weight:600">${sign}${pts.toFixed(1)}</span>`;
+                            }).join(' <span style="color:rgba(255,255,255,0.2)">|</span> ');
+                            hwLeadersEl.innerHTML = top5Html || 'HDFC +0.0 | REL +0.0 | ICICI +0.0 | INFY +0.0 | TCS +0.0';
                         } else {
-                            hwLeadersEl.textContent = 'HDFC +0.0 | REL +0.0';
+                            hwLeadersEl.textContent = 'HDFC +0.0 | REL +0.0 | ICICI +0.0 | INFY +0.0 | TCS +0.0';
                         }
                     }
                     if (hwBadge) {

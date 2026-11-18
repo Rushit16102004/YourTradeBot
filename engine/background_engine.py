@@ -6,11 +6,13 @@ with 1st priority in-memory RAM caching, real-time tick updates, and Telegram al
 """
 from __future__ import annotations
 
+import json
 import logging
+import os
 import threading
 import time
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict, Any, List
 
 import pandas as pd
 import pytz
@@ -27,6 +29,13 @@ from broker.nifty50_volume_aggregator import get_volume_aggregator
 
 logger = logging.getLogger(__name__)
 IST = pytz.timezone("Asia/Kolkata")
+
+# Persistent storage for S&R breakout & reversal signal history
+CACHE_FILE_SR_SIGNALS = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "temp_storage",
+    "sr_signal_history.json"
+)
 
 
 
@@ -133,7 +142,10 @@ class BackgroundTradingEngine:
         self.next_sync_secs: int = 300
         self.dispatched_sr_alert_ids = set()
         self.latest_sr_alert: Optional[Dict[str, Any]] = None
-        self.sr_signal_history: List[Dict[str, Any]] = []
+        self.sr_signal_history: List[Dict[str, Any]] = self._load_sr_signals_from_disk()
+        for s in self.sr_signal_history:
+            if isinstance(s, dict) and "id" in s:
+                self.dispatched_sr_alert_ids.add(s["id"])
         self.latest_mtf_matrix: Dict[str, Any] = {}
         self.prev_close_price: Optional[float] = None
         self.pre_market_price: Optional[float] = None
@@ -177,8 +189,14 @@ class BackgroundTradingEngine:
             if last_state is not None:
                 self.sig_mgr.current_state = last_state
             logger.info("Instantly restored 4-month candles and evaluated %d signals from cache memory.", len(self.sig_mgr.signal_history))
+
+            # If persistent S&R history is empty, backfill from restored candles
+            if not self.sr_signal_history:
+                self._backfill_sr_signals_from_history(df_ind)
         else:
             self.sync_and_evaluate(force_alert=False)
+            if not self.sr_signal_history and not self.latest_df_5m.empty:
+                self._backfill_sr_signals_from_history(self.latest_df_5m)
 
     def start(self):
         """Starts the background evaluation thread if not already running."""
@@ -703,6 +721,109 @@ class BackgroundTradingEngine:
             "badge_class": badge_class,
         }
 
+    def _load_sr_signals_from_disk(self) -> List[Dict[str, Any]]:
+        """Loads persisted S&R signals from disk (temp_storage/sr_signal_history.json)."""
+        try:
+            if os.path.exists(CACHE_FILE_SR_SIGNALS):
+                with open(CACHE_FILE_SR_SIGNALS, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, list):
+                        logger.info("Loaded %d persisted S&R signals from %s", len(data), CACHE_FILE_SR_SIGNALS)
+                        return data
+        except Exception as e:
+            logger.warning("Error loading S&R signals from disk: %s", e)
+        return []
+
+    def _save_sr_signals_to_disk(self):
+        """Persists S&R signal history to disk atomically."""
+        try:
+            os.makedirs(os.path.dirname(CACHE_FILE_SR_SIGNALS), exist_ok=True)
+            temp_path = CACHE_FILE_SR_SIGNALS + ".tmp"
+            with open(temp_path, "w", encoding="utf-8") as f:
+                json.dump(self.sr_signal_history, f, indent=2, ensure_ascii=False)
+            os.replace(temp_path, CACHE_FILE_SR_SIGNALS)
+        except Exception as e:
+            logger.warning("Error persisting S&R signals to disk: %s", e)
+
+    def _backfill_sr_signals_from_history(self, df_5m: pd.DataFrame):
+        """Scans historical 5m candles for S&R breakouts & reversals and saves to disk."""
+        if df_5m is None or len(df_5m) < 10:
+            return
+        try:
+            from indicators.support_resistance import load_sr_cache_from_disk, combine_sr_levels
+            from indicators.sr_breakout_engine import evaluate_sr_breakout, evaluate_sr_reversal
+
+            sr_cache = load_sr_cache_from_disk()
+            if not sr_cache or "periods" not in sr_cache:
+                return
+            periods = sr_cache.get("periods", {})
+            levels_1m = periods.get("1m", [])
+            levels_2m = periods.get("2m", [])
+            cur_p = float(df_5m["close"].iloc[-1])
+            active_levels = periods.get("combined") or combine_sr_levels(levels_1m, levels_2m, current_price=cur_p)
+            if not active_levels:
+                return
+
+            detected_signals = []
+            start_idx = max(10, len(df_5m) - 2000)
+            for i in range(start_idx, len(df_5m)):
+                sub_df = df_5m.iloc[max(0, i-8):i+1]
+                b = evaluate_sr_breakout(sub_df, active_levels, min_runway_points=50.0)
+                if b and b["id"] not in self.dispatched_sr_alert_ids:
+                    self.dispatched_sr_alert_ids.add(b["id"])
+                    detected_signals.append({
+                        "id": b["id"],
+                        "category": "S&R",
+                        "sub_type": "BREAKOUT",
+                        "type": b["type"],
+                        "action": b["action"],
+                        "price": round(float(b["price"]), 2),
+                        "broken_level": round(float(b.get("broken_level", 0.0)), 2),
+                        "swept_level": round(float(b.get("broken_level", 0.0)), 2),
+                        "broken_bounces": int(b.get("broken_bounces", 4)),
+                        "target_level": round(float(b["target_level"]), 2),
+                        "gap_pts": round(float(b["gap_pts"]), 1),
+                        "wick_pct": b.get("wick_pct"),
+                        "time_str": b.get("time_str", str(b["timestamp"])),
+                        "timestamp": str(b["timestamp"]),
+                        "title": b.get("title", ""),
+                        "timeframe_tag": b.get("timeframe_tag", "1M + 2M Confluence"),
+                        "is_confluence": b.get("is_confluence", False),
+                        "origin": b.get("origin", "1M + 2M Confluence"),
+                    })
+                r = evaluate_sr_reversal(sub_df, active_levels, min_runway_points=50.0)
+                if r and r["id"] not in self.dispatched_sr_alert_ids:
+                    self.dispatched_sr_alert_ids.add(r["id"])
+                    detected_signals.append({
+                        "id": r["id"],
+                        "category": "S&R",
+                        "sub_type": "REVERSAL",
+                        "type": r["type"],
+                        "action": r["action"],
+                        "price": round(float(r["price"]), 2),
+                        "broken_level": round(float(r.get("broken_level", 0.0)), 2),
+                        "swept_level": round(float(r.get("swept_level", r.get("broken_level", 0.0))), 2),
+                        "broken_bounces": int(r.get("broken_bounces", 4)),
+                        "target_level": round(float(r["target_level"]), 2),
+                        "gap_pts": round(float(r["gap_pts"]), 1),
+                        "wick_pct": r.get("wick_pct"),
+                        "time_str": r.get("time_str", str(r["timestamp"])),
+                        "timestamp": str(r["timestamp"]),
+                        "title": r.get("title", ""),
+                        "timeframe_tag": r.get("timeframe_tag", "1M + 2M Confluence"),
+                        "is_confluence": r.get("is_confluence", False),
+                        "origin": r.get("origin", "1M + 2M Confluence"),
+                    })
+
+            if detected_signals:
+                self.sr_signal_history.extend(detected_signals)
+                if len(self.sr_signal_history) > 300:
+                    self.sr_signal_history = self.sr_signal_history[-300:]
+                self._save_sr_signals_to_disk()
+                logger.info("Backfilled and saved %d historical S&R signals to disk.", len(detected_signals))
+        except Exception as ex:
+            logger.warning("Error backfilling S&R signals: %s", ex)
+
     def check_sr_signals(self, df_5m: pd.DataFrame, cur_p: float):
         """
         Evaluates both:
@@ -791,8 +912,9 @@ class BackgroundTradingEngine:
                 "origin": alert.get("origin", "1M + 2M Confluence"),
             }
             self.sr_signal_history.append(history_item)
-            if len(self.sr_signal_history) > 100:
+            if len(self.sr_signal_history) > 300:
                 self.sr_signal_history.pop(0)
+            self._save_sr_signals_to_disk()
 
         # Permanently index S&R alert into RAG signals_memory collection
         try:
