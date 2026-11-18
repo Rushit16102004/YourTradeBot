@@ -5996,9 +5996,11 @@
         // ========================================================
         function toggleDropdown(dropdownId) {
             if (dropdownId === 'dropdown-indicators') {
-                if (!requireAuth('add and configure technical indicators (EMA, SMA, BB, Supertrend, RSI, MACD, Stoch RSI)')) return;
+                if (!requireAuth('add and configure technical indicators (EMA, SMA, BB, Supertrend, RSI, MACD, Stoch RSI)', 'register')) return;
             } else if (dropdownId === 'dropdown-sr') {
-                if (!requireAuth('access algorithmic Support & Resistance levels')) return;
+                if (!requireAuth('access algorithmic Support & Resistance levels', 'register')) return;
+            } else if (dropdownId === 'dropdown-patterns') {
+                if (!requireAuth('access Multi-Timeframe Chart Patterns & Breakout Detector', 'register')) return;
             }
             const el = document.getElementById(dropdownId);
             const isOpen = el && el.classList.contains('open');
@@ -12782,8 +12784,11 @@ function showIndicatorLineActionPill(ind, point) {
                     countTag.style.borderColor = breakoutCount > 0 ? 'rgba(239, 68, 68, 0.4)' : 'rgba(56, 189, 248, 0.3)';
                 }
 
+                const token = localStorage.getItem('auth_token');
+                const isGuest = !token;
+
                 if (breakoutCount > 0) {
-                    if (btnLabel) btnLabel.textContent = `⚡ Patterns (${totalActive})`;
+                    if (btnLabel) btnLabel.textContent = `${isGuest ? '🔒' : '⚡'} Patterns (${totalActive})`;
                     if (breakoutBadge) {
                         breakoutBadge.style.display = 'inline-block';
                         breakoutBadge.textContent = `⚡ ${breakoutCount} BREAKOUT`;
@@ -12797,7 +12802,7 @@ function showIndicatorLineActionPill(ind, point) {
                     }
                     if (btn) btn.style.borderColor = 'rgba(239, 68, 68, 0.6)';
                 } else if (totalActive > 0) {
-                    if (btnLabel) btnLabel.textContent = `✨ Patterns (${totalActive})`;
+                    if (btnLabel) btnLabel.textContent = `${isGuest ? '🔒' : '✨'} Patterns (${totalActive})`;
                     if (breakoutBadge) breakoutBadge.style.display = 'none';
                     if (pulseDot) {
                         pulseDot.style.background = '#38bdf8';
@@ -12805,7 +12810,7 @@ function showIndicatorLineActionPill(ind, point) {
                     }
                     if (btn) btn.style.borderColor = 'rgba(56, 189, 248, 0.4)';
                 } else {
-                    if (btnLabel) btnLabel.textContent = `✨ Patterns`;
+                    if (btnLabel) btnLabel.textContent = `${isGuest ? '🔒' : '✨'} Patterns`;
                     if (breakoutBadge) breakoutBadge.style.display = 'none';
                     if (pulseDot) {
                         pulseDot.style.background = '#64748b';
@@ -12940,6 +12945,7 @@ function showIndicatorLineActionPill(ind, point) {
         }
 
         function plotSpecificPattern(tf, patternId) {
+            if (!requireAuth('plot automated chart patterns on chart', 'register')) return;
             if (!latestMTFPatternsData || !latestMTFPatternsData.timeframes) return;
             const tfData = latestMTFPatternsData.timeframes[tf];
             if (!tfData) return;
@@ -13054,6 +13060,7 @@ function showIndicatorLineActionPill(ind, point) {
         }
 
         function plotAllDetectedPatterns() {
+            if (!requireAuth('plot all automated multi-timeframe patterns on chart', 'register')) return;
             if (!latestMTFPatternsData || !latestMTFPatternsData.timeframes) {
                 alert("Multi-timeframe pattern scan data not ready yet. Please wait 2 seconds.");
                 return;
@@ -17930,18 +17937,18 @@ function showIndicatorLineActionPill(ind, point) {
 
         
         // 🔒 Guest Gatekeeping: Prompts Auth Modal if unauthenticated
-        function requireAuth(actionDescription = 'access this feature') {
+        function requireAuth(actionDescription = 'access this feature', defaultTab = 'register') {
             const token = localStorage.getItem('auth_token');
             if (!token) {
+                openAuthModal(defaultTab);
                 const errBox = document.getElementById('auth-error-box');
                 if (errBox) {
-                    errBox.innerHTML = `🔒 <strong>Account Required</strong><br>Please Log In or Create a Free Account to ${actionDescription}.`;
+                    errBox.innerHTML = `🔒 <strong>Account Required</strong><br>Please Register a Free Account or Log In to ${actionDescription}.`;
                     errBox.style.display = 'block';
                     errBox.style.background = 'rgba(56, 189, 248, 0.12)';
                     errBox.style.borderColor = 'rgba(56, 189, 248, 0.4)';
                     errBox.style.color = '#38bdf8';
                 }
-                openAuthModal('login');
                 return false;
             }
             return true;
@@ -17972,6 +17979,10 @@ function showIndicatorLineActionPill(ind, point) {
                 if (userBadge) userBadge.style.display = 'none';
                 if (adminBadge) adminBadge.style.display = 'none';
                 if (adminStatsTimer) { clearInterval(adminStatsTimer); adminStatsTimer = null; }
+                const patBtnLabel = document.getElementById('patterns-btn-label');
+                if (patBtnLabel) patBtnLabel.textContent = '🔒 Patterns';
+                const patBtn = document.getElementById('btn-patterns-dropdown');
+                if (patBtn) patBtn.title = 'Multi-Timeframe Chart Patterns & Breakout Detector (Create a Free Account or Log In to access)';
                 showGuestVipBannerIfNeeded();
                 return;
             }
@@ -17997,6 +18008,10 @@ function showIndicatorLineActionPill(ind, point) {
                             if (adminStatsTimer) { clearInterval(adminStatsTimer); adminStatsTimer = null; }
                         }
                         linkVisitorToUser();
+                        const patBtnLabel = document.getElementById('patterns-btn-label');
+                        if (patBtnLabel && patBtnLabel.textContent.includes('🔒')) {
+                            patBtnLabel.textContent = '✨ Patterns';
+                        }
                         if (navUserDisplay) navUserDisplay.innerText = currentUser.username || 'Trader';
                         if (menuName) menuName.innerText = currentUser.username || 'Trader';
                         if (menuEmail) menuEmail.innerText = currentUser.email || '';
