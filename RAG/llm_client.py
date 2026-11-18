@@ -349,7 +349,7 @@ class GeminiLLMClient:
                     f"• Actionable Summary: {pf.get('summary')}\n\n"
                 )
 
-            # Candlestick & Quantitative Chart Pattern Recognition
+            # Candlestick & Quantitative Chart Pattern Recognition (Multi-Timeframe & Multi-Day Spanning)
             pat = market_state.get("patterns", {})
             pat_str = ""
             if pat:
@@ -357,15 +357,28 @@ class GeminiLLMClient:
                 candle_pat = pat.get("candlestick_pattern", {})
                 detected_list = pat.get("detected_patterns", [])
                 det_lines = []
-                for p in detected_list[:3]:
-                    det_lines.append(f"  • [{p.get('quality', 'HIGH')}] {p.get('name')} ({p.get('direction')}) -> {p.get('status', 'ACTIVE')}: {p.get('description')}")
+                for p in detected_list[:4]:
+                    entry_p = p.get('entry_price') or p.get('entry')
+                    tgt_p = p.get('target_price') or p.get('target')
+                    sl_p = p.get('stop_loss') or p.get('stop')
+                    rr_p = p.get('risk_reward', '1 : 2.5')
+                    span_p = p.get('span_str', 'Multi-Day')
+                    stat_p = p.get('status', 'ACTIVE')
+                    tf_p = (p.get('timeframe') or pat.get('timeframe') or '5m').upper()
+                    det_lines.append(f"  • [{tf_p}] {p.get('name')} ({p.get('direction')}): Status {stat_p} | Entry: ₹{entry_p} | Tgt: ₹{tgt_p} | SL: ₹{sl_p} | R:R {rr_p} | Span: {span_p}")
                 det_formatted = "\n".join(det_lines) if det_lines else "  • Consolidating inside session boundaries; no high-timeframe structural breakout pending."
+                prim_info = "None (Consolidation)"
+                if prim:
+                    prim_entry = prim.get('entry_price') or prim.get('entry')
+                    prim_tgt = prim.get('target_price') or prim.get('target')
+                    prim_sl = prim.get('stop_loss') or prim.get('stop')
+                    prim_info = f"{prim.get('name')} ({prim.get('direction')}) -> Status: {prim.get('status')} | Entry: ₹{prim_entry} | Tgt: ₹{prim_tgt} | SL: ₹{prim_sl} | Span: {prim.get('span_str', 'Multi-Day')}"
+                
                 pat_str = (
-                    f"CANDLESTICK & QUANTITATIVE PATTERN RECOGNITION (ALGORITHMIC DETECTION):\n"
-                    f"• Primary Chart Pattern: {prim.get('name') if prim else 'None (Consolidation)'} ({prim.get('direction') if prim else 'Neutral'})\n"
-                    f"• Active Candlestick Formation: {candle_pat.get('name', 'Standard Bar')} ({candle_pat.get('signal', 'NEUTRAL')}) -> {candle_pat.get('description', '')}\n"
+                    f"CANDLESTICK & QUANTITATIVE PATTERN RECOGNITION (ALGORITHMIC MULTI-TIMEFRAME DETECTION):\n"
+                    f"• Primary Chart Pattern: {prim_info}\n"
                     f"• Active Geometric Patterns:\n{det_formatted}\n"
-                    f"• Swing Pivots Identified: {pat.get('swing_pivots_count', 0)} swing points identified across 5m session candles.\n\n"
+                    f"• Pattern Engine Summary:\n{pat.get('summary', '')}\n\n"
                 )
 
             # Real-Time News Sentiment & Macro Catalyst Engine
@@ -1289,10 +1302,17 @@ class GeminiLLMClient:
             
             detected_summary_lines = []
             if detected_list:
-                for p in detected_list[:3]:
-                    target_info = f" | Target: ₹{p.get('target', 0):,.0f}" if 'target' in p else (f" | PRZ: ₹{p.get('target_1', 0):,.0f}" if 'target_1' in p else "")
-                    sl_info = f" | SL: ₹{p.get('stop_loss', 0):,.0f}" if 'stop_loss' in p else ""
-                    detected_summary_lines.append(f"  • **{p.get('name')} ({p.get('direction')}):** Status: **{p.get('status')}**{target_info}{sl_info}\n    _{p.get('description')}_")
+                for p in detected_list[:4]:
+                    entry_p = p.get('entry_price') or p.get('entry')
+                    tgt_p = p.get('target_price') or p.get('target')
+                    sl_p = p.get('stop_loss') or p.get('stop')
+                    rr_p = p.get('risk_reward', '1 : 2.5')
+                    span_p = p.get('span_str', 'Multi-Day')
+                    stat_p = p.get('status', 'ACTIVE')
+                    tf_p = (p.get('timeframe') or pat.get('timeframe') or '5m').upper()
+                    detected_summary_lines.append(
+                        f"  • **{p.get('name')} ({p.get('direction')} - {tf_p}):** Status: **{stat_p}** | Entry: ₹{entry_p} | Target: ₹{tgt_p} | SL: ₹{sl_p} | R:R: {rr_p} (Span: {span_p})"
+                    )
                 detected_str = "\n".join(detected_summary_lines)
             else:
                 detected_str = "  • Currently consolidating inside standard session bands. No high-timeframe geometric breakout pending."

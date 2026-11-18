@@ -730,6 +730,60 @@
             border-color: rgba(242, 54, 69, 0.35);
         }
 
+        /* ✨ Algorithmic Pattern Detection & 1-Click Auto-Draw HUD Badge */
+        .pattern-badge-container {
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .btn-detected-pattern {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+            border: 1.5px solid rgba(56, 189, 248, 0.45);
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #e2e8f0;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+            transition: all 0.2s ease;
+        }
+
+        .btn-detected-pattern:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(56, 189, 248, 0.35);
+        }
+
+        .pattern-pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #38bdf8;
+            box-shadow: 0 0 8px #38bdf8;
+            animation: pulseDot 1.5s infinite ease-in-out;
+            display: inline-block;
+        }
+
+        @keyframes pulseDot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.35; transform: scale(0.75); }
+        }
+
+        .pattern-badge-action {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(56, 189, 248, 0.2);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            font-weight: 800;
+            letter-spacing: 0.3px;
+            transition: all 0.15s ease;
+        }
+
         .status-dot {
             width: 7px;
             height: 7px;
@@ -4665,6 +4719,15 @@
                     <span class="mtf-item" id="mtf-pill-1d">1D <b id="mtf-icon-1d">⚪</b></span>
                     <span class="mtf-badge neutral" id="mtf-confluence-badge">MTF Syncing</span>
                 </div>
+
+                <!-- ✨ Algorithmic Pattern Detection & 1-Click Auto-Draw HUD Badge -->
+                <div id="pattern-detection-badge" class="pattern-badge-container" style="display: none; align-items: center; margin-left: 8px;">
+                    <button id="btn-detected-pattern" class="btn-detected-pattern" onclick="togglePlotDetectedPattern()" title="Click to 1-Click Auto-Draw this Pattern on Chart">
+                        <span class="pattern-pulse-dot" id="pattern-pulse-dot"></span>
+                        <span id="pattern-badge-name">✨ Pattern Detected</span>
+                        <span id="pattern-badge-action-label" class="pattern-badge-action">🎯 Plot on Chart</span>
+                    </button>
+                </div>
             </div>
 
             <div class="header-line-right">
@@ -7713,6 +7776,7 @@
 
             updateFutureWhitespaceSeries();
             fetchData(false);
+            fetchDetectedPatterns(tf);
         }
 
         function showLoading(show) {
@@ -12582,6 +12646,174 @@ function showIndicatorLineActionPill(ind, point) {
         }
 
         // ========================================================
+        // ✨ ALGORITHMIC MULTI-TIMEFRAME PATTERN ENGINE & AUTO-DRAW
+        // ========================================================
+        let activeDetectedPattern = null;
+        let isPatternPlottedOnChart = false;
+        let currentPatternShapeIds = [];
+
+        async function fetchDetectedPatterns(timeframe = null) {
+            const tf = timeframe || (typeof currentTimeframe !== 'undefined' ? currentTimeframe : '5m');
+            try {
+                const resp = await fetch(`/api/patterns?timeframe=${encodeURIComponent(tf)}`);
+                if (!resp.ok) return;
+                const d = await resp.json();
+                if (!d || d.status !== 'ok' || !d.patterns) return;
+
+                const patData = d.patterns;
+                const prim = patData.primary_pattern;
+                const badge = document.getElementById('pattern-detection-badge');
+                const badgeName = document.getElementById('pattern-badge-name');
+                const badgeAction = document.getElementById('pattern-badge-action-label');
+                const btn = document.getElementById('btn-detected-pattern');
+                const pulseDot = document.getElementById('pattern-pulse-dot');
+
+                if (prim && badge) {
+                    activeDetectedPattern = prim;
+                    badge.style.display = 'inline-flex';
+                    const isBuy = prim.direction && prim.direction.includes('BUY');
+                    const color = isBuy ? '#22c55e' : '#ef4444';
+
+                    if (badgeName) {
+                        badgeName.innerHTML = `✨ <strong>${prim.name}</strong> <span style="font-size:10.5px; opacity:0.85;">(${prim.timeframe.toUpperCase()})</span>`;
+                    }
+                    if (pulseDot) {
+                        pulseDot.style.background = isBuy ? '#22c55e' : '#ef4444';
+                        pulseDot.style.boxShadow = `0 0 8px ${isBuy ? '#22c55e' : '#ef4444'}`;
+                    }
+                    if (btn) {
+                        btn.style.borderColor = isPatternPlottedOnChart ? '#f59e0b' : color;
+                        btn.title = `${prim.name} (${prim.direction})\n• Status: ${prim.status}\n• Entry / Trigger: ₹${prim.entry_price}\n• Target: ₹${prim.target_price} | SL: ₹${prim.stop_loss}\n• Span: ${prim.span_str || 'Multi-Day'}\n• Risk:Reward: ${prim.risk_reward || '1:2.5'}\nClick to ${isPatternPlottedOnChart ? 'Clear' : 'Auto-Plot'} Pattern on Chart`;
+                    }
+                    if (badgeAction) {
+                        badgeAction.textContent = isPatternPlottedOnChart ? '✕ Clear Pattern' : '🎯 Plot on Chart';
+                        badgeAction.style.background = isPatternPlottedOnChart ? 'rgba(239,68,68,0.2)' : (isBuy ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)');
+                        badgeAction.style.color = isPatternPlottedOnChart ? '#f87171' : (isBuy ? '#4ade80' : '#f87171');
+                    }
+                } else if (badge) {
+                    activeDetectedPattern = null;
+                    if (!isPatternPlottedOnChart) {
+                        badge.style.display = 'none';
+                    }
+                }
+            } catch (err) {
+                console.debug("Error fetching detected patterns:", err);
+            }
+        }
+
+        function togglePlotDetectedPattern() {
+            if (isPatternPlottedOnChart) {
+                clearPlottedPattern();
+            } else if (activeDetectedPattern) {
+                plotDetectedPattern(activeDetectedPattern);
+            } else {
+                fetchDetectedPatterns();
+            }
+        }
+
+        function plotDetectedPattern(pat) {
+            if (!pat || !Array.isArray(pat.drawing_shapes) || pat.drawing_shapes.length === 0) {
+                alert("No geometric lines/shapes available for this pattern.");
+                return;
+            }
+
+            try {
+                // Clear any previously auto-plotted pattern shapes first
+                clearPlottedPattern(false);
+
+                if (typeof recordCurrentDrawingUndoState === 'function') {
+                    recordCurrentDrawingUndoState();
+                }
+
+                currentPatternShapeIds = [];
+                pat.drawing_shapes.forEach(shape => {
+                    const uniqueId = shape.id + '_' + Date.now();
+                    const newShape = Object.assign({}, shape, {
+                        id: uniqueId,
+                        isAutoPattern: true,
+                        patternId: pat.id
+                    });
+                    currentPatternShapeIds.push(uniqueId);
+                    if (typeof drawings !== 'undefined') {
+                        drawings.push(newShape);
+                    }
+                });
+
+                if (typeof saveDrawings === 'function') {
+                    saveDrawings();
+                }
+                if (typeof renderAllDrawings === 'function') {
+                    renderAllDrawings();
+                }
+                if (typeof chart !== 'undefined' && chart && typeof chart.timeScale === 'function') {
+                    try { chart.timeScale().scrollToRealtime(); } catch(e) {}
+                }
+
+                isPatternPlottedOnChart = true;
+
+                // Update UI button state
+                const badgeAction = document.getElementById('pattern-badge-action-label');
+                const btn = document.getElementById('btn-detected-pattern');
+                if (badgeAction) {
+                    badgeAction.textContent = '✕ Clear Pattern';
+                    badgeAction.style.background = 'rgba(239, 68, 68, 0.2)';
+                    badgeAction.style.color = '#f87171';
+                }
+                if (btn) btn.style.borderColor = '#f59e0b';
+
+                // Toast notification
+                const toast = document.createElement('div');
+                toast.style.cssText = 'position: fixed; bottom: 80px; right: 24px; z-index: 999999; background: #0f172a; border: 1.5px solid #38bdf8; color: white; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,0.6); display: flex; align-items: center; gap: 8px; pointer-events: none; transition: opacity 0.4s ease;';
+                toast.innerHTML = `<span>✨</span> Plotted <strong>${pat.name}</strong> on Chart! (Target: ₹${pat.target_price} | SL: ₹${pat.stop_loss})`;
+                document.body.appendChild(toast);
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 400);
+                }, 3500);
+
+            } catch (err) {
+                console.error("Failed to plot pattern on chart:", err);
+                alert("Failed to plot pattern: " + err.message);
+            }
+        }
+
+        function clearPlottedPattern(showToast = true) {
+            if (currentPatternShapeIds.length > 0 && typeof drawings !== 'undefined') {
+                if (typeof recordCurrentDrawingUndoState === 'function') {
+                    recordCurrentDrawingUndoState();
+                }
+                drawings = drawings.filter(d => !currentPatternShapeIds.includes(d.id) && !d.isAutoPattern);
+                currentPatternShapeIds = [];
+                if (typeof saveDrawings === 'function') saveDrawings();
+                if (typeof renderAllDrawings === 'function') renderAllDrawings();
+            }
+            isPatternPlottedOnChart = false;
+
+            const badgeAction = document.getElementById('pattern-badge-action-label');
+            const btn = document.getElementById('btn-detected-pattern');
+            if (badgeAction) {
+                badgeAction.textContent = '🎯 Plot on Chart';
+                badgeAction.style.background = 'rgba(56, 189, 248, 0.2)';
+                badgeAction.style.color = '#38bdf8';
+            }
+            if (btn && activeDetectedPattern) {
+                const isBuy = activeDetectedPattern.direction && activeDetectedPattern.direction.includes('BUY');
+                btn.style.borderColor = isBuy ? '#22c55e' : '#ef4444';
+            }
+
+            if (showToast) {
+                const toast = document.createElement('div');
+                toast.style.cssText = 'position: fixed; bottom: 80px; right: 24px; z-index: 999999; background: #1e293b; color: #94a3b8; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.5); pointer-events: none; transition: opacity 0.3s ease;';
+                toast.textContent = 'Pattern drawings cleared from chart.';
+                document.body.appendChild(toast);
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 300);
+                }, 2000);
+            }
+        }
+
+        // ========================================================
         // 🔄 RENDER ALL SHAPES (LINES, ARROWS, ARCS, RECTS, TARGET/SL)
         // ========================================================
 
@@ -15734,6 +15966,7 @@ function showIndicatorLineActionPill(ind, point) {
                     headers: getAuthHeaders(),
                     body: safeJSONStringify({
                         query: query,
+                        timeframe: typeof currentTimeframe !== 'undefined' ? currentTimeframe : '5m',
                         drawings: cleanDrawings,
                         active_drawing: cleanActiveDrawing,
                         active_indicators: cleanActiveIndicators
@@ -15987,10 +16220,12 @@ function showIndicatorLineActionPill(ind, point) {
                 fetchLiveCandle();
             }, 1000);
 
-            // 7. Slow-moving Macro Metrics (VIX, PCR, Total OI) updated every 10s!
+            // 7. Slow-moving Macro Metrics (VIX, PCR, Total OI) & Chart Patterns updated every 10s!
             fetchMacroMetrics();
+            fetchDetectedPatterns();
             setInterval(() => {
                 fetchMacroMetrics();
+                fetchDetectedPatterns();
             }, 10000);
 
             // 7.1 Real-Time High-Impact News Sentiment updated every 30s!

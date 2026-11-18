@@ -2088,9 +2088,13 @@ async def rag_chat(request: Request, payload: dict = Body(...)):
             vix_val=getattr(engine, "latest_vix", 17.16),
         )
 
+        user_tf = str(payload.get("timeframe", "5m") or "5m").lower()
+        snapshot_tf = engine.get_snapshot(timeframe=user_tf)
+        df_for_pat = snapshot_tf.get("df", df_5m) if isinstance(snapshot_tf, dict) else df_5m
         patterns_eval = PatternDetector.analyze_patterns(
-            df=df_5m,
-            cur_price=float(engine.latest_price or 0.0),
+            df=df_for_pat if not df_for_pat.empty else df_5m,
+            latest_price=float(engine.latest_price or 0.0),
+            timeframe=user_tf
         )
 
         preflight_eval = PreFlightEngine.evaluate(
@@ -3077,16 +3081,55 @@ async def get_option_chain_endpoint(request: Request, force_refresh: bool = Fals
 
 
 @app.get("/api/patterns")
-async def get_active_patterns_endpoint(request: Request):
+async def get_active_patterns_endpoint(
+    request: Request,
+    timeframe: str = Query("5m", description="Candle timeframe: 5m, 15m, 1h, 1d")
+):
     """
     Returns authentic algorithmic candlestick and chart pattern recognition:
-    Head & Shoulders, Double Top/Bottom, Triangles, Harmonic Butterfly/Gartley/Bat,
-    and Candlestick Reversals (Hammer, Shooting Star, Engulfing, Doji).
+    Head & Shoulders (slanted neckline), Triangles/Wedges (angled trendlines),
+    Harmonic Butterfly/Gartley/Bat (Fibonacci ratios), and Double Tops/Bottoms.
+    Supports all timeframes: 5m, 15m, 1h, 1d with multi-day swing detection.
     """
-    df_5m = engine.latest_df_5m
-    cur_p = float(engine.latest_price or 22750.0)
+    tf_clean = str(timeframe or "5m").lower()
+    snapshot = engine.get_snapshot(timeframe=tf_clean)
+    df_tf = snapshot.get("df", engine.latest_df_5m) if isinstance(snapshot, dict) else engine.latest_df_5m
+    cur_p = float(engine.latest_price or (snapshot.get("price") if isinstance(snapshot, dict) else 22750.0) or 22750.0)
+    
     from indicators.pattern_detector import PatternDetector
-    patterns_res = PatternDetector.analyze_patterns(df_5m, cur_p)
+    patterns_res = PatternDetector.analyze_patterns(
+        df=df_tf if (isinstance(df_tf, pd.DataFrame) and not df_tf.empty) else engine.latest_df_5m,
+        latest_price=cur_p,
+        timeframe=tf_clean
+    )
+
+    # Attach quick cross-timeframe presence summary
+    tf_summary = {}
+    for tf_key in ("5m", "15m", "1h", "1d"):
+        try:
+            if tf_key == tf_clean:
+                p_top = patterns_res.get("primary_pattern")
+            else:
+                snap_k = engine.get_snapshot(timeframe=tf_key)
+                df_k = snap_k.get("df", pd.DataFrame()) if isinstance(snap_k, dict) else pd.DataFrame()
+                res_k = PatternDetector.analyze_patterns(df_k, cur_p, timeframe=tf_key)
+                p_top = res_k.get("primary_pattern")
+            if p_top:
+                tf_summary[tf_key] = {
+                    "pattern_name": p_top.get("name"),
+                    "direction": p_top.get("direction"),
+                    "status": p_top.get("status"),
+                    "span_str": p_top.get("span_str"),
+                    "entry_price": p_top.get("entry_price"),
+                    "target_price": p_top.get("target_price"),
+                    "stop_loss": p_top.get("stop_loss"),
+                }
+            else:
+                tf_summary[tf_key] = None
+        except Exception:
+            tf_summary[tf_key] = None
+
+    patterns_res["timeframe_summary"] = tf_summary
     return JSONResponse(content={"status": "ok", "patterns": patterns_res})
 
 

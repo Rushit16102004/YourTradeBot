@@ -1,634 +1,804 @@
+"""
+indicators/pattern_detector.py - Advanced Multi-Timeframe Candlestick Pattern Detection Engine.
+Part of the Indicators Department for NIFTY 50 Pro Terminal.
+
+Detects geometric and harmonic chart formations:
+1. Harmonic Patterns (Bullish & Bearish Butterfly, Gartley, Bat with Fibonacci ratios)
+2. Head & Shoulders & Inverse Head & Shoulders (with Slanted / Angled Necklines)
+3. Slanted Trendline Breakouts (Ascending / Descending Triangles, Converging Wedges, Channels)
+4. Double Tops (M) & Double Bottoms (W)
+
+Supports:
+- Multi-timeframe evaluation: 5m, 15m, 1h, 1d
+- Multi-day spanning: Analyzes swing peaks/troughs across multiple trading days
+- 1-Click chart auto-drawing: Produces lightweight-charts compatible SVG drawing shapes
+- RAG Copilot context integration: Synthesizes rich geometry & risk-reward metrics
+"""
+from __future__ import annotations
+
 import logging
-from typing import Dict, Any, List, Optional, Tuple
+import math
+import time
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
+import pytz
 
 logger = logging.getLogger("PatternDetector")
+IST = pytz.timezone("Asia/Kolkata")
+
+
+def _to_unix_sec(ts: Any) -> int:
+    """Safely converts pandas Timestamp or datetime string to Unix seconds."""
+    if ts is None:
+        return int(time.time())
+    if isinstance(ts, (int, float)):
+        return int(ts)
+    if hasattr(ts, "timestamp"):
+        try:
+            return int(ts.timestamp())
+        except Exception:
+            pass
+    try:
+        dt = pd.to_datetime(ts)
+        return int(dt.timestamp())
+    except Exception:
+        return int(time.time())
+
+
+def find_swings(
+    df: pd.DataFrame,
+    window: int = 5,
+    min_pct: float = 0.0015
+) -> List[Dict[str, Any]]:
+    """
+    Identifies clean alternating swing peaks (Highs) and troughs (Lows) via ZigZag algorithm.
+    window: Number of bars before and after to establish local extremum.
+    min_pct: Minimum percentage move to filter out minor market noise.
+    """
+    if df.empty or len(df) < window * 2 + 1:
+        return []
+
+    highs = df["high"].values
+    lows = df["low"].values
+    times = df.index
+    n = len(df)
+
+    candidates = []
+    for i in range(window, n - window):
+        is_high = highs[i] == np.max(highs[i - window : i + window + 1])
+        is_low = lows[i] == np.min(lows[i - window : i + window + 1])
+
+        if is_high and not is_low:
+            candidates.append({
+                "type": "H",
+                "bar_idx": i,
+                "time": _to_unix_sec(times[i]),
+                "time_raw": times[i],
+                "price": float(highs[i])
+            })
+        elif is_low and not is_high:
+            candidates.append({
+                "type": "L",
+                "bar_idx": i,
+                "time": _to_unix_sec(times[i]),
+                "time_raw": times[i],
+                "price": float(lows[i])
+            })
+        elif is_high and is_low:
+            c = float(df["close"].iloc[i])
+            o = float(df["open"].iloc[i])
+            candidates.append({
+                "type": "H" if c >= o else "L",
+                "bar_idx": i,
+                "time": _to_unix_sec(times[i]),
+                "time_raw": times[i],
+                "price": float(highs[i] if c >= o else lows[i])
+            })
+
+    if not candidates:
+        return []
+
+    # Filter consecutive swings of the same type (keep the highest High or lowest Low)
+    filtered = []
+    for c in candidates:
+        if not filtered:
+            filtered.append(c)
+            continue
+        last = filtered[-1]
+        if c["type"] == last["type"]:
+            if c["type"] == "H" and c["price"] > last["price"]:
+                filtered[-1] = c
+            elif c["type"] == "L" and c["price"] < last["price"]:
+                filtered[-1] = c
+        else:
+            pct_move = abs(c["price"] - last["price"]) / max(1.0, last["price"])
+            if pct_move >= min_pct or len(filtered) < 2:
+                filtered.append(c)
+
+    return filtered
 
 
 class PatternDetector:
     """
-    Advanced Quantitative Pattern Recognition Engine for NIFTY 50 Candlestick Charts:
-    - Classical Patterns: Head & Shoulders, Inverse H&S, Double Top (M), Double Bottom (W),
-      Ascending Triangle, Descending Triangle, Symmetrical Triangle, Rising/Falling Wedges, Bull/Bear Flags.
-    - Harmonic Patterns (Fibonacci XABCD): Butterfly (0.786 / 1.272-1.618), Gartley (0.618 / 0.786),
-      Bat (0.382-0.500 / 0.886), Crab (0.382-0.618 / 1.618).
-    - Candlestick Formations: Hammer, Shooting Star, Bullish/Bearish Engulfing, Morning/Evening Star, Doji.
+    Autonomous multi-timeframe pattern detection engine.
     """
 
+    def __init__(self):
+        pass
+
     @classmethod
-    def find_swing_pivots(cls, df: pd.DataFrame, window: int = 3) -> List[Dict[str, Any]]:
+    def analyze_patterns(cls, df: pd.DataFrame, latest_price: float, timeframe: str = "5m") -> Dict[str, Any]:
         """
-        Extracts swing high peaks and swing low troughs from candle series using rolling extrema.
+        Classmethod compatibility endpoint for server.py and RAG integration.
+        Returns primary pattern, all detected patterns, drawing shapes, and summary.
         """
-        if df is None or len(df) < window * 2 + 1:
-            return []
-
-        pivots: List[Dict[str, Any]] = []
-        highs = df["high"].values
-        lows = df["low"].values
-        closes = df["close"].values
-        times = df.index
-
-        n = len(df)
-        for i in range(window, n - window):
-            # Check swing high peak
-            curr_high = highs[i]
-            is_peak = True
-            for w in range(1, window + 1):
-                if highs[i - w] >= curr_high or highs[i + w] > curr_high:
-                    is_peak = False
-                    break
-            if is_peak:
-                pivots.append({
-                    "index": i,
-                    "timestamp": str(times[i]),
-                    "type": "PEAK",
-                    "price": float(curr_high),
-                    "close": float(closes[i]),
-                })
-
-            # Check swing low trough
-            curr_low = lows[i]
-            is_trough = True
-            for w in range(1, window + 1):
-                if lows[i - w] <= curr_low or lows[i + w] < curr_low:
-                    is_trough = False
-                    break
-            if is_trough:
-                pivots.append({
-                    "index": i,
-                    "timestamp": str(times[i]),
-                    "type": "TROUGH",
-                    "price": float(curr_low),
-                    "close": float(closes[i]),
-                })
-
-        # Sort pivots chronologically
-        pivots.sort(key=lambda x: x["index"])
-
-        # Filter out consecutive duplicate types by keeping the most extreme point
-        cleaned_pivots: List[Dict[str, Any]] = []
-        for p in pivots:
-            if not cleaned_pivots:
-                cleaned_pivots.append(p)
-                continue
-            last = cleaned_pivots[-1]
-            if p["type"] == last["type"]:
-                if p["type"] == "PEAK" and p["price"] > last["price"]:
-                    cleaned_pivots[-1] = p
-                elif p["type"] == "TROUGH" and p["price"] < last["price"]:
-                    cleaned_pivots[-1] = p
-            else:
-                cleaned_pivots.append(p)
-
-        return cleaned_pivots
-
-    @classmethod
-    def detect_head_and_shoulders(
-        cls, df: pd.DataFrame, pivots: List[Dict[str, Any]], cur_price: float
-    ) -> List[Dict[str, Any]]:
-        """Detects standard Head & Shoulders (Bearish) and Inverse Head & Shoulders (Bullish)."""
-        patterns: List[Dict[str, Any]] = []
-        if len(pivots) < 5:
-            return patterns
-
-        # Scan sliding windows of 5 consecutive alternating pivots
-        for i in range(len(pivots) - 4):
-            window = pivots[i : i + 5]
-            types = [p["type"] for p in window]
-
-            # 1. Bearish Head & Shoulders: PEAK -> TROUGH -> PEAK -> TROUGH -> PEAK
-            if types == ["PEAK", "TROUGH", "PEAK", "TROUGH", "PEAK"]:
-                ls, n1, head, n2, rs = window
-                # Head must be strictly higher than both shoulders
-                if head["price"] > ls["price"] and head["price"] > rs["price"]:
-                    # Shoulders must be reasonably balanced (within 1.8% of each other)
-                    sh_diff = abs(ls["price"] - rs["price"]) / ls["price"]
-                    if sh_diff < 0.018:
-                        neckline = (n1["price"] + n2["price"]) / 2.0
-                        depth = head["price"] - neckline
-                        target = round(neckline - depth, 1)
-                        stop_loss = round(rs["price"] + 5.0, 1)
-                        status = "BREAKOUT_CONFIRMED" if cur_price < neckline else "FORMING"
-
-                        patterns.append({
-                            "name": "Head and Shoulders (Bearish Reversal)",
-                            "category": "CLASSICAL_CHART_PATTERN",
-                            "type": "HEAD_AND_SHOULDERS",
-                            "direction": "BEARISH",
-                            "signal": "PUT",
-                            "head_price": head["price"],
-                            "left_shoulder": ls["price"],
-                            "right_shoulder": rs["price"],
-                            "neckline": round(neckline, 1),
-                            "target": target,
-                            "stop_loss": stop_loss,
-                            "runway_pts": round(abs(cur_price - target), 1),
-                            "status": status,
-                            "quality": "HIGH" if sh_diff < 0.008 else "MEDIUM",
-                            "description": (
-                                f"Bearish H&S with Head at ₹{head['price']:,.0f}, Neckline at ₹{neckline:,.0f}. "
-                                f"Target projected to ₹{target:,.0f} with SL above Right Shoulder at ₹{stop_loss:,.0f}."
-                            ),
-                        })
-
-            # 2. Bullish Inverse Head & Shoulders: TROUGH -> PEAK -> TROUGH -> PEAK -> TROUGH
-            elif types == ["TROUGH", "PEAK", "TROUGH", "PEAK", "TROUGH"]:
-                ls, n1, head, n2, rs = window
-                # Head must be strictly lower than both shoulders
-                if head["price"] < ls["price"] and head["price"] < rs["price"]:
-                    sh_diff = abs(ls["price"] - rs["price"]) / ls["price"]
-                    if sh_diff < 0.018:
-                        neckline = (n1["price"] + n2["price"]) / 2.0
-                        depth = neckline - head["price"]
-                        target = round(neckline + depth, 1)
-                        stop_loss = round(rs["price"] - 5.0, 1)
-                        status = "BREAKOUT_CONFIRMED" if cur_price > neckline else "FORMING"
-
-                        patterns.append({
-                            "name": "Inverse Head and Shoulders (Bullish Reversal)",
-                            "category": "CLASSICAL_CHART_PATTERN",
-                            "type": "INVERSE_HEAD_AND_SHOULDERS",
-                            "direction": "BULLISH",
-                            "signal": "CALL",
-                            "head_price": head["price"],
-                            "left_shoulder": ls["price"],
-                            "right_shoulder": rs["price"],
-                            "neckline": round(neckline, 1),
-                            "target": target,
-                            "stop_loss": stop_loss,
-                            "runway_pts": round(abs(target - cur_price), 1),
-                            "status": status,
-                            "quality": "HIGH" if sh_diff < 0.008 else "MEDIUM",
-                            "description": (
-                                f"Bullish Inverse H&S with Head at ₹{head['price']:,.0f}, Neckline at ₹{neckline:,.0f}. "
-                                f"Target projected to ₹{target:,.0f} with SL below Right Shoulder at ₹{stop_loss:,.0f}."
-                            ),
-                        })
-
-        return patterns
-
-    @classmethod
-    def detect_double_patterns(
-        cls, df: pd.DataFrame, pivots: List[Dict[str, Any]], cur_price: float
-    ) -> List[Dict[str, Any]]:
-        """Detects Double Top ('M' pattern) and Double Bottom ('W' pattern)."""
-        patterns: List[Dict[str, Any]] = []
-        if len(pivots) < 3:
-            return patterns
-
-        # Check last 3 pivots
-        for i in range(len(pivots) - 2):
-            p1, p2, p3 = pivots[i], pivots[i + 1], pivots[i + 2]
-
-            # 1. Double Top ("M" Pattern): PEAK -> TROUGH -> PEAK
-            if p1["type"] == "PEAK" and p2["type"] == "TROUGH" and p3["type"] == "PEAK":
-                diff = abs(p1["price"] - p3["price"]) / p1["price"]
-                if diff <= 0.0045:  # Peaks within 0.45%
-                    neckline = p2["price"]
-                    depth = max(p1["price"], p3["price"]) - neckline
-                    target = round(neckline - depth, 1)
-                    stop_loss = round(max(p1["price"], p3["price"]) + 4.0, 1)
-                    status = "BREAKOUT_CONFIRMED" if cur_price < neckline else "FORMING"
-
-                    patterns.append({
-                        "name": "Double Top ('M' Bearish Reversal)",
-                        "category": "CLASSICAL_CHART_PATTERN",
-                        "type": "DOUBLE_TOP",
-                        "direction": "BEARISH",
-                        "signal": "PUT",
-                        "peak_1": p1["price"],
-                        "peak_2": p3["price"],
-                        "neckline": round(neckline, 1),
-                        "target": target,
-                        "stop_loss": stop_loss,
-                        "status": status,
-                        "quality": "HIGH" if diff < 0.002 else "MEDIUM",
-                        "description": (
-                            f"Double Top tested at ₹{p1['price']:,.0f} & ₹{p3['price']:,.0f}. "
-                            f"Neckline valley at ₹{neckline:,.0f}. Downside target: ₹{target:,.0f}."
-                        ),
-                    })
-
-            # 2. Double Bottom ("W" Pattern): TROUGH -> PEAK -> TROUGH
-            elif p1["type"] == "TROUGH" and p2["type"] == "PEAK" and p3["type"] == "TROUGH":
-                diff = abs(p1["price"] - p3["price"]) / p1["price"]
-                if diff <= 0.0045:  # Troughs within 0.45%
-                    neckline = p2["price"]
-                    depth = neckline - min(p1["price"], p3["price"])
-                    target = round(neckline + depth, 1)
-                    stop_loss = round(min(p1["price"], p3["price"]) - 4.0, 1)
-                    status = "BREAKOUT_CONFIRMED" if cur_price > neckline else "FORMING"
-
-                    patterns.append({
-                        "name": "Double Bottom ('W' Bullish Reversal)",
-                        "category": "CLASSICAL_CHART_PATTERN",
-                        "type": "DOUBLE_BOTTOM",
-                        "direction": "BULLISH",
-                        "signal": "CALL",
-                        "trough_1": p1["price"],
-                        "trough_2": p3["price"],
-                        "neckline": round(neckline, 1),
-                        "target": target,
-                        "stop_loss": stop_loss,
-                        "status": status,
-                        "quality": "HIGH" if diff < 0.002 else "MEDIUM",
-                        "description": (
-                            f"Double Bottom floor tested at ₹{p1['price']:,.0f} & ₹{p3['price']:,.0f}. "
-                            f"Neckline peak at ₹{neckline:,.0f}. Upside breakout target: ₹{target:,.0f}."
-                        ),
-                    })
-
-        return patterns
-
-    @classmethod
-    def detect_triangles(
-        cls, df: pd.DataFrame, pivots: List[Dict[str, Any]], cur_price: float
-    ) -> List[Dict[str, Any]]:
-        """Detects Ascending, Descending, and Symmetrical Triangles."""
-        patterns: List[Dict[str, Any]] = []
-        peaks = [p for p in pivots if p["type"] == "PEAK"]
-        troughs = [p for p in pivots if p["type"] == "TROUGH"]
-
-        if len(peaks) < 2 or len(troughs) < 2:
-            return patterns
-
-        p1, p2 = peaks[-2], peaks[-1]
-        t1, t2 = troughs[-2], troughs[-1]
-
-        peak_diff = abs(p1["price"] - p2["price"]) / p1["price"]
-        trough_diff = abs(t1["price"] - t2["price"]) / t1["price"]
-
-        # 1. Ascending Triangle: Flat Resistance ceiling + Rising swing lows
-        if peak_diff < 0.003 and t2["price"] > t1["price"] + 5.0:
-            height = p2["price"] - t1["price"]
-            target = round(p2["price"] + height, 1)
-            stop_loss = round(t2["price"] - 4.0, 1)
-            status = "BREAKOUT_CONFIRMED" if cur_price > p2["price"] else "COILING"
-
-            patterns.append({
-                "name": "Ascending Triangle (Bullish Accumulation)",
-                "category": "CLASSICAL_CHART_PATTERN",
-                "type": "ASCENDING_TRIANGLE",
-                "direction": "BULLISH",
-                "signal": "CALL",
-                "resistance": round(p2["price"], 1),
-                "rising_support": round(t2["price"], 1),
-                "target": target,
-                "stop_loss": stop_loss,
-                "status": status,
-                "quality": "HIGH",
-                "description": (
-                    f"Ascending Triangle: Flat ceiling barrier at ₹{p2['price']:,.0f} with rising swing lows "
-                    f"(₹{t1['price']:,.0f} -> ₹{t2['price']:,.0f}). Breakout target: ₹{target:,.0f}."
-                ),
-            })
-
-        # 2. Descending Triangle: Flat Support floor + Declining swing highs
-        elif trough_diff < 0.003 and p2["price"] < p1["price"] - 5.0:
-            height = p1["price"] - t2["price"]
-            target = round(t2["price"] - height, 1)
-            stop_loss = round(p2["price"] + 4.0, 1)
-            status = "BREAKOUT_CONFIRMED" if cur_price < t2["price"] else "COILING"
-
-            patterns.append({
-                "name": "Descending Triangle (Bearish Distribution)",
-                "category": "CLASSICAL_CHART_PATTERN",
-                "type": "DESCENDING_TRIANGLE",
-                "direction": "BEARISH",
-                "signal": "PUT",
-                "support": round(t2["price"], 1),
-                "falling_resistance": round(p2["price"], 1),
-                "target": target,
-                "stop_loss": stop_loss,
-                "status": status,
-                "quality": "HIGH",
-                "description": (
-                    f"Descending Triangle: Flat support floor at ₹{t2['price']:,.0f} with lower highs "
-                    f"(₹{p1['price']:,.0f} -> ₹{p2['price']:,.0f}). Breakdown target: ₹{target:,.0f}."
-                ),
-            })
-
-        # 3. Symmetrical Triangle: Lower highs + Higher lows (volatility compression coil)
-        elif p2["price"] < p1["price"] - 6.0 and t2["price"] > t1["price"] + 6.0:
-            height = p1["price"] - t1["price"]
-            status = "COILING"
-            if cur_price > p2["price"]:
-                status = "UPWARD_BREAKOUT"
-                direction = "BULLISH"
-                sig = "CALL"
-                target = round(p2["price"] + height, 1)
-                sl = round(t2["price"] - 4.0, 1)
-            elif cur_price < t2["price"]:
-                status = "DOWNWARD_BREAKOUT"
-                direction = "BEARISH"
-                sig = "PUT"
-                target = round(t2["price"] - height, 1)
-                sl = round(p2["price"] + 4.0, 1)
-            else:
-                direction = "NEUTRAL"
-                sig = "NEUTRAL"
-                target = round(p2["price"] + height, 1)
-                sl = round(t2["price"], 1)
-
-            patterns.append({
-                "name": "Symmetrical Triangle (Volatility Coil)",
-                "category": "CLASSICAL_CHART_PATTERN",
-                "type": "SYMMETRICAL_TRIANGLE",
-                "direction": direction,
-                "signal": sig,
-                "upper_boundary": round(p2["price"], 1),
-                "lower_boundary": round(t2["price"], 1),
-                "target": target,
-                "stop_loss": sl,
-                "status": status,
-                "quality": "MEDIUM",
-                "description": (
-                    f"Symmetrical Triangle: Converging range between ₹{t2['price']:,.0f} and ₹{p2['price']:,.0f}. "
-                    f"Impending expansion runway: {round(height, 0)} pts."
-                ),
-            })
-
-        return patterns
-
-    @classmethod
-    def detect_harmonics(
-        cls, df: pd.DataFrame, pivots: List[Dict[str, Any]], cur_price: float
-    ) -> List[Dict[str, Any]]:
-        """
-        Detects Harmonic 5-point XABCD formations:
-        - Butterfly Pattern: B @ 0.786 of XA, D extension @ 1.272 - 1.618 of XA (Reversal PRZ).
-        - Gartley Pattern: B @ 0.618 of XA, D @ 0.786 of XA.
-        - Bat Pattern: B @ 0.382-0.500 of XA, D @ 0.886 of XA.
-        """
-        patterns: List[Dict[str, Any]] = []
-        if len(pivots) < 5:
-            return patterns
-
-        for i in range(len(pivots) - 4):
-            x, a, b, c, d = pivots[i : i + 5]
-
-            # Must alternate
-            if not (
-                (x["type"] == "TROUGH" and a["type"] == "PEAK" and b["type"] == "TROUGH" and c["type"] == "PEAK" and d["type"] == "TROUGH") or
-                (x["type"] == "PEAK" and a["type"] == "TROUGH" and b["type"] == "PEAK" and c["type"] == "TROUGH" and d["type"] == "PEAK")
-            ):
-                continue
-
-            xa = abs(a["price"] - x["price"])
-            if xa <= 0:
-                continue
-
-            ab = abs(b["price"] - a["price"])
-            bc = abs(c["price"] - b["price"])
-            cd = abs(d["price"] - c["price"])
-            ad = abs(d["price"] - a["price"])
-            xd = abs(d["price"] - x["price"])
-
-            r_b = ab / xa  # Retracement of B relative to XA
-            r_d_xa = xd / xa  # Extension of D relative to XA
-            r_d_ad = ad / xa
-
-            is_bullish = x["type"] == "PEAK" and a["type"] == "TROUGH" and d["type"] == "TROUGH"
-            is_bearish = x["type"] == "TROUGH" and a["type"] == "PEAK" and d["type"] == "PEAK"
-
-            # 1. BUTTERFLY PATTERN (User's specific highlight):
-            # Hallmarks: B retracement = 0.786 (tol: 0.73 - 0.84)
-            # D extension = 1.272 to 1.618 of XA
-            if 0.73 <= r_b <= 0.84 and (1.20 <= r_d_xa <= 1.68 or 1.20 <= (cd / max(bc, 1)) <= 2.65):
-                name = f"{'Bullish' if is_bullish else 'Bearish'} Butterfly Pattern"
-                sig = "CALL" if is_bullish else "PUT"
-                direction = "BULLISH" if is_bullish else "BEARISH"
-                prz = d["price"]  # Potential Reversal Zone
-
-                target_1 = round(d["price"] + (0.382 * cd if is_bullish else -0.382 * cd), 1)
-                target_2 = round(d["price"] + (0.618 * cd if is_bullish else -0.618 * cd), 1)
-                sl = round(d["price"] - (0.15 * cd if is_bullish else -0.15 * cd), 1)
-
-                patterns.append({
-                    "name": name,
-                    "category": "HARMONIC_FIBONACCI_PATTERN",
-                    "type": "BUTTERFLY",
-                    "direction": direction,
-                    "signal": sig,
-                    "prz_price": round(prz, 1),
-                    "r_b_ratio": round(r_b, 3),
-                    "target_1": target_1,
-                    "target_2": target_2,
-                    "stop_loss": sl,
-                    "status": "AT_PRZ_REVERSAL_ZONE" if abs(cur_price - prz) < 15.0 else "ACTIVE",
-                    "quality": "INSTITUTIONAL",
-                    "description": (
-                        f"Harmonic {name}: B point completed at {r_b:.3f} XA (ideal 0.786). "
-                        f"PRZ (Potential Reversal Zone) triggered at ₹{prz:,.0f} with D extension. "
-                        f"Target 1: ₹{target_1:,.0f} (0.382 Fib) | Target 2: ₹{target_2:,.0f} (0.618 Fib) | SL: ₹{sl:,.0f}."
-                    ),
-                })
-
-            # 2. GARTLEY PATTERN: B @ 0.618 (tol: 0.58 - 0.66), D @ 0.786
-            elif 0.58 <= r_b <= 0.66 and 0.73 <= (ad / xa) <= 0.84:
-                name = f"{'Bullish' if is_bullish else 'Bearish'} Gartley Pattern"
-                sig = "CALL" if is_bullish else "PUT"
-                direction = "BULLISH" if is_bullish else "BEARISH"
-                prz = d["price"]
-                target = round(d["price"] + (0.618 * cd if is_bullish else -0.618 * cd), 1)
-                sl = round(x["price"] - 5.0 if is_bullish else x["price"] + 5.0, 1)
-
-                patterns.append({
-                    "name": name,
-                    "category": "HARMONIC_FIBONACCI_PATTERN",
-                    "type": "GARTLEY",
-                    "direction": direction,
-                    "signal": sig,
-                    "prz_price": round(prz, 1),
-                    "r_b_ratio": round(r_b, 3),
-                    "target": target,
-                    "stop_loss": sl,
-                    "status": "AT_PRZ_REVERSAL_ZONE" if abs(cur_price - prz) < 15.0 else "ACTIVE",
-                    "quality": "HIGH",
-                    "description": (
-                        f"Harmonic {name}: B at {r_b:.3f} (ideal 0.618). D PRZ at ₹{prz:,.0f} (0.786). "
-                        f"Target: ₹{target:,.0f} with SL beyond X at ₹{sl:,.0f}."
-                    ),
-                })
-
-            # 3. BAT PATTERN: B @ 0.382 - 0.500, D @ 0.886
-            elif 0.35 <= r_b <= 0.53 and 0.83 <= (ad / xa) <= 0.93:
-                name = f"{'Bullish' if is_bullish else 'Bearish'} Bat Pattern"
-                sig = "CALL" if is_bullish else "PUT"
-                direction = "BULLISH" if is_bullish else "BEARISH"
-                prz = d["price"]
-                target = round(d["price"] + (0.50 * cd if is_bullish else -0.50 * cd), 1)
-                sl = round(x["price"] - 5.0 if is_bullish else x["price"] + 5.0, 1)
-
-                patterns.append({
-                    "name": name,
-                    "category": "HARMONIC_FIBONACCI_PATTERN",
-                    "type": "BAT",
-                    "direction": direction,
-                    "signal": sig,
-                    "prz_price": round(prz, 1),
-                    "r_b_ratio": round(r_b, 3),
-                    "target": target,
-                    "stop_loss": sl,
-                    "status": "AT_PRZ_REVERSAL_ZONE" if abs(cur_price - prz) < 15.0 else "ACTIVE",
-                    "quality": "HIGH",
-                    "description": (
-                        f"Harmonic {name}: Deep 0.886 PRZ test at ₹{prz:,.0f}. "
-                        f"Target: ₹{target:,.0f} with SL at ₹{sl:,.0f}."
-                    ),
-                })
-
-        return patterns
-
-    @classmethod
-    def detect_candlestick_reversals(cls, df: pd.DataFrame) -> Dict[str, Any]:
-        """Detects single and dual candle price action patterns on latest closed bars."""
-        if df is None or len(df) < 3:
-            return {"pattern": "NONE", "signal": "NEUTRAL", "description": "Insufficient candle history"}
-
-        last = df.iloc[-1]
-        prev = df.iloc[-2]
-
-        o1, h1, l1, c1 = float(last["open"]), float(last["high"]), float(last["low"]), float(last["close"])
-        o0, h0, l0, c0 = float(prev["open"]), float(prev["high"]), float(prev["low"]), float(prev["close"])
-
-        rng1 = max(h1 - l1, 0.01)
-        body1 = abs(c1 - o1)
-        upper_wick1 = h1 - max(o1, c1)
-        lower_wick1 = min(o1, c1) - l1
-
-        rng0 = max(h0 - l0, 0.01)
-        body0 = abs(c0 - o0)
-
-        # 1. Bullish Pin Bar (Hammer)
-        if (lower_wick1 / rng1 >= 0.60) and (body1 / rng1 <= 0.30):
-            return {
-                "pattern": "BULLISH_PIN_BAR_HAMMER",
-                "name": "Bullish Pin Bar / Hammer",
-                "signal": "CALL",
-                "direction": "BULLISH",
-                "rejection_level": round(l1, 1),
-                "description": f"Bullish rejection tail ({round(lower_wick1/rng1*100)}% of range). Institutional dip buying absorption at ₹{l1:,.0f}.",
-            }
-
-        # 2. Bearish Pin Bar (Shooting Star)
-        if (upper_wick1 / rng1 >= 0.60) and (body1 / rng1 <= 0.30):
-            return {
-                "pattern": "BEARISH_PIN_BAR_SHOOTING_STAR",
-                "name": "Bearish Pin Bar / Shooting Star",
-                "signal": "PUT",
-                "direction": "BEARISH",
-                "rejection_level": round(h1, 1),
-                "description": f"Bearish rejection tail ({round(upper_wick1/rng1*100)}% of range). Smart money distribution ceiling at ₹{h1:,.0f}.",
-            }
-
-        # 3. Bullish Engulfing
-        if (c0 < o0) and (c1 > o1) and (c1 >= o0) and (o1 <= c0) and (body1 > body0 * 1.1):
-            return {
-                "pattern": "BULLISH_ENGULFING",
-                "name": "Bullish Engulfing",
-                "signal": "CALL",
-                "direction": "BULLISH",
-                "rejection_level": round(l1, 1),
-                "description": f"Bullish body completely engulfs previous bear candle with momentum expansion. Entry above ₹{c1:,.0f}.",
-            }
-
-        # 4. Bearish Engulfing
-        if (c0 > o0) and (c1 < o1) and (c1 <= o0) and (o1 >= c0) and (body1 > body0 * 1.1):
-            return {
-                "pattern": "BEARISH_ENGULFING",
-                "name": "Bearish Engulfing",
-                "signal": "PUT",
-                "direction": "BEARISH",
-                "rejection_level": round(h1, 1),
-                "description": f"Bearish body completely engulfs previous bull candle. Overhead selling dominance confirmed below ₹{c1:,.0f}.",
-            }
-
-        # 5. Doji Indecision
-        if body1 / rng1 <= 0.10:
-            return {
-                "pattern": "DOJI",
-                "name": "Doji (Volatility Compression)",
-                "signal": "NEUTRAL",
-                "direction": "NEUTRAL",
-                "rejection_level": round(c1, 1),
-                "description": f"Doji candle formed at ₹{c1:,.0f}. Balance between bulls and bears; await directional breakout confirmation.",
-            }
-
-        return {
-            "pattern": "NORMAL_CANDLE",
-            "name": "Standard Candle",
-            "signal": "BULLISH" if c1 > o1 else "BEARISH",
-            "direction": "BULLISH" if c1 > o1 else "BEARISH",
-            "rejection_level": round(c1, 1),
-            "description": f"Close at ₹{c1:,.0f} ({'+' if c1 >= o1 else '-'}{abs(c1 - o1):.1f} pts body).",
-        }
-
-    @classmethod
-    def analyze_patterns(cls, df: pd.DataFrame, cur_price: Optional[float] = None) -> Dict[str, Any]:
-        """
-        Main evaluation method: Extracts swing pivots and evaluates all pattern categories simultaneously.
-        """
-        if df is None or df.empty or len(df) < 10:
-            return {
-                "active_patterns_count": 0,
-                "detected_patterns": [],
-                "primary_pattern": None,
-                "candlestick_pattern": {"pattern": "NONE", "signal": "NEUTRAL"},
-                "summary": "Insufficient candle data for structural pattern detection.",
-            }
-
-        latest_price = float(cur_price or df["close"].iloc[-1])
-        pivots = cls.find_swing_pivots(df, window=3)
-
-        detected: List[Dict[str, Any]] = []
-
-        # 1. Classical Chart Patterns
-        hs = cls.detect_head_and_shoulders(df, pivots, latest_price)
-        detected.extend(hs)
-
-        doubles = cls.detect_double_patterns(df, pivots, latest_price)
-        detected.extend(doubles)
-
-        triangles = cls.detect_triangles(df, pivots, latest_price)
-        detected.extend(triangles)
-
-        # 2. Harmonic Patterns (Butterfly, Gartley, Bat)
-        harmonics = cls.detect_harmonics(df, pivots, latest_price)
-        detected.extend(harmonics)
-
-        # 3. Candlestick Formations
-        candle_rev = cls.detect_candlestick_reversals(df)
-
-        # Determine primary pattern (most urgent or highest quality)
-        primary = None
-        if detected:
-            # Sort by quality (INSTITUTIONAL > HIGH > MEDIUM) and status
-            quality_rank = {"INSTITUTIONAL": 3, "HIGH": 2, "MEDIUM": 1}
-            detected.sort(key=lambda x: quality_rank.get(x.get("quality", "MEDIUM"), 0), reverse=True)
-            primary = detected[0]
-
+        detector = get_pattern_detector()
+        detected = detector.detect_all_patterns(df, timeframe=timeframe, cur_price=latest_price)
+        primary = detected[0] if detected else None
         summary_lines = []
         if primary:
             summary_lines.append(f"• Active Structure: **{primary['name']}** ({primary['direction']})")
-            summary_lines.append(f"  - Status: {primary.get('status', 'ACTIVE')}")
-            if "target" in primary:
-                summary_lines.append(f"  - Target Runway: ₹{primary['target']:,.0f} | Recommended SL: ₹{primary.get('stop_loss', 0):,.0f}")
-            elif "target_1" in primary:
-                summary_lines.append(f"  - Harmonic PRZ Target: ₹{primary['target_1']:,.0f} (0.382) / ₹{primary.get('target_2', 0):,.0f} (0.618)")
+            summary_lines.append(f"  - Status: {primary.get('status', 'ACTIVE')} | Timeframe: {primary.get('timeframe', timeframe).upper()}")
+            summary_lines.append(f"  - Entry / Trigger: ₹{primary.get('entry_price', 0):,.1f} | Target: ₹{primary.get('target_price', 0):,.1f} | SL: ₹{primary.get('stop_loss', 0):,.1f}")
+            summary_lines.append(f"  - Structure Span: {primary.get('span_str', 'Multi-Day')}")
+            summary_lines.append(f"  - Risk:Reward: {primary.get('risk_reward', '1 : 2.5')}")
         else:
             summary_lines.append("• Active Structure: No large-scale geometric pattern currently forming (Consolidating near baseline).")
 
-        summary_lines.append(f"• Latest Candle Action: **{candle_rev.get('name', 'Standard Bar')}** -> {candle_rev.get('description', '')}")
-
         return {
             "spot_price": latest_price,
-            "swing_pivots_count": len(pivots),
+            "timeframe": timeframe,
             "active_patterns_count": len(detected),
             "detected_patterns": detected,
             "primary_pattern": primary,
-            "candlestick_pattern": candle_rev,
             "summary": "\n".join(summary_lines),
         }
+
+    def detect_all_patterns(
+        self,
+        df: pd.DataFrame,
+        timeframe: str = "5m",
+        cur_price: Optional[float] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Detects all active and forming patterns on the given DataFrame.
+        Returns a sorted list of patterns (confirmed/active ones first).
+        """
+        if df.empty or len(df) < 20:
+            return []
+
+        if cur_price is None or cur_price <= 0:
+            cur_price = float(df["close"].iloc[-1])
+
+        tf_clean = timeframe.lower()
+        if "1d" in tf_clean:
+            window = 3
+            min_pct = 0.0035
+        elif "1h" in tf_clean or "60m" in tf_clean:
+            window = 4
+            min_pct = 0.0022
+        elif "15m" in tf_clean:
+            window = 4
+            min_pct = 0.0016
+        else:
+            window = 5
+            min_pct = 0.0012
+
+        swings = find_swings(df, window=window, min_pct=min_pct)
+        if len(swings) < 5:
+            swings = find_swings(df, window=max(3, window - 2), min_pct=min_pct * 0.7)
+
+        if len(swings) < 5:
+            return []
+
+        patterns: List[Dict[str, Any]] = []
+
+        # 1. Harmonic Patterns (Butterfly, Gartley, Bat)
+        harmonics = self._detect_harmonics(swings, df, cur_price, timeframe)
+        patterns.extend(harmonics)
+
+        # 2. Head & Shoulders (Standard & Inverse with Slanted Neckline)
+        hns = self._detect_head_and_shoulders(swings, df, cur_price, timeframe)
+        patterns.extend(hns)
+
+        # 3. Slanted Trendline Breakouts (Triangles & Wedges)
+        triangles = self._detect_triangles_and_wedges(swings, df, cur_price, timeframe)
+        patterns.extend(triangles)
+
+        # 4. Double Tops / Bottoms
+        doubles = self._detect_double_tops_bottoms(swings, df, cur_price, timeframe)
+        patterns.extend(doubles)
+
+        # Sort by relevance: Confirmed breakouts & PRZ reversals first, then by recency
+        def _sort_key(p: Dict[str, Any]) -> Tuple[int, int]:
+            status_priority = {
+                "CONFIRMED_BREAKOUT": 0,
+                "PRZ_REVERSAL": 1,
+                "TESTING_NECKLINE": 2,
+                "TESTING_TRIGGER": 3,
+                "FORMING": 4
+            }
+            pri = status_priority.get(p.get("status", "FORMING"), 5)
+            last_bar = p.get("end_bar_idx", 0)
+            return (pri, -last_bar)
+
+        patterns.sort(key=_sort_key)
+        return patterns
+
+    # =========================================================================
+    # 1. HARMONIC PATTERNS (BUTTERFLY, GARTLEY, BAT)
+    # =========================================================================
+    def _detect_harmonics(
+        self,
+        swings: List[Dict[str, Any]],
+        df: pd.DataFrame,
+        cur_price: float,
+        timeframe: str
+    ) -> List[Dict[str, Any]]:
+        patterns = []
+        n_swings = len(swings)
+        if n_swings < 5:
+            return patterns
+
+        # Scan recent 35 swings
+        scan_count = min(35, n_swings - 4)
+        for start in range(n_swings - scan_count - 4, n_swings - 4):
+            if start < 0:
+                continue
+            X, A, B, C, D = swings[start : start + 5]
+
+            # Alternate verification: X->A->B->C->D
+            if not (X["type"] != A["type"] and A["type"] != B["type"] and B["type"] != C["type"] and C["type"] != D["type"]):
+                continue
+
+            xa = abs(A["price"] - X["price"])
+            ab = abs(B["price"] - A["price"])
+            bc = abs(C["price"] - B["price"])
+            cd = abs(D["price"] - C["price"])
+
+            if xa < 20.0 or ab < 12.0 or bc < 12.0 or cd < 15.0:
+                continue
+
+            ab_xa = ab / xa
+            bc_ab = bc / ab
+            cd_bc = cd / bc
+            cd_xa = cd / xa
+
+            # ----------------------------------------------------
+            # BULLISH HARMONICS (Buy at D, where D is a swing LOW)
+            # D["type"] == "L"
+            # ----------------------------------------------------
+            if D["type"] == "L":
+                is_butterfly = (0.70 <= ab_xa <= 0.88) and (0.35 <= bc_ab <= 0.90) and (1.20 <= cd_xa <= 2.20 or 1.40 <= cd_bc <= 2.80)
+                is_bat = (0.35 <= ab_xa <= 0.55) and (0.35 <= bc_ab <= 0.90) and (1.50 <= cd_bc <= 2.70 or 0.80 <= cd_xa <= 1.20)
+                is_gartley = (0.58 <= ab_xa <= 0.68) and (0.35 <= bc_ab <= 0.90) and (1.10 <= cd_bc <= 1.80)
+
+                pat_name = None
+                if is_butterfly:
+                    pat_name = "Bullish Butterfly Harmonic"
+                elif is_bat:
+                    pat_name = "Bullish Bat Harmonic"
+                elif is_gartley:
+                    pat_name = "Bullish Gartley Harmonic"
+
+                if pat_name:
+                    d_price = D["price"]
+                    entry = round(cur_price if abs(cur_price - d_price) < 40.0 else d_price, 1)
+                    target_dist = max(45.0, cd * 0.50)
+                    target = round(entry + target_dist, 1)
+                    sl_dist = max(20.0, cd * 0.20)
+                    stop = round(d_price - sl_dist, 1)
+                    rr = round(target_dist / max(1.0, sl_dist), 1)
+
+                    status = "PRZ_REVERSAL" if cur_price >= d_price else "TESTING_TRIGGER"
+                    span_str = self._format_span(X["time_raw"], D["time_raw"])
+
+                    drawing_shapes = [
+                        {"id": f"harm_{start}_xa", "type": "line", "time1": X["time"], "price1": X["price"], "time2": A["time"], "price2": A["price"], "color": "#38bdf8", "width": "2", "remark": f"XA Leg (₹{xa:.1f} pts)"},
+                        {"id": f"harm_{start}_ab", "type": "line", "time1": A["time"], "price1": A["price"], "time2": B["time"], "price2": B["price"], "color": "#38bdf8", "width": "2", "remark": f"AB ({ab_xa:.3f})"},
+                        {"id": f"harm_{start}_bc", "type": "line", "time1": B["time"], "price1": B["price"], "time2": C["time"], "price2": C["price"], "color": "#38bdf8", "width": "2", "remark": f"BC ({bc_ab:.3f})"},
+                        {"id": f"harm_{start}_cd", "type": "line", "time1": C["time"], "price1": C["price"], "time2": D["time"], "price2": D["price"], "color": "#22c55e", "width": "3", "remark": f"CD ({cd_bc:.2f} PRZ Reversal)"},
+                        {"id": f"harm_{start}_box", "type": "target_sl", "entry": entry, "target": target, "stop": stop, "timeStart": D["time"], "timeEnd": D["time"] + self._get_future_time_span(timeframe, 25), "color": "#22c55e", "remark": f"AI {pat_name}"}
+                    ]
+
+                    patterns.append({
+                        "id": f"pat_harmonic_bull_{D['bar_idx']}",
+                        "name": pat_name,
+                        "type": "harmonic",
+                        "direction": "BUY (CALL)",
+                        "timeframe": timeframe,
+                        "status": status,
+                        "entry_price": entry,
+                        "target_price": target,
+                        "stop_loss": stop,
+                        "risk_reward": f"1 : {rr}",
+                        "span_str": span_str,
+                        "end_bar_idx": D["bar_idx"],
+                        "ratios": {
+                            "AB_XA": round(ab_xa, 3),
+                            "BC_AB": round(bc_ab, 3),
+                            "CD_BC": round(cd_bc, 3),
+                            "CD_XA": round(cd_xa, 3)
+                        },
+                        "points": [
+                            {"label": "X", "time": X["time"], "price": X["price"]},
+                            {"label": "A", "time": A["time"], "price": A["price"]},
+                            {"label": "B", "time": B["time"], "price": B["price"]},
+                            {"label": "C", "time": C["time"], "price": C["price"]},
+                            {"label": "D (PRZ)", "time": D["time"], "price": D["price"]},
+                        ],
+                        "drawing_shapes": drawing_shapes
+                    })
+
+            # ----------------------------------------------------
+            # BEARISH HARMONICS (Sell at D, where D is a swing HIGH)
+            # D["type"] == "H"
+            # ----------------------------------------------------
+            elif D["type"] == "H":
+                is_butterfly = (0.70 <= ab_xa <= 0.88) and (0.35 <= bc_ab <= 0.90) and (1.20 <= cd_xa <= 2.20 or 1.40 <= cd_bc <= 2.80)
+                is_bat = (0.35 <= ab_xa <= 0.55) and (0.35 <= bc_ab <= 0.90) and (1.50 <= cd_bc <= 2.70 or 0.80 <= cd_xa <= 1.20)
+                is_gartley = (0.58 <= ab_xa <= 0.68) and (0.35 <= bc_ab <= 0.90) and (1.10 <= cd_bc <= 1.80)
+
+                pat_name = None
+                if is_butterfly:
+                    pat_name = "Bearish Butterfly Harmonic"
+                elif is_bat:
+                    pat_name = "Bearish Bat Harmonic"
+                elif is_gartley:
+                    pat_name = "Bearish Gartley Harmonic"
+
+                if pat_name:
+                    d_price = D["price"]
+                    entry = round(cur_price if abs(cur_price - d_price) < 40.0 else d_price, 1)
+                    target_dist = max(45.0, cd * 0.50)
+                    target = round(entry - target_dist, 1)
+                    sl_dist = max(20.0, cd * 0.20)
+                    stop = round(d_price + sl_dist, 1)
+                    rr = round(target_dist / max(1.0, sl_dist), 1)
+
+                    status = "PRZ_REVERSAL" if cur_price <= d_price else "TESTING_TRIGGER"
+                    span_str = self._format_span(X["time_raw"], D["time_raw"])
+
+                    drawing_shapes = [
+                        {"id": f"harm_{start}_xa", "type": "line", "time1": X["time"], "price1": X["price"], "time2": A["time"], "price2": A["price"], "color": "#f59e0b", "width": "2", "remark": f"XA Leg (₹{xa:.1f} pts)"},
+                        {"id": f"harm_{start}_ab", "type": "line", "time1": A["time"], "price1": A["price"], "time2": B["time"], "price2": B["price"], "color": "#f59e0b", "width": "2", "remark": f"AB ({ab_xa:.3f})"},
+                        {"id": f"harm_{start}_bc", "type": "line", "time1": B["time"], "price1": B["price"], "time2": C["time"], "price2": C["price"], "color": "#f59e0b", "width": "2", "remark": f"BC ({bc_ab:.3f})"},
+                        {"id": f"harm_{start}_cd", "type": "line", "time1": C["time"], "price1": C["price"], "time2": D["time"], "price2": D["price"], "color": "#ef4444", "width": "3", "remark": f"CD ({cd_bc:.2f} PRZ Short)"},
+                        {"id": f"harm_{start}_box", "type": "target_sl", "entry": entry, "target": target, "stop": stop, "timeStart": D["time"], "timeEnd": D["time"] + self._get_future_time_span(timeframe, 25), "color": "#ef4444", "remark": f"AI {pat_name}"}
+                    ]
+
+                    patterns.append({
+                        "id": f"pat_harmonic_bear_{D['bar_idx']}",
+                        "name": pat_name,
+                        "type": "harmonic",
+                        "direction": "SELL (PUT)",
+                        "timeframe": timeframe,
+                        "status": status,
+                        "entry_price": entry,
+                        "target_price": target,
+                        "stop_loss": stop,
+                        "risk_reward": f"1 : {rr}",
+                        "span_str": span_str,
+                        "end_bar_idx": D["bar_idx"],
+                        "ratios": {
+                            "AB_XA": round(ab_xa, 3),
+                            "BC_AB": round(bc_ab, 3),
+                            "CD_BC": round(cd_bc, 3),
+                            "CD_XA": round(cd_xa, 3)
+                        },
+                        "points": [
+                            {"label": "X", "time": X["time"], "price": X["price"]},
+                            {"label": "A", "time": A["time"], "price": A["price"]},
+                            {"label": "B", "time": B["time"], "price": B["price"]},
+                            {"label": "C", "time": C["time"], "price": C["price"]},
+                            {"label": "D (PRZ)", "time": D["time"], "price": D["price"]},
+                        ],
+                        "drawing_shapes": drawing_shapes
+                    })
+
+        return patterns
+
+    # =========================================================================
+    # 2. HEAD & SHOULDERS (STANDARD & INVERSE WITH SLANTED NECKLINE)
+    # =========================================================================
+    def _detect_head_and_shoulders(
+        self,
+        swings: List[Dict[str, Any]],
+        df: pd.DataFrame,
+        cur_price: float,
+        timeframe: str
+    ) -> List[Dict[str, Any]]:
+        patterns = []
+        n_swings = len(swings)
+        if n_swings < 5:
+            return patterns
+
+        cur_bar = len(df) - 1
+        scan_count = min(35, n_swings - 4)
+
+        for start in range(n_swings - scan_count - 4, n_swings - 4):
+            if start < 0:
+                continue
+            s1, s2, s3, s4, s5 = swings[start : start + 5]
+
+            # ----------------------------------------------------
+            # STANDARD HEAD & SHOULDERS (Bearish Reversal)
+            # s1=Peak1 (LS), s2=Trough1, s3=Peak2 (Head), s4=Trough2, s5=Peak3 (RS)
+            # ----------------------------------------------------
+            if s1["type"] == "H" and s2["type"] == "L" and s3["type"] == "H" and s4["type"] == "L" and s5["type"] == "H":
+                ls, t1, head, t2, rs = s1, s2, s3, s4, s5
+
+                # Head must be strictly higher than both shoulders
+                if head["price"] > ls["price"] + 15.0 and head["price"] > rs["price"] + 15.0:
+                    head_height = head["price"] - max(t1["price"], t2["price"])
+                    shoulder_diff = abs(ls["price"] - rs["price"])
+
+                    if head_height >= 30.0 and (shoulder_diff / head_height) < 0.45:
+                        # Slanted Neckline calculation (Line connecting t1 and t2)
+                        bar_delta = max(1, t2["bar_idx"] - t1["bar_idx"])
+                        slope = (t2["price"] - t1["price"]) / bar_delta
+                        proj_bars = cur_bar - t2["bar_idx"]
+                        neckline_cur = round(t2["price"] + (slope * proj_bars), 1)
+
+                        is_broken = cur_price < neckline_cur
+                        status = "CONFIRMED_BREAKOUT" if is_broken else "TESTING_NECKLINE"
+
+                        entry = round(neckline_cur, 1)
+                        target = round(neckline_cur - (head_height * 0.90), 1)
+                        stop = round(rs["price"] + 15.0, 1)
+                        rr = round(abs(entry - target) / max(1.0, abs(stop - entry)), 1)
+                        span_str = self._format_span(ls["time_raw"], rs["time_raw"])
+
+                        ext_time = _to_unix_sec(df.index[min(len(df) - 1, t2["bar_idx"] + 20)])
+                        ext_price = round(t2["price"] + (slope * 20), 1)
+
+                        drawing_shapes = [
+                            {"id": f"hns_{start}_ls_head", "type": "line", "time1": ls["time"], "price1": ls["price"], "time2": head["time"], "price2": head["price"], "color": "#f87171", "width": "2", "remark": "H&S Left Shoulder -> Head"},
+                            {"id": f"hns_{start}_head_rs", "type": "line", "time1": head["time"], "price1": head["price"], "time2": rs["time"], "price2": rs["price"], "color": "#f87171", "width": "2", "remark": "H&S Head -> Right Shoulder"},
+                            {"id": f"hns_{start}_neckline", "type": "line", "time1": t1["time"], "price1": t1["price"], "time2": ext_time, "price2": ext_price, "color": "#ef4444", "width": "3", "remark": f"Slanted Neckline ({slope:+.1f} pts/bar)"},
+                            {"id": f"hns_{start}_box", "type": "target_sl", "entry": entry, "target": target, "stop": stop, "timeStart": rs["time"], "timeEnd": rs["time"] + self._get_future_time_span(timeframe, 25), "color": "#ef4444", "remark": "AI Head & Shoulders"}
+                        ]
+
+                        patterns.append({
+                            "id": f"pat_hns_{rs['bar_idx']}",
+                            "name": "Head & Shoulders (Bearish Reversal)",
+                            "type": "head_and_shoulders",
+                            "direction": "SELL (PUT)",
+                            "timeframe": timeframe,
+                            "status": status,
+                            "entry_price": entry,
+                            "target_price": target,
+                            "stop_loss": stop,
+                            "risk_reward": f"1 : {rr}",
+                            "span_str": span_str,
+                            "end_bar_idx": rs["bar_idx"],
+                            "neckline_slope": round(slope, 3),
+                            "points": [
+                                {"label": "Left Shoulder", "time": ls["time"], "price": ls["price"]},
+                                {"label": "Trough 1", "time": t1["time"], "price": t1["price"]},
+                                {"label": "Head", "time": head["time"], "price": head["price"]},
+                                {"label": "Trough 2", "time": t2["time"], "price": t2["price"]},
+                                {"label": "Right Shoulder", "time": rs["time"], "price": rs["price"]},
+                            ],
+                            "drawing_shapes": drawing_shapes
+                        })
+
+            # ----------------------------------------------------
+            # INVERSE HEAD & SHOULDERS (Bullish Reversal)
+            # s1=Trough1 (LS), s2=Peak1, s3=Trough2 (Head), s4=Peak2, s5=Trough3 (RS)
+            # ----------------------------------------------------
+            elif s1["type"] == "L" and s2["type"] == "H" and s3["type"] == "L" and s4["type"] == "H" and s5["type"] == "L":
+                ls, p1, head, p2, rs = s1, s2, s3, s4, s5
+
+                # Head must be strictly lower than both shoulders
+                if head["price"] < ls["price"] - 15.0 and head["price"] < rs["price"] - 15.0:
+                    head_depth = min(p1["price"], p2["price"]) - head["price"]
+                    shoulder_diff = abs(ls["price"] - rs["price"])
+
+                    if head_depth >= 30.0 and (shoulder_diff / head_depth) < 0.45:
+                        bar_delta = max(1, p2["bar_idx"] - p1["bar_idx"])
+                        slope = (p2["price"] - p1["price"]) / bar_delta
+                        proj_bars = cur_bar - p2["bar_idx"]
+                        neckline_cur = round(p2["price"] + (slope * proj_bars), 1)
+
+                        is_broken = cur_price > neckline_cur
+                        status = "CONFIRMED_BREAKOUT" if is_broken else "TESTING_NECKLINE"
+
+                        entry = round(neckline_cur, 1)
+                        target = round(neckline_cur + (head_depth * 0.90), 1)
+                        stop = round(rs["price"] - 15.0, 1)
+                        rr = round(abs(target - entry) / max(1.0, abs(entry - stop)), 1)
+                        span_str = self._format_span(ls["time_raw"], rs["time_raw"])
+
+                        ext_time = _to_unix_sec(df.index[min(len(df) - 1, p2["bar_idx"] + 20)])
+                        ext_price = round(p2["price"] + (slope * 20), 1)
+
+                        drawing_shapes = [
+                            {"id": f"inv_hns_{start}_ls_head", "type": "line", "time1": ls["time"], "price1": ls["price"], "time2": head["time"], "price2": head["price"], "color": "#4ade80", "width": "2", "remark": "Inv H&S Left Shoulder -> Head"},
+                            {"id": f"inv_hns_{start}_head_rs", "type": "line", "time1": head["time"], "price1": head["price"], "time2": rs["time"], "price2": rs["price"], "color": "#4ade80", "width": "2", "remark": "Inv H&S Head -> Right Shoulder"},
+                            {"id": f"inv_hns_{start}_neckline", "type": "line", "time1": p1["time"], "price1": p1["price"], "time2": ext_time, "price2": ext_price, "color": "#22c55e", "width": "3", "remark": f"Slanted Neckline ({slope:+.1f} pts/bar)"},
+                            {"id": f"inv_hns_{start}_box", "type": "target_sl", "entry": entry, "target": target, "stop": stop, "timeStart": rs["time"], "timeEnd": rs["time"] + self._get_future_time_span(timeframe, 25), "color": "#22c55e", "remark": "AI Inverse H&S"}
+                        ]
+
+                        patterns.append({
+                            "id": f"pat_inv_hns_{rs['bar_idx']}",
+                            "name": "Inverse Head & Shoulders (Bullish Reversal)",
+                            "type": "head_and_shoulders",
+                            "direction": "BUY (CALL)",
+                            "timeframe": timeframe,
+                            "status": status,
+                            "entry_price": entry,
+                            "target_price": target,
+                            "stop_loss": stop,
+                            "risk_reward": f"1 : {rr}",
+                            "span_str": span_str,
+                            "end_bar_idx": rs["bar_idx"],
+                            "neckline_slope": round(slope, 3),
+                            "points": [
+                                {"label": "Left Shoulder", "time": ls["time"], "price": ls["price"]},
+                                {"label": "Peak 1", "time": p1["time"], "price": p1["price"]},
+                                {"label": "Head", "time": head["time"], "price": head["price"]},
+                                {"label": "Peak 2", "time": p2["time"], "price": p2["price"]},
+                                {"label": "Right Shoulder", "time": rs["time"], "price": rs["price"]},
+                            ],
+                            "drawing_shapes": drawing_shapes
+                        })
+
+        return patterns
+
+    # =========================================================================
+    # 3. SLANTED TRENDLINE BREAKOUTS (TRIANGLES, WEDGES & CHANNELS)
+    # =========================================================================
+    def _detect_triangles_and_wedges(
+        self,
+        swings: List[Dict[str, Any]],
+        df: pd.DataFrame,
+        cur_price: float,
+        timeframe: str
+    ) -> List[Dict[str, Any]]:
+        patterns = []
+        recent_highs = [s for s in swings if s["type"] == "H"][-5:]
+        recent_lows = [s for s in swings if s["type"] == "L"][-5:]
+
+        if len(recent_highs) < 2 or len(recent_lows) < 2:
+            return patterns
+
+        h1, h2 = recent_highs[-2], recent_highs[-1]
+        l1, l2 = recent_lows[-2], recent_lows[-1]
+
+        cur_bar = len(df) - 1
+        h_bars = max(1, h2["bar_idx"] - h1["bar_idx"])
+        l_bars = max(1, l2["bar_idx"] - l1["bar_idx"])
+
+        slope_high = (h2["price"] - h1["price"]) / h_bars
+        slope_low = (l2["price"] - l1["price"]) / l_bars
+
+        # Extrapolate to current candle
+        res_cur = round(h2["price"] + slope_high * (cur_bar - h2["bar_idx"]), 1)
+        sup_cur = round(l2["price"] + slope_low * (cur_bar - l2["bar_idx"]), 1)
+
+        base_height = abs(h1["price"] - l1["price"])
+        if base_height < 30.0:
+            return patterns
+
+        pat_name = None
+        direction = None
+        is_buy = False
+
+        if abs(slope_high) < 0.20 and slope_low > 0.20:
+            pat_name = "Ascending Triangle Breakout"
+            direction = "BUY (CALL)"
+            is_buy = True
+        elif abs(slope_low) < 0.20 and slope_high < -0.20:
+            pat_name = "Descending Triangle Breakdown"
+            direction = "SELL (PUT)"
+            is_buy = False
+        elif slope_high < -0.12 and slope_low > 0.12:
+            pat_name = "Symmetrical Triangle"
+            is_buy = cur_price >= res_cur
+            direction = "BUY (CALL)" if is_buy else "SELL (PUT)"
+        elif slope_high < -0.25 and slope_low < -0.08 and (slope_high < slope_low):
+            pat_name = "Falling Wedge (Bullish Reversal)"
+            direction = "BUY (CALL)"
+            is_buy = True
+        elif slope_high > 0.08 and slope_low > 0.25 and (slope_low > slope_high):
+            pat_name = "Rising Wedge (Bearish Reversal)"
+            direction = "SELL (PUT)"
+            is_buy = False
+
+        if pat_name:
+            if is_buy:
+                is_broken = cur_price > res_cur
+                entry = round(res_cur, 1)
+                target = round(res_cur + (base_height * 0.75), 1)
+                stop = round(sup_cur - 15.0, 1)
+            else:
+                is_broken = cur_price < sup_cur
+                entry = round(sup_cur, 1)
+                target = round(sup_cur - (base_height * 0.75), 1)
+                stop = round(res_cur + 15.0, 1)
+
+            status = "CONFIRMED_BREAKOUT" if is_broken else "TESTING_TRIGGER"
+            rr_val = round(abs(target - entry) / max(1.0, abs(stop - entry)), 1)
+            span_str = self._format_span(min(h1["time_raw"], l1["time_raw"]), max(h2["time_raw"], l2["time_raw"]))
+
+            ext_time = _to_unix_sec(df.index[min(len(df) - 1, max(h2["bar_idx"], l2["bar_idx"]) + 20)])
+            ext_res = round(h2["price"] + slope_high * 20, 1)
+            ext_sup = round(l2["price"] + slope_low * 20, 1)
+
+            drawing_shapes = [
+                {"id": f"tri_res_{cur_bar}", "type": "line", "time1": h1["time"], "price1": h1["price"], "time2": ext_time, "price2": ext_res, "color": "#ef4444" if not is_buy else "#f59e0b", "width": "2", "remark": f"Slanted Resistance ({slope_high:+.1f} pts/bar)"},
+                {"id": f"tri_sup_{cur_bar}", "type": "line", "time1": l1["time"], "price1": l1["price"], "time2": ext_time, "price2": ext_sup, "color": "#22c55e" if is_buy else "#38bdf8", "width": "2", "remark": f"Slanted Support ({slope_low:+.1f} pts/bar)"},
+                {"id": f"tri_box_{cur_bar}", "type": "target_sl", "entry": entry, "target": target, "stop": stop, "timeStart": max(h2["time"], l2["time"]), "timeEnd": max(h2["time"], l2["time"]) + self._get_future_time_span(timeframe, 20), "color": "#22c55e" if is_buy else "#ef4444", "remark": f"AI {pat_name}"}
+            ]
+
+            patterns.append({
+                "id": f"pat_triangle_{cur_bar}",
+                "name": pat_name,
+                "type": "triangle",
+                "direction": direction,
+                "timeframe": timeframe,
+                "status": status,
+                "entry_price": entry,
+                "target_price": target,
+                "stop_loss": stop,
+                "risk_reward": f"1 : {rr_val}",
+                "span_str": span_str,
+                "end_bar_idx": max(h2["bar_idx"], l2["bar_idx"]),
+                "points": [
+                    {"label": "Resistance High 1", "time": h1["time"], "price": h1["price"]},
+                    {"label": "Resistance High 2", "time": h2["time"], "price": h2["price"]},
+                    {"label": "Support Low 1", "time": l1["time"], "price": l1["price"]},
+                    {"label": "Support Low 2", "time": l2["time"], "price": l2["price"]},
+                ],
+                "drawing_shapes": drawing_shapes
+            })
+
+        return patterns
+
+    # =========================================================================
+    # 4. DOUBLE TOPS (M) & DOUBLE BOTTOMS (W)
+    # =========================================================================
+    def _detect_double_tops_bottoms(
+        self,
+        swings: List[Dict[str, Any]],
+        df: pd.DataFrame,
+        cur_price: float,
+        timeframe: str
+    ) -> List[Dict[str, Any]]:
+        patterns = []
+        n_swings = len(swings)
+        if n_swings < 3:
+            return patterns
+
+        scan_count = min(15, n_swings - 2)
+        for i in range(n_swings - scan_count - 2, n_swings - 2):
+            if i < 0:
+                continue
+            s1, s2, s3 = swings[i : i + 3]
+
+            # Double Top (M-Pattern)
+            if s1["type"] == "H" and s2["type"] == "L" and s3["type"] == "H":
+                top_diff = abs(s1["price"] - s3["price"])
+                valley_depth = min(s1["price"], s3["price"]) - s2["price"]
+                if valley_depth >= 30.0 and (top_diff / valley_depth) < 0.25:
+                    neckline = s2["price"]
+                    is_broken = cur_price < neckline
+                    status = "CONFIRMED_BREAKOUT" if is_broken else "TESTING_NECKLINE"
+
+                    entry = round(neckline, 1)
+                    target = round(neckline - (valley_depth * 0.85), 1)
+                    stop = round(max(s1["price"], s3["price"]) + 15.0, 1)
+                    rr = round(abs(entry - target) / max(1.0, abs(stop - entry)), 1)
+                    span_str = self._format_span(s1["time_raw"], s3["time_raw"])
+
+                    drawing_shapes = [
+                        {"id": f"dt_{i}_line", "type": "line", "time1": s1["time"], "price1": s1["price"], "time2": s3["time"], "price2": s3["price"], "color": "#ef4444", "width": "2", "remark": "Double Top Resistance"},
+                        {"id": f"dt_{i}_neck", "type": "line", "time1": s2["time"], "price1": s2["price"], "time2": s3["time"] + self._get_future_time_span(timeframe, 15), "price2": s2["price"], "color": "#f87171", "width": "2", "remark": f"Neckline (₹{neckline})"},
+                        {"id": f"dt_{i}_box", "type": "target_sl", "entry": entry, "target": target, "stop": stop, "timeStart": s3["time"], "timeEnd": s3["time"] + self._get_future_time_span(timeframe, 20), "color": "#ef4444", "remark": "AI Double Top Breakdown"}
+                    ]
+
+                    patterns.append({
+                        "id": f"pat_dt_{s3['bar_idx']}",
+                        "name": "Double Top (M-Pattern Breakdown)",
+                        "type": "double_top_bottom",
+                        "direction": "SELL (PUT)",
+                        "timeframe": timeframe,
+                        "status": status,
+                        "entry_price": entry,
+                        "target_price": target,
+                        "stop_loss": stop,
+                        "risk_reward": f"1 : {rr}",
+                        "span_str": span_str,
+                        "end_bar_idx": s3["bar_idx"],
+                        "points": [
+                            {"label": "Peak 1", "time": s1["time"], "price": s1["price"]},
+                            {"label": "Valley Neckline", "time": s2["time"], "price": s2["price"]},
+                            {"label": "Peak 2", "time": s3["time"], "price": s3["price"]},
+                        ],
+                        "drawing_shapes": drawing_shapes
+                    })
+
+            # Double Bottom (W-Pattern)
+            elif s1["type"] == "L" and s2["type"] == "H" and s3["type"] == "L":
+                bottom_diff = abs(s1["price"] - s3["price"])
+                peak_height = s2["price"] - max(s1["price"], s3["price"])
+                if peak_height >= 30.0 and (bottom_diff / peak_height) < 0.25:
+                    neckline = s2["price"]
+                    is_broken = cur_price > neckline
+                    status = "CONFIRMED_BREAKOUT" if is_broken else "TESTING_NECKLINE"
+
+                    entry = round(neckline, 1)
+                    target = round(neckline + (peak_height * 0.85), 1)
+                    stop = round(min(s1["price"], s3["price"]) - 15.0, 1)
+                    rr = round(abs(target - entry) / max(1.0, abs(entry - stop)), 1)
+                    span_str = self._format_span(s1["time_raw"], s3["time_raw"])
+
+                    drawing_shapes = [
+                        {"id": f"db_{i}_line", "type": "line", "time1": s1["time"], "price1": s1["price"], "time2": s3["time"], "price2": s3["price"], "color": "#22c55e", "width": "2", "remark": "Double Bottom Support"},
+                        {"id": f"db_{i}_neck", "type": "line", "time1": s2["time"], "price1": s2["price"], "time2": s3["time"] + self._get_future_time_span(timeframe, 15), "price2": s2["price"], "color": "#4ade80", "width": "2", "remark": f"Neckline (₹{neckline})"},
+                        {"id": f"db_{i}_box", "type": "target_sl", "entry": entry, "target": target, "stop": stop, "timeStart": s3["time"], "timeEnd": s3["time"] + self._get_future_time_span(timeframe, 20), "color": "#22c55e", "remark": "AI Double Bottom Breakout"}
+                    ]
+
+                    patterns.append({
+                        "id": f"pat_db_{s3['bar_idx']}",
+                        "name": "Double Bottom (W-Pattern Breakout)",
+                        "type": "double_top_bottom",
+                        "direction": "BUY (CALL)",
+                        "timeframe": timeframe,
+                        "status": status,
+                        "entry_price": entry,
+                        "target_price": target,
+                        "stop_loss": stop,
+                        "risk_reward": f"1 : {rr}",
+                        "span_str": span_str,
+                        "end_bar_idx": s3["bar_idx"],
+                        "points": [
+                            {"label": "Trough 1", "time": s1["time"], "price": s1["price"]},
+                            {"label": "Peak Neckline", "time": s2["time"], "price": s2["price"]},
+                            {"label": "Trough 2", "time": s3["time"], "price": s3["price"]},
+                        ],
+                        "drawing_shapes": drawing_shapes
+                    })
+
+        return patterns
+
+    # =========================================================================
+    # HELPER FORMATTING UTILITIES
+    # =========================================================================
+    def _format_span(self, start_t: Any, end_t: Any) -> str:
+        """Formats multi-day span human readable string."""
+        try:
+            d1 = pd.to_datetime(start_t)
+            d2 = pd.to_datetime(end_t)
+            days = abs((d2.date() - d1.date()).days)
+            d1_str = d1.strftime("%d-%b")
+            d2_str = d2.strftime("%d-%b")
+            if days <= 0:
+                return f"Intraday ({d1_str})"
+            return f"{days + 1} trading days ({d1_str} to {d2_str})"
+        except Exception:
+            return "Multi-Day Span"
+
+    def _get_future_time_span(self, timeframe: str, num_bars: int = 20) -> int:
+        tf = timeframe.lower()
+        if "1d" in tf:
+            return 86400 * num_bars
+        if "1h" in tf or "60m" in tf:
+            return 3600 * num_bars
+        if "15m" in tf:
+            return 900 * num_bars
+        return 300 * num_bars  # 5m
+
+
+# Global Singleton instance
+_detector_instance: Optional[PatternDetector] = None
+
+def get_pattern_detector() -> PatternDetector:
+    global _detector_instance
+    if _detector_instance is None:
+        _detector_instance = PatternDetector()
+    return _detector_instance
