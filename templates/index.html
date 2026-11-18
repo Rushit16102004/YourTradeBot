@@ -15956,19 +15956,24 @@ function showIndicatorLineActionPill(ind, point) {
                 const hwLeadersEl = document.getElementById('hw-leaders-ticker');
                 const hwBadge = document.getElementById('heavyweights-badge');
                 if (d.heavyweights) {
-                    const netPts = Number(d.heavyweights.net_nifty_points || 0);
+                    const netPts = Number(d.heavyweights.net_points != null ? d.heavyweights.net_points : (d.heavyweights.net_nifty_points != null ? d.heavyweights.net_nifty_points : 0));
                     if (hwNetEl) {
                         hwNetEl.textContent = (netPts >= 0 ? '+' : '') + netPts.toFixed(1) + ' pts';
                         hwNetEl.style.color = (netPts > 5) ? '#10b981' : ((netPts < -5) ? '#ef4444' : '#cbd5e1');
                     }
-                    if (hwLeadersEl && Array.isArray(d.heavyweights.stocks)) {
-                        const top2 = d.heavyweights.stocks.slice(0, 2).map(s => `${s.symbol.replace('BANK','').replace('RELIANCE','REL')}: ${(s.net_impact_pts >= 0 ? '+' : '') + s.net_impact_pts.toFixed(0)}`).join(' | ');
+                    if (hwLeadersEl && Array.isArray(d.heavyweights.stocks) && d.heavyweights.stocks.length > 0) {
+                        const top2 = d.heavyweights.stocks.slice(0, 2).map(s => {
+                            const pts = (s.points_impact != null) ? s.points_impact : (s.net_impact_pts != null ? s.net_impact_pts : 0);
+                            const symName = (s.symbol || '').replace('BANK', '').replace('RELIANCE', 'REL');
+                            return `${symName} ${(pts >= 0 ? '+' : '') + Number(pts).toFixed(1)}`;
+                        }).join(' | ');
                         hwLeadersEl.textContent = top2 || '--';
                     }
                     if (hwBadge) {
                         const basisStr = d.futures_basis != null ? `${Number(d.futures_basis).toFixed(1)} pts` : '--';
                         const fiiStr = d.fii_long_ratio != null ? `${Number(d.fii_long_ratio).toFixed(1)}%` : '--';
-                        hwBadge.title = `⚡ Heavyweights Fuel: ${d.heavyweights.net_nifty_points >= 0 ? '+' : ''}${d.heavyweights.net_nifty_points || 0} pts (${d.heavyweights.state || 'NEUTRAL'})\n• Nifty Futures Basis: ${basisStr}\n• FII Long/Short Ratio: ${fiiStr}`;
+                        const stateStr = d.heavyweights.state || 'NEUTRAL';
+                        hwBadge.title = `⚡ Heavyweights Fuel: ${netPts >= 0 ? '+' : ''}${netPts.toFixed(1)} pts (${stateStr})\n• Nifty Futures Basis: ${basisStr}\n• FII Long/Short Ratio: ${fiiStr}`;
                     }
                 }
             } catch (err) {

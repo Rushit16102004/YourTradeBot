@@ -52,14 +52,15 @@ class InstitutionalEngine:
             "engine_1_fuel": {
                 "state": "NEUTRAL",
                 "net_points": 0.0,
+                "net_nifty_points": 0.0,
                 "bullish_count": 0,
                 "bearish_count": 0,
                 "stocks": [
-                    {"symbol": "HDFCBANK", "name": "HDFC Bank", "weight": 11.5, "ltp": 1740.0, "prev_close": 1740.0, "pct_change": 0.0, "points_impact": 0.0},
-                    {"symbol": "RELIANCE", "name": "Reliance Ind", "weight": 9.2, "ltp": 2890.0, "prev_close": 2890.0, "pct_change": 0.0, "points_impact": 0.0},
-                    {"symbol": "ICICIBANK", "name": "ICICI Bank", "weight": 8.1, "ltp": 1260.0, "prev_close": 1260.0, "pct_change": 0.0, "points_impact": 0.0},
-                    {"symbol": "INFY", "name": "Infosys", "weight": 5.8, "ltp": 1820.0, "prev_close": 1820.0, "pct_change": 0.0, "points_impact": 0.0},
-                    {"symbol": "TCS", "name": "TCS", "weight": 3.9, "ltp": 4120.0, "prev_close": 4120.0, "pct_change": 0.0, "points_impact": 0.0},
+                    {"symbol": "HDFCBANK", "name": "HDFC Bank", "weight": 11.5, "ltp": 1740.0, "prev_close": 1740.0, "pct_change": 0.0, "points_impact": 0.0, "net_impact_pts": 0.0},
+                    {"symbol": "RELIANCE", "name": "Reliance Ind", "weight": 9.2, "ltp": 2890.0, "prev_close": 2890.0, "pct_change": 0.0, "points_impact": 0.0, "net_impact_pts": 0.0},
+                    {"symbol": "ICICIBANK", "name": "ICICI Bank", "weight": 8.1, "ltp": 1260.0, "prev_close": 1260.0, "pct_change": 0.0, "points_impact": 0.0, "net_impact_pts": 0.0},
+                    {"symbol": "INFY", "name": "Infosys", "weight": 5.8, "ltp": 1820.0, "prev_close": 1820.0, "pct_change": 0.0, "points_impact": 0.0, "net_impact_pts": 0.0},
+                    {"symbol": "TCS", "name": "TCS", "weight": 3.9, "ltp": 4120.0, "prev_close": 4120.0, "pct_change": 0.0, "points_impact": 0.0, "net_impact_pts": 0.0},
                 ],
             },
             "engine_3_flow": {
@@ -88,7 +89,19 @@ class InstitutionalEngine:
     def _background_loop(self):
         while self._is_running:
             try:
-                self.update_metrics()
+                spot = 24400.0
+                smart_client = None
+                try:
+                    from engine.background_engine import BackgroundTradingEngine
+                    bg_eng = BackgroundTradingEngine.get_instance()
+                    if bg_eng:
+                        smart_client = getattr(bg_eng, "client", None)
+                        snap = bg_eng.get_snapshot("5m")
+                        if snap and snap.get("current_price"):
+                            spot = float(snap["current_price"])
+                except Exception:
+                    pass
+                self.update_metrics(smart_client=smart_client, spot_price=spot)
             except Exception as e:
                 logger.debug("Error in institutional metrics background poll: %s", e)
             time.sleep(12)
@@ -241,6 +254,7 @@ class InstitutionalEngine:
                 "prev_close": round(prev_close, 2),
                 "pct_change": round(pct_change, 2),
                 "points_impact": pts_impact,
+                "net_impact_pts": pts_impact,
             })
 
         total_points = round(total_points, 2)
@@ -254,6 +268,7 @@ class InstitutionalEngine:
         result = {
             "stocks": stocks_result,
             "net_points": total_points,
+            "net_nifty_points": total_points,
             "bullish_count": bullish_count,
             "bearish_count": bearish_count,
             "state": state,

@@ -580,14 +580,28 @@ class GeminiLLMClient:
             f"CRITICAL INSTRUCTIONS - INTENT OBSERVATION & REAL HUMAN SENIOR TRADER VOICE:\n"
             f"0. MANDATORY INTENT OBSERVATION (REVIEW QUESTION BEFORE ANSWERING):\n"
             f"   • Categorize what {uname} is actually asking before generating your response:\n"
-            f"     a) [LOGIC / 'HOW' / 'WHY' QUESTION] (e.g. 'how to decide target', 'why this target', 'target logic', 'why this sl', 'sl logic', 'how did you calculate?'):\n"
+            f"     a) [ACTIONABLE TRADE SETUP REQUEST] (e.g. 'give me full detail like sl entry', 'give me trade setup', 'give me nest trade', 'give me next trade', 'where to enter', 'give direction sl entry and also target', 'give setup', 'give trade', 'what trade can i take', 'should i buy call or put?'):\n"
+            f"        -> THE TRADER WANTS A FRESH ACTIONABLE TRADE SETUP RIGHT NOW!\n"
+            f"        -> ABSOLUTE MANDATE: DO NOT get trapped analyzing old drawings on the chart or telling them to hold previous trades!\n"
+            f"        -> Synthesize a real-time institutional trade setup (Direction, Entry Zone, Target Runway, and Stop-Loss) based on current spot price, Session VWAP, and the 3 Core Engines.\n"
+            f"        -> ALWAYS CONCLUDE WITH THE STANDARDIZED EXECUTION CARD:\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🎯 QUICK TRADE EXECUTION SUMMARY\n"
+            f"• Direction   -> [BUY (CALL) / SELL (PUT)]\n"
+            f"• Entry Price -> ₹[Exact Price]\n"
+            f"• Exit/Target -> ₹[Exact Price] (+[Pts] pts / +[%]%)\n"
+            f"• Stop Loss   -> ₹[Exact Price] (-[Pts] pts / -[%]%)\n"
+            f"• Risk:Reward -> 1 : [Ratio]\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"     b) [LOGIC / 'HOW' / 'WHY' QUESTION] (e.g. 'how to decide target', 'why this target', 'target logic', 'why this sl', 'sl logic', 'how did you calculate?'):\n"
             f"        -> EXPLAIN the exact institutional reasoning of the active trade levels discussed earlier in chat (Confluence Wall defense, 5m ATR runway, 1:2.5+ R:R math).\n"
             f"        -> ABSOLUTE RULE: NEVER output the 🎯 QUICK TRADE EXECUTION SUMMARY card! Do NOT give a new trade setup! Answer in a direct, natural mentor voice.\n"
-            f"     b) [EXPLICIT TRADE SETUP REQUEST] (e.g. 'where to enter?', 'can I buy call/put?', 'should I enter now?', 'give me a setup'):\n"
-            f"        -> Provide 2 to 3 bullet points of technical rationale + conclude with the 🎯 QUICK TRADE EXECUTION SUMMARY card.\n"
-            f"     c) [CONCEPTUAL / EDUCATIONAL] (e.g. 'what is PCR?', 'explain VWAP'):\n"
+            f"     c) [EXPLICIT ON-CHART DRAWING INSPECTION] (e.g. 'check my drawing', 'is my line valid?', 'check my drawn box'):\n"
+            f"        -> ONLY evaluate an on-chart drawing when {uname} specifically asks about their drawing (using words like 'my line', 'my drawing', 'my box').\n"
+            f"        -> Never let old drawings prevent you from generating a new trade setup when {uname} asks for a trade, entry, or setup!\n"
+            f"     d) [CONCEPTUAL / EDUCATIONAL] (e.g. 'what is PCR?', 'explain VWAP'):\n"
             f"        -> Explain the concept in clear trader terms. NO trade summary card.\n"
-            f"     d) [TRADE MANAGEMENT / FOLLOW-UP] (e.g. 'should I exit now?', 'trail sl'):\n"
+            f"     e) [TRADE MANAGEMENT / FOLLOW-UP] (e.g. 'should I exit now?', 'trail sl', 'is this trade working?'):\n"
             f"        -> Advise on active trade management (trailing SL, partial profit). NO new trade setup card.\n"
             f"1. REAL HUMAN SENIOR PROP TRADER VOICE & NATURAL CONVERSATION:\n"
             f"   • Speak like a real, experienced human senior prop desk trader / trading mentor sitting right next to {uname} at the desk.\n"
@@ -643,6 +657,7 @@ class GeminiLLMClient:
             f"        - Intraday Volatility Runway (ATR): 14-period ATR gives realistic momentum runway (40 to 70 pts) without overstaying into theta decay.\n"
             f"        - Asymmetric Risk-to-Reward Math: Minimum 1:2.0 to 1:2.8 R:R ensuring reward significantly exceeds risk.\n"
             f"     3. DO NOT invent new trade numbers or output an unsolicited trade card!\n"
+            f"   • DRAWING VS NEW TRADE RESOLUTION: When {uname} asks for a trade setup, next trade, entry details, or setup ('give me full detail like sl entry', 'give me trade setup', 'give me nest trade', 'give me next trade', 'give setup', 'where to enter'): ALWAYS provide a FRESH ACTIONABLE TRADE SETUP with the Quick Trade Execution Summary card. NEVER get stuck evaluating old drawings unless {uname} explicitly asks about them ('check my drawing', 'is my line valid?').\n"
             f"   • When {uname} asks about their drawn Risk-Reward (TARGET_SL) setup or previous trade:\n"
             f"     a) FIRST evaluate their SPECIFIC EXISTING SETUP against current market price and structure (Session VWAP, S&R, trend, and OI walls).\n"
             f"     b) DO NOT forcefully or blindly discard their drawn setup to manufacture an unrelated new one! If the setup is valid or manageable, advise on active trade management: e.g. 'Trail Stop Loss to breakeven at ₹...', 'Take 50% partial profit at ₹...', or 'Hold with current SL at ₹...'.\n"
@@ -1579,8 +1594,25 @@ class GeminiLLMClient:
             "can i trade now", "should i trade now", "can we enter now", "take entry now",
             "is this right time to enter", "good time to enter now", "can i enter", "should i enter"
         ])
+        # General trade setup request phrases (e.g. "give me full detail like sl entry", "give me nest trade", "give me trade setup", "trade setup")
+        trade_setup_phrases = [
+            "trade setup", "give setup", "give me setup", "give trade", "give me trade",
+            "give me nest trade", "give me next trade", "next trade", "nest trade",
+            "give me full detail like sl entry", "give me full detail", "sl entry",
+            "direction sl entry", "entry and also target", "entry target sl", "sl target",
+            "what is the trade", "where to enter", "when to enter", "where should i enter",
+            "what trade to take", "what trade can i take", "give me trade plan",
+            "trade recommendation", "suggest trade", "give entry", "entry level",
+            "call or put", "buy or sell", "kya trade lu", "trade batao", "trade do"
+        ]
+        asks_setup = not is_explicit_sig and not (is_target_logic or is_sl_logic) and (
+            any(p in q_lower for p in trade_setup_phrases) or
+            ("setup" in q_lower and "what is" not in q_lower) or
+            ("trade" in q_lower and any(w in q_lower for w in ["give", "tell", "next", "nest", "any", "which", "suggest", "plan", "new"])) or
+            ("entry" in q_lower and any(w in q_lower for w in ["give", "tell", "where", "when", "how", "detail", "sl"]))
+        )
 
-        if not synthesis and (asks_call or asks_put or asks_timing):
+        if not synthesis and (asks_call or asks_put or asks_timing or asks_setup):
             v_dict = v if v else (market_state.get("vwap", {}) if market_state else {})
             e_dict = e if e else (market_state.get("ema", {}) if market_state else {})
             vwap_val = v_dict.get("value") if v_dict.get("value") is not None else cur_p
@@ -1699,7 +1731,7 @@ class GeminiLLMClient:
                         f"  - **Contract Sizing:** {ps.get('recommended_lots', 1)} Lot(s) ({ps.get('total_quantity', 65)} qty | 1 Lot = 65 Qty)."
                     )
 
-            elif asks_timing:
+            elif asks_timing or asks_setup:
                 comb_sr = market_state.get("comb_sr_levels", []) if market_state else []
                 sr_gt5 = [l for l in comb_sr if l.get("bounces", 0) > 5]
                 active_sr = sr_gt5 if sr_gt5 else comb_sr
@@ -1897,7 +1929,7 @@ class GeminiLLMClient:
                 synthesis = f"Hey {uname},\n\nCurrent NIFTY 50 LTP: ₹{cur_p}. Main Strategy is active on 5m timeframe following Session VWAP and S&R confluence rules."
 
         reply = synthesis.strip()
-        is_explicit_entry_ask = (asks_call or asks_put or asks_timing) and not (is_target_logic or is_sl_logic)
+        is_explicit_entry_ask = (asks_call or asks_put or asks_timing or asks_setup) and not (is_target_logic or is_sl_logic)
         if is_explicit_entry_ask and ("CALL SETUP" in reply or "PUT SETUP" in reply or "MOMENTUM SCALP" in reply or "BREAKDOWN SCALP" in reply) and "QUICK TRADE EXECUTION SUMMARY" not in reply:
             is_call = "CALL" in reply or "BULLISH" in reply or "DIP" in reply
             dir_str = "BUY (CALL)" if is_call else "SELL (PUT)"
