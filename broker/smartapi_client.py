@@ -127,16 +127,17 @@ class AngelSmartApiClient:
             except Exception as e:
                 logger.error("Error fetching live quote from Angel One: %s", e)
 
-        # Seamless live market fallback if Angel One is momentarily unavailable
-        fallback_ltp = self._get_fallback_live_ltp()
-        if fallback_ltp and fallback_ltp > 1000.0:
-            return {
-                "ltp": fallback_ltp,
-                "prev_close": None,
-                "open": None,
-                "high": None,
-                "low": None,
-            }
+        # Seamless live market fallback if Angel One is momentarily unavailable (NIFTY 50 only)
+        if str(token) == "99926000" or "nifty" in str(symbol).lower():
+            fallback_ltp = self._get_fallback_live_ltp()
+            if fallback_ltp and fallback_ltp > 1000.0:
+                return {
+                    "ltp": fallback_ltp,
+                    "prev_close": None,
+                    "open": None,
+                    "high": None,
+                    "low": None,
+                }
         return None
 
     def get_live_ltp(self, exchange: str = "NSE", token: str = "99926000", symbol: str = "Nifty 50") -> Optional[float]:
