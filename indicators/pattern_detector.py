@@ -212,6 +212,51 @@ class PatternDetector:
         doubles = self._detect_double_tops_bottoms(swings, df, cur_price, timeframe)
         patterns.extend(doubles)
 
+        # 5. Filter out patterns that have already completed (Target Hit or SL Hit)
+        # Strictly active trades only: once Target or SL is touched by live or historical bars, the trade is retired!
+        active_patterns: List[Dict[str, Any]] = []
+        n_bars = len(df)
+        for p in patterns:
+            is_buy = "BUY" in p["direction"]
+            target = p["target_price"]
+            stop = p["stop_loss"]
+            end_bar = p.get("end_bar_idx", 0)
+
+            # Check if target or stop has been hit by live cur_price
+            target_hit = (cur_price >= target) if is_buy else (cur_price <= target)
+            sl_hit = (cur_price <= stop) if is_buy else (cur_price >= stop)
+
+            # Check historical bars since pattern completion bar
+            if not target_hit and not sl_hit and end_bar < n_bars:
+                sub_df = df.iloc[max(0, end_bar):]
+                if not sub_df.empty:
+                    if is_buy:
+                        max_high = float(sub_df["high"].max())
+                        min_low = float(sub_df["low"].min())
+                        if max_high >= target:
+                            target_hit = True
+                        elif min_low <= stop:
+                            sl_hit = True
+                    else:
+                        min_low = float(sub_df["low"].min())
+                        max_high = float(sub_df["high"].max())
+                        if min_low <= target:
+                            target_hit = True
+                        elif max_high >= stop:
+                            sl_hit = True
+
+            if target_hit:
+                p["is_completed"] = True
+                p["completion_reason"] = "TARGET_HIT"
+                p["status"] = "TARGET_HIT"
+            elif sl_hit:
+                p["is_completed"] = True
+                p["completion_reason"] = "SL_HIT"
+                p["status"] = "SL_HIT"
+            else:
+                p["is_completed"] = False
+                active_patterns.append(p)
+
         # Sort by relevance: Confirmed breakouts & PRZ reversals first, then by recency
         def _sort_key(p: Dict[str, Any]) -> Tuple[int, int]:
             status_priority = {
@@ -225,8 +270,8 @@ class PatternDetector:
             last_bar = p.get("end_bar_idx", 0)
             return (pri, -last_bar)
 
-        patterns.sort(key=_sort_key)
-        return patterns
+        active_patterns.sort(key=_sort_key)
+        return active_patterns
 
     # =========================================================================
     # 1. HARMONIC PATTERNS (BUTTERFLY, GARTLEY, BAT)
@@ -448,7 +493,9 @@ class PatternDetector:
 
                         entry = round(neckline_cur, 1)
                         target = round(neckline_cur - (head_height * 0.90), 1)
-                        stop = round(rs["price"] + 15.0, 1)
+                        # Structural invalidation: right shoulder pullback or max 38% head depth buffer
+                        sl_dist = max(20.0, min(abs(rs["price"] - entry) + 10.0, round(head_height * 0.38, 1)))
+                        stop = round(entry + sl_dist, 1)
                         rr = round(abs(entry - target) / max(1.0, abs(stop - entry)), 1)
                         span_str = self._format_span(ls["time_raw"], rs["time_raw"])
 
@@ -509,7 +556,9 @@ class PatternDetector:
 
                         entry = round(neckline_cur, 1)
                         target = round(neckline_cur + (head_depth * 0.90), 1)
-                        stop = round(rs["price"] - 15.0, 1)
+                        # Structural invalidation: right shoulder pullback or max 38% head depth buffer
+                        sl_dist = max(20.0, min(abs(entry - rs["price"]) + 10.0, round(head_depth * 0.38, 1)))
+                        stop = round(entry - sl_dist, 1)
                         rr = round(abs(target - entry) / max(1.0, abs(entry - stop)), 1)
                         span_str = self._format_span(ls["time_raw"], rs["time_raw"])
 
@@ -613,13 +662,17 @@ class PatternDetector:
             if is_buy:
                 is_broken = cur_price > res_cur
                 entry = round(res_cur, 1)
-                target = round(res_cur + (base_height * 0.75), 1)
-                stop = round(sup_cur - 15.0, 1)
+                target = round(res_cur + (base_height * 0.85), 1)
+                # Invalidation: If price drops back 35% of pattern height, breakout has failed
+                sl_dist = max(20.0, round(base_height * 0.35, 1))
+                stop = round(entry - sl_dist, 1)
             else:
                 is_broken = cur_price < sup_cur
                 entry = round(sup_cur, 1)
-                target = round(sup_cur - (base_height * 0.75), 1)
-                stop = round(res_cur + 15.0, 1)
+                target = round(sup_cur - (base_height * 0.85), 1)
+                # Invalidation: If price rallies back 35% of pattern height, breakdown has failed
+                sl_dist = max(20.0, round(base_height * 0.35, 1))
+                stop = round(entry + sl_dist, 1)
 
             status = "CONFIRMED_BREAKOUT" if is_broken else "TESTING_TRIGGER"
             rr_val = round(abs(target - entry) / max(1.0, abs(stop - entry)), 1)
@@ -691,7 +744,9 @@ class PatternDetector:
 
                     entry = round(neckline, 1)
                     target = round(neckline - (valley_depth * 0.85), 1)
-                    stop = round(max(s1["price"], s3["price"]) + 15.0, 1)
+                    # Structural invalidation: price rallying 35% back above neckline invalidates breakdown
+                    sl_dist = max(20.0, round(valley_depth * 0.35, 1))
+                    stop = round(entry + sl_dist, 1)
                     rr = round(abs(entry - target) / max(1.0, abs(stop - entry)), 1)
                     span_str = self._format_span(s1["time_raw"], s3["time_raw"])
 
@@ -733,7 +788,9 @@ class PatternDetector:
 
                     entry = round(neckline, 1)
                     target = round(neckline + (peak_height * 0.85), 1)
-                    stop = round(min(s1["price"], s3["price"]) - 15.0, 1)
+                    # Structural invalidation: price dropping 35% back below neckline invalidates breakout
+                    sl_dist = max(20.0, round(peak_height * 0.35, 1))
+                    stop = round(entry - sl_dist, 1)
                     rr = round(abs(target - entry) / max(1.0, abs(entry - stop)), 1)
                     span_str = self._format_span(s1["time_raw"], s3["time_raw"])
 

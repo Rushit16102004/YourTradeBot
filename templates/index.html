@@ -12754,6 +12754,36 @@ function showIndicatorLineActionPill(ind, point) {
                 // Render cards inside dropdown container
                 renderPatternsDropdown(d);
 
+                // Auto-cleanup retired patterns: If a plotted pattern reached Target or SL, or was replaced, remove it from chart!
+                if (activePlottedPatterns.size > 0 && d.timeframes) {
+                    const activePatIds = new Set();
+                    Object.values(d.timeframes).forEach(tfObj => {
+                        const prim = tfObj.primary_pattern || tfObj.pattern;
+                        if (prim && prim.id) activePatIds.add(prim.id);
+                        if (Array.isArray(tfObj.active_patterns)) {
+                            tfObj.active_patterns.forEach(p => activePatIds.add(p.id));
+                        }
+                    });
+
+                    let retiredCount = 0;
+                    for (const plottedId of Array.from(activePlottedPatterns.keys())) {
+                        if (!activePatIds.has(plottedId)) {
+                            removeIndividualPattern(plottedId);
+                            retiredCount++;
+                        }
+                    }
+                    if (retiredCount > 0) {
+                        const toast = document.createElement('div');
+                        toast.style.cssText = 'position: fixed; bottom: 80px; right: 24px; z-index: 999999; background: #0f172a; border: 1.5px solid #22c55e; color: white; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 12.5px; box-shadow: 0 4px 16px rgba(0,0,0,0.6); display: flex; align-items: center; gap: 8px; pointer-events: none; transition: opacity 0.4s ease;';
+                        toast.innerHTML = `<span>🎯</span> <strong>Pattern Auto-Retired:</strong> Target or SL was reached. Completed trade cleared from chart.`;
+                        document.body.appendChild(toast);
+                        setTimeout(() => {
+                            toast.style.opacity = '0';
+                            setTimeout(() => toast.remove(), 400);
+                        }, 4000);
+                    }
+                }
+
             } catch (err) {
                 console.debug("Error fetching multi-timeframe detected patterns:", err);
             }
@@ -12871,8 +12901,18 @@ function showIndicatorLineActionPill(ind, point) {
             }
 
             try {
+                const activeChartTF = (typeof currentTimeframe !== 'undefined' ? currentTimeframe : '5m').toLowerCase();
+                const patternTF = (pat.timeframe || '5m').toLowerCase();
+                const isCrossTF = activeChartTF !== patternTF;
+                const tfPrefix = `[${patternTF.toUpperCase()} on ${activeChartTF.toUpperCase()}]`;
+
                 if (!addToExisting) {
                     clearPlottedPattern(false);
+                } else {
+                    // Same-timeframe pattern replacement: clear older pattern drawings from this same timeframe
+                    if (typeof drawings !== 'undefined') {
+                        drawings = drawings.filter(d => !(d.isAutoPattern && (d.patternTimeframe || '').toLowerCase() === patternTF && d.patternId !== pat.id));
+                    }
                 }
 
                 if (typeof recordCurrentDrawingUndoState === 'function') {
@@ -12882,11 +12922,16 @@ function showIndicatorLineActionPill(ind, point) {
                 const shapeIds = [];
                 pat.drawing_shapes.forEach(shape => {
                     const uniqueId = shape.id + '_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+                    const remarkLabel = isCrossTF 
+                        ? (shape.remark ? `${tfPrefix} ${shape.remark}` : `${tfPrefix} ${pat.name}`)
+                        : (shape.remark || pat.name);
+
                     const newShape = Object.assign({}, shape, {
                         id: uniqueId,
                         isAutoPattern: true,
                         patternId: pat.id,
-                        patternTimeframe: pat.timeframe
+                        patternTimeframe: patternTF,
+                        remark: remarkLabel
                     });
                     shapeIds.push(uniqueId);
                     currentPatternShapeIds.push(uniqueId);
@@ -12909,10 +12954,30 @@ function showIndicatorLineActionPill(ind, point) {
                     renderPatternsDropdown(latestMTFPatternsData);
                 }
 
-                // Toast notification
+                // Prominent Cross-Timeframe Alert Banner if viewing on different timeframe
+                if (isCrossTF) {
+                    const crossBanner = document.createElement('div');
+                    crossBanner.style.cssText = 'position: fixed; top: 75px; left: 50%; transform: translateX(-50%); z-index: 999999; background: linear-gradient(135deg, rgba(30, 27, 75, 0.98), rgba(15, 23, 42, 0.98)); border: 1.5px solid #818cf8; color: #ffffff; padding: 12px 22px; border-radius: 8px; font-weight: 700; font-size: 13px; box-shadow: 0 8px 32px rgba(0,0,0,0.7); display: flex; align-items: center; gap: 12px; pointer-events: none; transition: all 0.4s ease;';
+                    crossBanner.innerHTML = `
+                        <span style="font-size: 22px;">⚠️</span>
+                        <div>
+                            <div style="color: #a5b4fc; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 800;">Cross-Timeframe Projection Notice</div>
+                            <div style="font-size: 13px; margin-top: 2px;">You are viewing the <strong style="color: #38bdf8; text-decoration: underline;">${activeChartTF.toUpperCase()}</strong> chart, but this is a <strong style="color: #f59e0b;">${patternTF.toUpperCase()}</strong> pattern (<span style="color: #e2e8f0;">${pat.name}</span>).</div>
+                            <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">Projected at exact price levels, timestamps, and geometric angles across your ${activeChartTF.toUpperCase()} candles.</div>
+                        </div>
+                    `;
+                    document.body.appendChild(crossBanner);
+                    setTimeout(() => {
+                        crossBanner.style.opacity = '0';
+                        crossBanner.style.transform = 'translateX(-50%) translateY(-10px)';
+                        setTimeout(() => crossBanner.remove(), 400);
+                    }, 5500);
+                }
+
+                // Standard Action Toast
                 const toast = document.createElement('div');
                 toast.style.cssText = 'position: fixed; bottom: 80px; right: 24px; z-index: 999999; background: #0f172a; border: 1.5px solid #38bdf8; color: white; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,0.6); display: flex; align-items: center; gap: 8px; pointer-events: none; transition: opacity 0.4s ease;';
-                toast.innerHTML = `<span>✨</span> Plotted <strong>${pat.name}</strong> (${(pat.timeframe || '').toUpperCase()}) on Chart! (Target: ₹${pat.target_price} | SL: ₹${pat.stop_loss})`;
+                toast.innerHTML = `<span>✨</span> Plotted <strong>${pat.name}</strong> (${patternTF.toUpperCase()}) on ${activeChartTF.toUpperCase()} Chart! (Target: ₹${pat.target_price} | SL: ₹${pat.stop_loss} | R:R: ${pat.risk_reward || '1:2.4'})`;
                 document.body.appendChild(toast);
                 setTimeout(() => {
                     toast.style.opacity = '0';
