@@ -617,7 +617,14 @@ async def get_macro_metrics(request: Request):
             hw_data = inst_matrix.get("engine_1_fuel", {})
             flow_data = inst_matrix.get("engine_3_flow", {})
         except Exception:
-            hw_data = {}
+            hw_data = {
+                "state": "NEUTRAL",
+                "net_points": 0.0,
+                "stocks": [
+                    {"symbol": "HDFCBANK", "points_impact": 0.0},
+                    {"symbol": "RELIANCE", "points_impact": 0.0}
+                ]
+            }
             flow_data = {}
 
         return JSONResponse(content={
@@ -657,6 +664,16 @@ async def get_macro_metrics(request: Request):
             "max_pain": 22750.0,
             "sentiment": "BALANCED",
             "breadth": {"advances": 25, "declines": 25, "total": 50},
+            "heavyweights": {
+                "state": "NEUTRAL",
+                "net_points": 0.0,
+                "stocks": [
+                    {"symbol": "HDFCBANK", "points_impact": 0.0},
+                    {"symbol": "RELIANCE", "points_impact": 0.0}
+                ]
+            },
+            "futures_basis": 35.0,
+            "fii_long_ratio": 40.0,
             "timestamp": datetime.now(IST).strftime("%H:%M:%S")
         })
 
@@ -2097,6 +2114,10 @@ async def rag_chat(request: Request, payload: dict = Body(...)):
             timeframe=user_tf
         )
 
+        from indicators.pattern_detector import get_pattern_detector
+        p_detector = get_pattern_detector()
+        all_tf_patterns = p_detector.scan_all_timeframes(engine, float(engine.latest_price or 0.0))
+
         preflight_eval = PreFlightEngine.evaluate(
             direction=None,
             spot_price=float(engine.latest_price or 0.0),
@@ -2153,6 +2174,7 @@ async def rag_chat(request: Request, payload: dict = Body(...)):
             "institutional_matrix": inst_engine.get_latest_matrix(),
             "trap_radar": trap_radar,
             "patterns": patterns_eval,
+            "all_tf_patterns": all_tf_patterns,
             "preflight": preflight_eval,
             "user_psychology": user_psychology,
             "time_window": time_window,
@@ -3131,6 +3153,26 @@ async def get_active_patterns_endpoint(
 
     patterns_res["timeframe_summary"] = tf_summary
     return JSONResponse(content={"status": "ok", "patterns": patterns_res})
+
+
+@app.get("/api/patterns/all")
+async def get_all_timeframe_patterns_endpoint(request: Request):
+    """
+    Returns parallel scan of natural candlestick and geometric chart patterns
+    across ALL 4 timeframes: 5m, 15m, 1h, and 1d.
+    Includes breakout states, cross-timeframe drawing shapes, and alerts.
+    Strictly zero forced patterns: reports natural consolidation if absent.
+    """
+    try:
+        from indicators.pattern_detector import get_pattern_detector
+        detector = get_pattern_detector()
+        result = detector.scan_all_timeframes(engine)
+        if "status" not in result:
+            result["status"] = "ok"
+        return JSONResponse(content=result)
+    except Exception as e:
+        logger.error("Error in get_all_timeframe_patterns_endpoint: %s", e)
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 
 @app.get("/api/news")

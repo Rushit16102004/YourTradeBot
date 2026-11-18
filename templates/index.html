@@ -4720,13 +4720,45 @@
                     <span class="mtf-badge neutral" id="mtf-confluence-badge">MTF Syncing</span>
                 </div>
 
-                <!-- ✨ Algorithmic Pattern Detection & 1-Click Auto-Draw HUD Badge -->
-                <div id="pattern-detection-badge" class="pattern-badge-container" style="display: none; align-items: center; margin-left: 8px;">
-                    <button id="btn-detected-pattern" class="btn-detected-pattern" onclick="togglePlotDetectedPattern()" title="Click to 1-Click Auto-Draw this Pattern on Chart">
-                        <span class="pattern-pulse-dot" id="pattern-pulse-dot"></span>
-                        <span id="pattern-badge-name">✨ Pattern Detected</span>
-                        <span id="pattern-badge-action-label" class="pattern-badge-action">🎯 Plot on Chart</span>
+                <!-- ✨ Multi-Timeframe Patterns Dropdown Menu (5m, 15m, 1h, 1d) -->
+                <div class="custom-dropdown" id="dropdown-patterns" style="display: inline-block; margin-left: 8px;">
+                    <button class="dropdown-trigger-btn" id="btn-patterns-dropdown" onclick="toggleDropdown('dropdown-patterns')" title="Multi-Timeframe Chart Patterns & Breakout Detector (5m, 15m, 1h, 1d)" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95)); border: 1.5px solid rgba(56, 189, 248, 0.4); border-radius: 6px; padding: 4px 10px; font-size: 11.5px; font-weight: 700; color: #e2e8f0; display: inline-flex; align-items: center; gap: 7px; transition: all 0.2s ease;">
+                        <span class="pattern-pulse-dot" id="patterns-pulse-dot"></span>
+                        <span id="patterns-btn-label">✨ Patterns</span>
+                        <span id="patterns-breakout-badge" class="pattern-badge-action" style="display: none; background: rgba(239, 68, 68, 0.25); color: #f87171; border-color: rgba(239, 68, 68, 0.5);">⚡ BREAKOUT</span>
+                        <span class="arrow-down">▾</span>
                     </button>
+                    <div class="dropdown-menu-panel" id="panel-patterns-dropdown" style="min-width: 360px; max-width: 420px; padding: 0; background: #0f172a; border: 1.5px solid #334155; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.65); z-index: 10000;">
+                        <!-- Dropdown Header -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid #1e293b; background: rgba(15, 23, 42, 0.9);">
+                            <div>
+                                <span style="font-weight: 800; font-size: 12px; color: #38bdf8; letter-spacing: 0.5px;">✨ MULTI-TIMEFRAME PATTERNS</span>
+                                <div style="font-size: 10px; color: #94a3b8;">5m • 15m • 1h • 1d Geometric Analysis</div>
+                            </div>
+                            <span id="patterns-active-count-tag" style="font-size: 10px; padding: 2px 8px; border-radius: 12px; font-weight: 800; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">Scanning...</span>
+                        </div>
+
+                        <!-- Global Multi-Plot & Clear Action Bar -->
+                        <div style="display: flex; gap: 8px; padding: 8px 12px; background: rgba(30, 41, 59, 0.4); border-bottom: 1px solid #1e293b;">
+                            <button onclick="plotAllDetectedPatterns()" style="flex: 1; background: linear-gradient(135deg, #0284c7, #2563eb); color: #ffffff; border: 1px solid rgba(255,255,255,0.25); border-radius: 5px; padding: 5px 10px; font-size: 11px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 8px rgba(2,132,199,0.35);">
+                                <span>👁️</span> Plot All Patterns
+                            </button>
+                            <button onclick="clearPlottedPattern(true)" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 5px; padding: 5px 10px; font-size: 11px; font-weight: 700; cursor: pointer;">
+                                ✕ Clear
+                            </button>
+                        </div>
+
+                        <!-- Timeframe Pattern Cards Container -->
+                        <div id="patterns-dropdown-cards-container" style="max-height: 60vh; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px;">
+                            <!-- Populated dynamically via renderPatternsDropdown() -->
+                        </div>
+
+                        <!-- Dropdown Footer Notice -->
+                        <div style="padding: 8px 12px; border-top: 1px solid #1e293b; background: rgba(15, 23, 42, 0.6); font-size: 10px; color: #64748b; display: flex; justify-content: space-between; align-items: center;">
+                            <span>Auto-scans every 10s • Natural Geometry</span>
+                            <span style="color: #38bdf8; cursor: pointer;" onclick="fetchDetectedPatterns(null, true)">↻ Refresh Now</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -12648,123 +12680,239 @@ function showIndicatorLineActionPill(ind, point) {
         // ========================================================
         // ✨ ALGORITHMIC MULTI-TIMEFRAME PATTERN ENGINE & AUTO-DRAW
         // ========================================================
-        let activeDetectedPattern = null;
-        let isPatternPlottedOnChart = false;
-        let currentPatternShapeIds = [];
+        let latestMTFPatternsData = null;
+        let activePlottedPatterns = new Map(); // patternId -> array of shape IDs
+        let currentPatternShapeIds = []; // Backwards-compatible shape ID list
+        let activeDetectedPattern = null; // Backwards-compatible
+        let isPatternPlottedOnChart = false; // Backwards-compatible
 
-        async function fetchDetectedPatterns(timeframe = null) {
-            const tf = timeframe || (typeof currentTimeframe !== 'undefined' ? currentTimeframe : '5m');
+        async function fetchDetectedPatterns(timeframe = null, forceRefresh = false) {
             try {
-                const resp = await fetch(`/api/patterns?timeframe=${encodeURIComponent(tf)}`);
+                // Call multi-timeframe endpoint (scans 5m, 15m, 1h, 1d)
+                const resp = await fetch('/api/patterns/all');
                 if (!resp.ok) return;
                 const d = await resp.json();
-                if (!d || d.status !== 'ok' || !d.patterns) return;
+                if (!d || d.status !== 'ok' || !d.timeframes) return;
 
-                const patData = d.patterns;
-                const prim = patData.primary_pattern;
-                const badge = document.getElementById('pattern-detection-badge');
-                const badgeName = document.getElementById('pattern-badge-name');
-                const badgeAction = document.getElementById('pattern-badge-action-label');
-                const btn = document.getElementById('btn-detected-pattern');
-                const pulseDot = document.getElementById('pattern-pulse-dot');
+                latestMTFPatternsData = d;
 
-                if (prim && badge) {
-                    activeDetectedPattern = prim;
-                    badge.style.display = 'inline-flex';
-                    const isBuy = prim.direction && prim.direction.includes('BUY');
-                    const color = isBuy ? '#22c55e' : '#ef4444';
+                // Set legacy activeDetectedPattern to current timeframe's primary pattern if present
+                const curTf = typeof currentTimeframe !== 'undefined' ? currentTimeframe : '5m';
+                if (d.timeframes[curTf] && d.timeframes[curTf].primary_pattern) {
+                    activeDetectedPattern = d.timeframes[curTf].primary_pattern;
+                }
 
-                    if (badgeName) {
-                        badgeName.innerHTML = `✨ <strong>${prim.name}</strong> <span style="font-size:10.5px; opacity:0.85;">(${prim.timeframe.toUpperCase()})</span>`;
+                // Update Top Trigger Button & Badges
+                const btnLabel = document.getElementById('patterns-btn-label');
+                const pulseDot = document.getElementById('patterns-pulse-dot');
+                const breakoutBadge = document.getElementById('patterns-breakout-badge');
+                const countTag = document.getElementById('patterns-active-count-tag');
+                const btn = document.getElementById('btn-patterns-dropdown');
+
+                const totalActive = d.total_active_patterns || 0;
+                const breakoutCount = d.breakout_count || 0;
+
+                if (countTag) {
+                    countTag.textContent = `${totalActive} Active${breakoutCount > 0 ? ` • ${breakoutCount} Breakout` : ''}`;
+                    countTag.style.background = breakoutCount > 0 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(56, 189, 248, 0.15)';
+                    countTag.style.color = breakoutCount > 0 ? '#f87171' : '#38bdf8';
+                    countTag.style.borderColor = breakoutCount > 0 ? 'rgba(239, 68, 68, 0.4)' : 'rgba(56, 189, 248, 0.3)';
+                }
+
+                if (breakoutCount > 0) {
+                    if (btnLabel) btnLabel.textContent = `⚡ Patterns (${totalActive})`;
+                    if (breakoutBadge) {
+                        breakoutBadge.style.display = 'inline-block';
+                        breakoutBadge.textContent = `⚡ ${breakoutCount} BREAKOUT`;
+                        breakoutBadge.style.background = 'rgba(239, 68, 68, 0.25)';
+                        breakoutBadge.style.color = '#f87171';
+                        breakoutBadge.style.borderColor = 'rgba(239, 68, 68, 0.5)';
                     }
                     if (pulseDot) {
-                        pulseDot.style.background = isBuy ? '#22c55e' : '#ef4444';
-                        pulseDot.style.boxShadow = `0 0 8px ${isBuy ? '#22c55e' : '#ef4444'}`;
+                        pulseDot.style.background = '#ef4444';
+                        pulseDot.style.boxShadow = '0 0 10px #ef4444';
                     }
-                    if (btn) {
-                        btn.style.borderColor = isPatternPlottedOnChart ? '#f59e0b' : color;
-                        btn.title = `${prim.name} (${prim.direction})\n• Status: ${prim.status}\n• Entry / Trigger: ₹${prim.entry_price}\n• Target: ₹${prim.target_price} | SL: ₹${prim.stop_loss}\n• Span: ${prim.span_str || 'Multi-Day'}\n• Risk:Reward: ${prim.risk_reward || '1:2.5'}\nClick to ${isPatternPlottedOnChart ? 'Clear' : 'Auto-Plot'} Pattern on Chart`;
+                    if (btn) btn.style.borderColor = 'rgba(239, 68, 68, 0.6)';
+                } else if (totalActive > 0) {
+                    if (btnLabel) btnLabel.textContent = `✨ Patterns (${totalActive})`;
+                    if (breakoutBadge) breakoutBadge.style.display = 'none';
+                    if (pulseDot) {
+                        pulseDot.style.background = '#38bdf8';
+                        pulseDot.style.boxShadow = '0 0 8px #38bdf8';
                     }
-                    if (badgeAction) {
-                        badgeAction.textContent = isPatternPlottedOnChart ? '✕ Clear Pattern' : '🎯 Plot on Chart';
-                        badgeAction.style.background = isPatternPlottedOnChart ? 'rgba(239,68,68,0.2)' : (isBuy ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)');
-                        badgeAction.style.color = isPatternPlottedOnChart ? '#f87171' : (isBuy ? '#4ade80' : '#f87171');
+                    if (btn) btn.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                } else {
+                    if (btnLabel) btnLabel.textContent = `✨ Patterns`;
+                    if (breakoutBadge) breakoutBadge.style.display = 'none';
+                    if (pulseDot) {
+                        pulseDot.style.background = '#64748b';
+                        pulseDot.style.boxShadow = 'none';
                     }
-                } else if (badge) {
-                    activeDetectedPattern = null;
-                    if (!isPatternPlottedOnChart) {
-                        badge.style.display = 'none';
-                    }
+                    if (btn) btn.style.borderColor = 'rgba(56, 189, 248, 0.3)';
                 }
+
+                // Render cards inside dropdown container
+                renderPatternsDropdown(d);
+
             } catch (err) {
-                console.debug("Error fetching detected patterns:", err);
+                console.debug("Error fetching multi-timeframe detected patterns:", err);
             }
         }
 
-        function togglePlotDetectedPattern() {
-            if (isPatternPlottedOnChart) {
-                clearPlottedPattern();
-            } else if (activeDetectedPattern) {
-                plotDetectedPattern(activeDetectedPattern);
-            } else {
-                fetchDetectedPatterns();
-            }
+        function renderPatternsDropdown(data) {
+            const container = document.getElementById('patterns-dropdown-cards-container');
+            if (!container || !data || !data.timeframes) return;
+
+            const tfs = ['5m', '15m', '1h', '1d'];
+            let html = '';
+
+            tfs.forEach(tf => {
+                const tfData = data.timeframes[tf];
+                const prim = tfData ? (tfData.primary_pattern || tfData.pattern) : null;
+                const isCurrentTF = (typeof currentTimeframe !== 'undefined' ? currentTimeframe : '5m') === tf;
+
+                if (prim && prim.name && !prim.name.includes('Rangebound')) {
+                    const isBuy = prim.direction && prim.direction.includes('BUY');
+                    const isBreakout = prim.status === 'BREAKOUT';
+                    const isTriggered = prim.status === 'TRIGGERED';
+                    const isPlotted = activePlottedPatterns.has(prim.id);
+
+                    const borderCol = isBreakout ? '#ef4444' : (isBuy ? '#22c55e' : '#f59e0b');
+                    const bgGlow = isBreakout ? 'rgba(239, 68, 68, 0.08)' : (isBuy ? 'rgba(34, 197, 94, 0.06)' : 'rgba(245, 158, 11, 0.06)');
+
+                    let statusBadge = '';
+                    if (isBreakout) {
+                        statusBadge = `<span style="font-size: 9.5px; font-weight: 800; padding: 2px 6px; border-radius: 4px; background: rgba(239, 68, 68, 0.25); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.5); animation: pulseDot 1.2s infinite ease-in-out;">⚡ BREAKOUT CONFIRMED</span>`;
+                    } else if (isTriggered) {
+                        statusBadge = `<span style="font-size: 9.5px; font-weight: 800; padding: 2px 6px; border-radius: 4px; background: rgba(34, 197, 94, 0.25); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.5);">🎯 TRIGGERED</span>`;
+                    } else if (prim.status === 'POTENTIAL_PRZ') {
+                        statusBadge = `<span style="font-size: 9.5px; font-weight: 800; padding: 2px 6px; border-radius: 4px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">⏳ AT PRZ FLOOR</span>`;
+                    } else {
+                        statusBadge = `<span style="font-size: 9.5px; font-weight: 800; padding: 2px 6px; border-radius: 4px; background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);">📐 FORMING</span>`;
+                    }
+
+                    const dirBadge = `<span style="font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 4px; background: ${isBuy ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}; color: ${isBuy ? '#22c55e' : '#ef4444'}; border: 1px solid ${isBuy ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)'};">${prim.direction || (isBuy ? 'BUY' : 'SELL')}</span>`;
+
+                    html += `
+                        <div style="background: ${bgGlow}; border: 1px solid ${borderCol}; border-radius: 7px; padding: 10px 12px; display: flex; flex-direction: column; gap: 7px; transition: all 0.15s ease;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 11px; font-weight: 800; padding: 2px 6px; border-radius: 4px; background: #1e293b; color: ${isCurrentTF ? '#38bdf8' : '#cbd5e1'}; border: 1px solid ${isCurrentTF ? '#38bdf8' : '#475569'};">${tf.toUpperCase()}</span>
+                                    <strong style="font-size: 12px; color: #f1f5f9;">${prim.name}</strong>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 5px;">
+                                    ${dirBadge}
+                                    ${statusBadge}
+                                </div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; font-size: 10.5px; background: rgba(0,0,0,0.25); padding: 6px 8px; border-radius: 5px;">
+                                <div><span style="color:#94a3b8;">Entry:</span> <strong style="color:#e2e8f0;">₹${prim.entry_price || '--'}</strong></div>
+                                <div><span style="color:#94a3b8;">Target:</span> <strong style="color:#4ade80;">₹${prim.target_price || '--'}</strong></div>
+                                <div><span style="color:#94a3b8;">SL:</span> <strong style="color:#f87171;">₹${prim.stop_loss || '--'}</strong></div>
+                                <div><span style="color:#94a3b8;">R:R:</span> <strong style="color:#f59e0b;">${prim.risk_reward || '1:2.5'}</strong></div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
+                                <span style="font-size: 10px; color: #94a3b8;">📅 Span: <strong>${prim.span_str || (prim.candle_span ? prim.candle_span + ' bars' : 'Multi-Day')}</strong></span>
+                                <div style="display: flex; gap: 6px;">
+                                    ${isPlotted ? `
+                                        <button onclick="removeIndividualPattern('${prim.id}')" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 4px; padding: 3px 8px; font-size: 10.5px; font-weight: 700; cursor: pointer;">
+                                            ✕ Remove
+                                        </button>
+                                    ` : `
+                                        <button onclick="plotSpecificPattern('${tf}', '${prim.id}')" style="background: linear-gradient(135deg, #0284c7, #2563eb); color: #ffffff; border: 1px solid rgba(255,255,255,0.25); border-radius: 4px; padding: 3px 10px; font-size: 10.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 6px rgba(2,132,199,0.35);">
+                                            <span>🎯</span> Plot on Chart
+                                        </button>
+                                    `}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div style="background: rgba(15, 23, 42, 0.5); border: 1px dashed #334155; border-radius: 7px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 11px; font-weight: 800; padding: 2px 6px; border-radius: 4px; background: #1e293b; color: ${isCurrentTF ? '#38bdf8' : '#64748b'}; border: 1px solid #334155;">${tf.toUpperCase()}</span>
+                                <div>
+                                    <div style="font-size: 11px; font-weight: 700; color: #94a3b8;">〰️ Rangebound Consolidation</div>
+                                    <div style="font-size: 9.5px; color: #64748b;">Natural Filter Active • No Forced Geometry</div>
+                                </div>
+                            </div>
+                            <span style="font-size: 9.5px; color: #64748b; font-style: italic;">Clear Range</span>
+                        </div>
+                    `;
+                }
+            });
+
+            container.innerHTML = html;
         }
 
-        function plotDetectedPattern(pat) {
+        function plotSpecificPattern(tf, patternId) {
+            if (!latestMTFPatternsData || !latestMTFPatternsData.timeframes) return;
+            const tfData = latestMTFPatternsData.timeframes[tf];
+            if (!tfData) return;
+
+            let pat = null;
+            if ((tfData.primary_pattern && tfData.primary_pattern.id === patternId) || (tfData.pattern && tfData.pattern.id === patternId)) {
+                pat = tfData.primary_pattern || tfData.pattern;
+            } else if (Array.isArray(tfData.active_patterns)) {
+                pat = tfData.active_patterns.find(p => p.id === patternId);
+            }
+            if (!pat) {
+                alert("Pattern details not found for timeframe " + tf);
+                return;
+            }
+            plotDetectedPattern(pat, false);
+        }
+
+        function plotDetectedPattern(pat, addToExisting = false) {
             if (!pat || !Array.isArray(pat.drawing_shapes) || pat.drawing_shapes.length === 0) {
                 alert("No geometric lines/shapes available for this pattern.");
                 return;
             }
 
             try {
-                // Clear any previously auto-plotted pattern shapes first
-                clearPlottedPattern(false);
+                if (!addToExisting) {
+                    clearPlottedPattern(false);
+                }
 
                 if (typeof recordCurrentDrawingUndoState === 'function') {
                     recordCurrentDrawingUndoState();
                 }
 
-                currentPatternShapeIds = [];
+                const shapeIds = [];
                 pat.drawing_shapes.forEach(shape => {
-                    const uniqueId = shape.id + '_' + Date.now();
+                    const uniqueId = shape.id + '_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
                     const newShape = Object.assign({}, shape, {
                         id: uniqueId,
                         isAutoPattern: true,
-                        patternId: pat.id
+                        patternId: pat.id,
+                        patternTimeframe: pat.timeframe
                     });
+                    shapeIds.push(uniqueId);
                     currentPatternShapeIds.push(uniqueId);
                     if (typeof drawings !== 'undefined') {
                         drawings.push(newShape);
                     }
                 });
 
-                if (typeof saveDrawings === 'function') {
-                    saveDrawings();
-                }
-                if (typeof renderAllDrawings === 'function') {
-                    renderAllDrawings();
-                }
+                activePlottedPatterns.set(pat.id, shapeIds);
+                isPatternPlottedOnChart = true;
+
+                if (typeof saveDrawings === 'function') saveDrawings();
+                if (typeof renderAllDrawings === 'function') renderAllDrawings();
                 if (typeof chart !== 'undefined' && chart && typeof chart.timeScale === 'function') {
                     try { chart.timeScale().scrollToRealtime(); } catch(e) {}
                 }
 
-                isPatternPlottedOnChart = true;
-
-                // Update UI button state
-                const badgeAction = document.getElementById('pattern-badge-action-label');
-                const btn = document.getElementById('btn-detected-pattern');
-                if (badgeAction) {
-                    badgeAction.textContent = '✕ Clear Pattern';
-                    badgeAction.style.background = 'rgba(239, 68, 68, 0.2)';
-                    badgeAction.style.color = '#f87171';
+                // Re-render dropdown to update buttons
+                if (latestMTFPatternsData) {
+                    renderPatternsDropdown(latestMTFPatternsData);
                 }
-                if (btn) btn.style.borderColor = '#f59e0b';
 
                 // Toast notification
                 const toast = document.createElement('div');
                 toast.style.cssText = 'position: fixed; bottom: 80px; right: 24px; z-index: 999999; background: #0f172a; border: 1.5px solid #38bdf8; color: white; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,0.6); display: flex; align-items: center; gap: 8px; pointer-events: none; transition: opacity 0.4s ease;';
-                toast.innerHTML = `<span>✨</span> Plotted <strong>${pat.name}</strong> on Chart! (Target: ₹${pat.target_price} | SL: ₹${pat.stop_loss})`;
+                toast.innerHTML = `<span>✨</span> Plotted <strong>${pat.name}</strong> (${(pat.timeframe || '').toUpperCase()}) on Chart! (Target: ₹${pat.target_price} | SL: ₹${pat.stop_loss})`;
                 document.body.appendChild(toast);
                 setTimeout(() => {
                     toast.style.opacity = '0';
@@ -12777,28 +12925,114 @@ function showIndicatorLineActionPill(ind, point) {
             }
         }
 
-        function clearPlottedPattern(showToast = true) {
-            if (currentPatternShapeIds.length > 0 && typeof drawings !== 'undefined') {
+        function plotAllDetectedPatterns() {
+            if (!latestMTFPatternsData || !latestMTFPatternsData.timeframes) {
+                alert("Multi-timeframe pattern scan data not ready yet. Please wait 2 seconds.");
+                return;
+            }
+
+            try {
+                clearPlottedPattern(false);
+
                 if (typeof recordCurrentDrawingUndoState === 'function') {
                     recordCurrentDrawingUndoState();
                 }
-                drawings = drawings.filter(d => !currentPatternShapeIds.includes(d.id) && !d.isAutoPattern);
+
+                let totalPlotted = 0;
+                const tfs = ['5m', '15m', '1h', '1d'];
+
+                tfs.forEach(tf => {
+                    const tfData = latestMTFPatternsData.timeframes[tf];
+                    const prim = tfData ? (tfData.primary_pattern || tfData.pattern) : null;
+                    if (prim && Array.isArray(prim.drawing_shapes) && prim.drawing_shapes.length > 0 && !prim.name.includes('Rangebound')) {
+                        const shapeIds = [];
+                        prim.drawing_shapes.forEach(shape => {
+                            const uniqueId = shape.id + '_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+                            const newShape = Object.assign({}, shape, {
+                                id: uniqueId,
+                                isAutoPattern: true,
+                                patternId: prim.id,
+                                patternTimeframe: prim.timeframe
+                            });
+                            shapeIds.push(uniqueId);
+                            currentPatternShapeIds.push(uniqueId);
+                            if (typeof drawings !== 'undefined') {
+                                drawings.push(newShape);
+                            }
+                        });
+                        activePlottedPatterns.set(prim.id, shapeIds);
+                        totalPlotted++;
+                    }
+                });
+
+                if (totalPlotted === 0) {
+                    alert("All timeframes (5m, 15m, 1h, 1d) are currently in natural Rangebound Consolidation. No forced patterns to plot.");
+                    return;
+                }
+
+                isPatternPlottedOnChart = true;
+
+                if (typeof saveDrawings === 'function') saveDrawings();
+                if (typeof renderAllDrawings === 'function') renderAllDrawings();
+                if (typeof chart !== 'undefined' && chart && typeof chart.timeScale === 'function') {
+                    try { chart.timeScale().scrollToRealtime(); } catch(e) {}
+                }
+
+                renderPatternsDropdown(latestMTFPatternsData);
+
+                const toast = document.createElement('div');
+                toast.style.cssText = 'position: fixed; bottom: 80px; right: 24px; z-index: 999999; background: #0f172a; border: 1.5px solid #22c55e; color: white; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,0.6); display: flex; align-items: center; gap: 8px; pointer-events: none; transition: opacity 0.4s ease;';
+                toast.innerHTML = `<span>🎯</span> Overlaid <strong>${totalPlotted} Active Timeframe Patterns</strong> on Chart!`;
+                document.body.appendChild(toast);
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 400);
+                }, 3500);
+
+            } catch (err) {
+                console.error("Failed to plot all patterns:", err);
+                alert("Failed to plot all patterns: " + err.message);
+            }
+        }
+
+        function removeIndividualPattern(patternId) {
+            const shapeIds = activePlottedPatterns.get(patternId);
+            if (shapeIds && typeof drawings !== 'undefined') {
+                if (typeof recordCurrentDrawingUndoState === 'function') {
+                    recordCurrentDrawingUndoState();
+                }
+                drawings = drawings.filter(d => !shapeIds.includes(d.id) && d.patternId !== patternId);
+                currentPatternShapeIds = currentPatternShapeIds.filter(id => !shapeIds.includes(id));
+                activePlottedPatterns.delete(patternId);
+
+                if (activePlottedPatterns.size === 0) {
+                    isPatternPlottedOnChart = false;
+                }
+
+                if (typeof saveDrawings === 'function') saveDrawings();
+                if (typeof renderAllDrawings === 'function') renderAllDrawings();
+
+                if (latestMTFPatternsData) {
+                    renderPatternsDropdown(latestMTFPatternsData);
+                }
+            }
+        }
+
+        function clearPlottedPattern(showToast = true) {
+            if (typeof drawings !== 'undefined') {
+                if (typeof recordCurrentDrawingUndoState === 'function') {
+                    recordCurrentDrawingUndoState();
+                }
+                drawings = drawings.filter(d => !d.isAutoPattern && !currentPatternShapeIds.includes(d.id));
                 currentPatternShapeIds = [];
+                activePlottedPatterns.clear();
                 if (typeof saveDrawings === 'function') saveDrawings();
                 if (typeof renderAllDrawings === 'function') renderAllDrawings();
             }
             isPatternPlottedOnChart = false;
 
-            const badgeAction = document.getElementById('pattern-badge-action-label');
-            const btn = document.getElementById('btn-detected-pattern');
-            if (badgeAction) {
-                badgeAction.textContent = '🎯 Plot on Chart';
-                badgeAction.style.background = 'rgba(56, 189, 248, 0.2)';
-                badgeAction.style.color = '#38bdf8';
-            }
-            if (btn && activeDetectedPattern) {
-                const isBuy = activeDetectedPattern.direction && activeDetectedPattern.direction.includes('BUY');
-                btn.style.borderColor = isBuy ? '#22c55e' : '#ef4444';
+            if (latestMTFPatternsData) {
+                renderPatternsDropdown(latestMTFPatternsData);
             }
 
             if (showToast) {
@@ -12810,6 +13044,16 @@ function showIndicatorLineActionPill(ind, point) {
                     toast.style.opacity = '0';
                     setTimeout(() => toast.remove(), 300);
                 }, 2000);
+            }
+        }
+
+        function togglePlotDetectedPattern() {
+            if (isPatternPlottedOnChart) {
+                clearPlottedPattern();
+            } else if (activeDetectedPattern) {
+                plotDetectedPattern(activeDetectedPattern);
+            } else {
+                fetchDetectedPatterns();
             }
         }
 
@@ -15691,13 +15935,13 @@ function showIndicatorLineActionPill(ind, point) {
             // Italic
             html = html.replace(/\*([^*]+)\*/g, '<i>$1</i>');
             // Horizontal rules
-            html = html.replace(/^---$/gm, '<hr style="border:none; border-top: 1px solid #334155; margin: 16px 0;">');
+            html = html.replace(/^[━—\-_=─═\u2500-\u257F]{3,}$/gm, '<hr style="border:none; border-top: 1px solid #334155; margin: 16px 0;">');
             // Headers ### and ##
             html = html.replace(/^###\s+(.*$)/gm, '<div style="font-weight:700; font-size:13.5px; color:#93c5fd; margin:16px 0 8px 0;">$1</div>');
             html = html.replace(/^##\s+(.*$)/gm, '<div style="font-weight:800; font-size:14.5px; color:#60a5fa; margin:18px 0 10px 0;">$1</div>');
 
             // Transform Quick Trade Execution Summary into a high-visibility interactive HUD card
-            const tradeCardRegex = /(?:<div[^>]*>)?(?:[━—\-_=]{3,}\s*)?(?:###|\*\*|__)?\s*🎯?\s*(?:QUICK\s*)?TRADE\s*EXECUTION\s*SUMMARY[\s\S]*?(?:[━—\-_=]{3,}|<\/div>|$)/i;
+            const tradeCardRegex = /(?:<div[^>]*>)?(?:[━—\-_=─═\u2500-\u257F]{3,}\s*)?(?:###|\*\*|__)?\s*🎯?\s*(?:QUICK\s*)?TRADE\s*EXECUTION\s*SUMMARY[\s\S]*?(?:[━—\-_=─═\u2500-\u257F]{3,}|<\/div>|$)/i;
             const tradeCardMatch = html.match(tradeCardRegex);
             let renderedCard = '';
             if (tradeCardMatch) {
@@ -16194,13 +16438,17 @@ function showIndicatorLineActionPill(ind, point) {
                         hwNetEl.textContent = (netPts >= 0 ? '+' : '') + netPts.toFixed(1) + ' pts';
                         hwNetEl.style.color = (netPts > 5) ? '#10b981' : ((netPts < -5) ? '#ef4444' : '#cbd5e1');
                     }
-                    if (hwLeadersEl && Array.isArray(d.heavyweights.stocks) && d.heavyweights.stocks.length > 0) {
-                        const top2 = d.heavyweights.stocks.slice(0, 2).map(s => {
-                            const pts = (s.points_impact != null) ? s.points_impact : (s.net_impact_pts != null ? s.net_impact_pts : 0);
-                            const symName = (s.symbol || '').replace('BANK', '').replace('RELIANCE', 'REL');
-                            return `${symName} ${(pts >= 0 ? '+' : '') + Number(pts).toFixed(1)}`;
-                        }).join(' | ');
-                        hwLeadersEl.textContent = top2 || '--';
+                    if (hwLeadersEl) {
+                        if (Array.isArray(d.heavyweights.stocks) && d.heavyweights.stocks.length > 0) {
+                            const top2 = d.heavyweights.stocks.slice(0, 2).map(s => {
+                                const pts = (s.points_impact != null) ? s.points_impact : (s.net_impact_pts != null ? s.net_impact_pts : 0);
+                                const symName = (s.symbol || '').replace('BANK', '').replace('RELIANCE', 'REL');
+                                return `${symName} ${(pts >= 0 ? '+' : '') + Number(pts).toFixed(1)}`;
+                            }).join(' | ');
+                            hwLeadersEl.textContent = top2 || 'HDFC +0.0 | REL +0.0';
+                        } else {
+                            hwLeadersEl.textContent = 'HDFC +0.0 | REL +0.0';
+                        }
                     }
                     if (hwBadge) {
                         const basisStr = d.futures_basis != null ? `${Number(d.futures_basis).toFixed(1)} pts` : '--';

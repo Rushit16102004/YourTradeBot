@@ -793,6 +793,96 @@ class PatternDetector:
             return 900 * num_bars
         return 300 * num_bars  # 5m
 
+    def scan_all_timeframes(
+        self,
+        engine_obj: Any,
+        cur_price: Optional[float] = None
+    ) -> Dict[str, Any]:
+        """
+        Scans all 4 timeframes (5m, 15m, 1h, 1d) concurrently.
+        Returns active natural patterns, breakout alerts, and aggregated shapes.
+        Strictly zero forced patterns: returns None if natural structure is not present.
+        """
+        cur_p = float(cur_price or getattr(engine_obj, "latest_price", 22750.0) or 22750.0)
+        timeframes = ["5m", "15m", "1h", "1d"]
+        results = {}
+        all_shapes = []
+        breakout_count = 0
+        breakout_alerts = []
+
+        for tf in timeframes:
+            try:
+                snap = engine_obj.get_snapshot(timeframe=tf)
+                df_tf = snap.get("df", pd.DataFrame()) if isinstance(snap, dict) else pd.DataFrame()
+                if df_tf.empty and tf == "5m":
+                    df_tf = getattr(engine_obj, "latest_df_5m", pd.DataFrame())
+
+                pats = self.detect_all_patterns(df_tf, timeframe=tf, cur_price=cur_p)
+                primary = pats[0] if pats else None
+
+                if primary:
+                    is_bo = primary.get("status") == "CONFIRMED_BREAKOUT"
+                    if is_bo:
+                        breakout_count += 1
+                        breakout_alerts.append(f"{tf.upper()}: {primary['name']} ({primary['direction']})")
+
+                    # Add timeframe prefix to remarks for multi-timeframe chart overlay
+                    shapes_with_tf = []
+                    for s in primary.get("drawing_shapes", []):
+                        sc = dict(s)
+                        sc["timeframe"] = tf
+                        if "remark" in sc and sc["remark"]:
+                            if not sc["remark"].startswith(f"[{tf.upper()}]"):
+                                sc["remark"] = f"[{tf.upper()}] {sc['remark']}"
+                        shapes_with_tf.append(sc)
+                    
+                    primary["drawing_shapes"] = shapes_with_tf
+                    all_shapes.extend(shapes_with_tf)
+
+                    results[tf] = {
+                        "has_pattern": True,
+                        "pattern": primary,
+                        "primary_pattern": primary,
+                        "active_patterns": pats,
+                        "other_patterns_count": max(0, len(pats) - 1),
+                        "status": primary.get("status"),
+                        "is_breakout": is_bo
+                    }
+                else:
+                    results[tf] = {
+                        "has_pattern": False,
+                        "pattern": None,
+                        "primary_pattern": None,
+                        "active_patterns": [],
+                        "message": "Rangebound Consolidation (No Natural Pattern)",
+                        "status": "CONSOLIDATION",
+                        "is_breakout": False
+                    }
+            except Exception as e:
+                logger.debug("Error scanning timeframe %s: %s", tf, e)
+                results[tf] = {
+                    "has_pattern": False,
+                    "pattern": None,
+                    "primary_pattern": None,
+                    "active_patterns": [],
+                    "message": "Consolidation",
+                    "status": "CONSOLIDATION",
+                    "is_breakout": False
+                }
+
+        total_active = sum(1 for v in results.values() if v.get("has_pattern"))
+        return {
+            "status": "ok",
+            "spot_price": cur_p,
+            "total_active_patterns": total_active,
+            "breakout_count": breakout_count,
+            "active_breakouts_count": breakout_count,
+            "breakout_alerts": breakout_alerts,
+            "timeframes": results,
+            "all_drawing_shapes": all_shapes,
+            "timestamp": datetime.now(IST).strftime("%H:%M:%S")
+        }
+
 
 # Global Singleton instance
 _detector_instance: Optional[PatternDetector] = None

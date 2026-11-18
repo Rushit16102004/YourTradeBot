@@ -381,6 +381,21 @@ class GeminiLLMClient:
                     f"• Pattern Engine Summary:\n{pat.get('summary', '')}\n\n"
                 )
 
+            # Cross-Timeframe Pattern Matrix across 5m, 15m, 1h, 1d
+            all_tf_p = market_state.get("all_tf_patterns", {})
+            if all_tf_p and all_tf_p.get("timeframes"):
+                tf_lines = []
+                for tf_k in ("5m", "15m", "1h", "1d"):
+                    t_info = all_tf_p["timeframes"].get(tf_k, {})
+                    if t_info.get("has_pattern") and t_info.get("pattern"):
+                        p_k = t_info["pattern"]
+                        bo_tag = "⚡ CONFIRMED BREAKOUT" if t_info.get("is_breakout") else p_k.get("status", "FORMING")
+                        tf_lines.append(f"  • {tf_k.upper()}: {p_k.get('name')} ({p_k.get('direction')}) -> {bo_tag} (Target: ₹{p_k.get('target_price')} | SL: ₹{p_k.get('stop_loss')})")
+                    else:
+                        tf_lines.append(f"  • {tf_k.upper()}: Rangebound Consolidation (No Pattern)")
+                if tf_lines:
+                    pat_str += "CROSS-TIMEFRAME ACTIVE PATTERN MATRIX (5M, 15M, 1H, 1D):\n" + "\n".join(tf_lines) + "\n\n"
+
             # Real-Time News Sentiment & Macro Catalyst Engine
             news_s = market_state.get("news_sentiment")
             if not news_s:
