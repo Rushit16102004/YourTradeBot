@@ -256,23 +256,31 @@ class ConversationMemoryEngine:
                 return []
             return list(buf)[-limit:]
 
-    def get_active_trade(self, user_id: Optional[str]) -> Optional[Dict[str, Any]]:
+    def get_active_trade(self, user_id: Optional[str], cur_price: Optional[float] = None) -> Optional[Dict[str, Any]]:
         key = self._get_key(user_id)
         with self._lock:
             active = self._active_trades.get(key)
             if active and active.get("entry_price"):
+                # Check real-time trade completion against live spot price
+                if cur_price and cur_price > 1000.0 and active.get("status") == "ACTIVE":
+                    d = active.get("direction", "CALL")
+                    t = float(active.get("target") or 0.0)
+                    s = float(active.get("initial_sl") or 0.0)
+                    if d == "CALL" and t > 0 and s > 0:
+                        if cur_price >= t:
+                            active["status"] = "COMPLETED"
+                            active["result"] = "TARGET_HIT"
+                        elif cur_price <= s:
+                            active["status"] = "COMPLETED"
+                            active["result"] = "SL_HIT"
+                    elif d == "PUT" and t > 0 and s > 0:
+                        if cur_price <= t:
+                            active["status"] = "COMPLETED"
+                            active["result"] = "TARGET_HIT"
+                        elif cur_price >= s:
+                            active["status"] = "COMPLETED"
+                            active["result"] = "SL_HIT"
                 return dict(active)
-            # Resilient Fallback: If not explicitly set, search backwards in history buffer for a previous setup card
-            buf = self._buffers.get(key)
-            if buf:
-                for item in reversed(buf):
-                    if item.get("role") in ("assistant", "Copilot"):
-                        txt = item.get("message", "")
-                        if "QUICK TRADE EXECUTION SUMMARY" in txt or "Exit/Target" in txt or "Entry Price" in txt:
-                            self.parse_and_record_trade(user_id, "", txt)
-                            rec = self._active_trades.get(key)
-                            if rec and rec.get("entry_price"):
-                                return dict(rec)
             return None
 
     def set_active_trade(self, user_id: Optional[str], trade: Dict[str, Any]):
@@ -285,7 +293,7 @@ class ConversationMemoryEngine:
         with self._lock:
             self._active_trades.pop(key, None)
 
-    def parse_and_record_trade(self, user_id: Optional[str], user_query: str, ai_reply: str):
+    def parse_and_record_trade(self, user_id: Optional[str], user_query: str, ai_reply: str, cur_price: Optional[float] = None):
         """
         Extracts recommended or taken trade details and logs into Active Trade State.
         Supports both the standardized HUD execution summary card and free-form messages.
@@ -344,6 +352,21 @@ class ConversationMemoryEngine:
                 sl_p = (entry_p - 20.0) if direction == "CALL" else (entry_p + 20.0)
             if not tgt_p:
                 tgt_p = (entry_p + 50.0) if direction == "CALL" else (entry_p - 50.0)
+
+            # Sanitize against current live spot price (Prevent missed or past entries)
+            if cur_price and cur_price > 1000.0:
+                if direction == "CALL":
+                    if tgt_p <= cur_price:
+                        tgt_p = round(cur_price + max(40.0, abs(tgt_p - entry_p)), 1)
+                    if entry_p < cur_price - 25.0:
+                        entry_p = round(cur_price, 1)
+                        sl_p = round(entry_p - max(15.0, min(25.0, abs(entry_p - sl_p))), 1)
+                elif direction == "PUT":
+                    if tgt_p >= cur_price:
+                        tgt_p = round(cur_price - max(40.0, abs(entry_p - tgt_p)), 1)
+                    if entry_p > cur_price + 25.0:
+                        entry_p = round(cur_price, 1)
+                        sl_p = round(entry_p + max(15.0, min(25.0, abs(sl_p - entry_p))), 1)
 
             self.set_active_trade(user_id, {
                 "direction": direction,
@@ -478,11 +501,27 @@ class RAGService:
                 "stats": self.db.get_stats(),
             }
 
+        # Check if user is asking for a new/next trade setup
+        q_lower = query.lower().strip()
+        new_trade_triggers = [
+            "next trade", "new trade", "fresh trade", "another trade",
+            "what trade", "give me trade", "give trade", "give me next",
+            "new setup", "next setup", "give setup", "give nest trade",
+            "where to enter", "entry detail"
+        ]
+        is_asking_new_trade = any(t in q_lower for t in new_trade_triggers)
+        if is_asking_new_trade:
+            prev_act = self.memory.get_active_trade(user_id)
+            if prev_act:
+                prev_act["status"] = "COMPLETED"
+                prev_act["retired_reason"] = "USER_REQUESTED_NEXT_TRADE"
+                self.memory.set_active_trade(user_id, prev_act)
+
         # Ingest multi-turn history buffer into market_state
         if market_state is not None:
             if not market_state.get("recent_chat_history"):
                 market_state["recent_chat_history"] = self.memory.get_history(user_id, limit=6)
-            market_state["active_trade"] = self.memory.get_active_trade(user_id)
+            market_state["active_trade"] = self.memory.get_active_trade(user_id, cur_price=cur_p)
 
         # Retrieve context from Vector DB with user_id drawing isolation
         retrieved_docs = self.db.query_context(query_text=query, user_id=user_id, top_k=4)
@@ -532,7 +571,7 @@ class RAGService:
         reply_text = result.get("reply", "")
         self.memory.add_turn(user_id, "user", query)
         self.memory.add_turn(user_id, "assistant", reply_text)
-        self.memory.parse_and_record_trade(user_id, query, reply_text)
+        self.memory.parse_and_record_trade(user_id, query, reply_text, cur_price=cur_p)
 
         return {
             "query": query,
@@ -541,7 +580,7 @@ class RAGService:
             "model": result.get("model", RAGConfig.GEMINI_MODEL),
             "is_live_llm": result.get("is_live_llm", False),
             "risk_disclaimer": "",
-            "active_trade": self.memory.get_active_trade(user_id),
+            "active_trade": self.memory.get_active_trade(user_id, cur_price=cur_p),
             "sources": [
                 {
                     "collection": d.get("collection"),

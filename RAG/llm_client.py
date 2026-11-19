@@ -53,7 +53,12 @@ class GeminiLLMClient:
         chat_hist = market_state.get("recent_chat_history", []) if market_state else []
         tech = market_state.get("technical_eval", {}) if market_state else {}
 
+        cur_p = 0.0
         if market_state:
+            try:
+                cur_p = float(market_state.get("price") or market_state.get("current_price") or market_state.get("close") or 0.0)
+            except (ValueError, TypeError):
+                cur_p = 0.0
             ind = market_state.get("indicators", {})
             last_sig = market_state.get("last_signal")
             last_entry = market_state.get("last_entry_signal")
@@ -166,16 +171,30 @@ class GeminiLLMClient:
                 act_sl = float(act_trade.get("initial_sl", 0.0) or 0.0)
                 act_cur_p = float(market_state.get("price", act_entry) or act_entry)
                 act_pnl = round(act_cur_p - act_entry if act_dir == "CALL" else act_entry - act_cur_p, 1)
-                act_trade_str = (
-                    f"PREVIOUS / ACTIVE TRADE SETUP DISCUSSED WITH {uname.upper()} IN THIS CONVERSATION:\n"
-                    f"• Direction: {act_dir}\n"
-                    f"• Entry Level: ₹{act_entry:,.1f}\n"
-                    f"• Target Level: ₹{act_tgt:,.1f} ({abs(act_tgt - act_entry):.1f} pts target runway)\n"
-                    f"• Stop Loss: ₹{act_sl:,.1f} ({abs(act_entry - act_sl):.1f} pts risk)\n"
-                    f"• Current PnL: {act_pnl:+.1f} pts (Current Spot: ₹{act_cur_p:,.1f})\n"
-                    f"• Status: ACTIVE IN CONVERSATION\n"
-                    f"💡 CRITICAL INSTRUCTION: If {uname} asks 'how to decide target', 'why this target', 'target logic', or asks about this trade, you MUST explain the exact logic behind THESE EXACT LEVELS (Target ₹{act_tgt:,.1f}, Entry ₹{act_entry:,.1f}, SL ₹{act_sl:,.1f}). Do NOT invent a different setup and do NOT output a new trade summary card!\n\n"
-                )
+                act_status = act_trade.get("status", "ACTIVE")
+
+                is_hit = (act_status == "COMPLETED") or \
+                         (act_dir == "CALL" and act_tgt > 0 and act_sl > 0 and (act_cur_p >= act_tgt or act_cur_p <= act_sl)) or \
+                         (act_dir == "PUT" and act_tgt > 0 and act_sl > 0 and (act_cur_p <= act_tgt or act_cur_p >= act_sl))
+
+                if is_hit:
+                    act_trade_str = (
+                        f"PAST COMPLETED / CLOSED TRADE (TARGET OR SL ALREADY HIT / RETIRED):\n"
+                        f"• Direction: {act_dir} | Past Entry: ₹{act_entry:,.1f} | Past Target: ₹{act_tgt:,.1f} | Past SL: ₹{act_sl:,.1f}\n"
+                        f"• Status: CLOSED / COMPLETED\n"
+                        f"💡 CRITICAL INSTRUCTION: This previous trade is ALREADY CLOSED. If {uname} asks for a trade, next trade, or setup, you MUST output a 100% FRESH, FORWARD-LOOKING trade anchored to the CURRENT LIVE SPOT PRICE (₹{act_cur_p:,.1f})! NEVER repeat or re-recommend this old past trade!\n\n"
+                    )
+                else:
+                    act_trade_str = (
+                        f"ACTIVE TRADE SETUP DISCUSSED WITH {uname.upper()} IN THIS CONVERSATION:\n"
+                        f"• Direction: {act_dir}\n"
+                        f"• Entry Level: ₹{act_entry:,.1f}\n"
+                        f"• Target Level: ₹{act_tgt:,.1f} ({abs(act_tgt - act_entry):.1f} pts target runway)\n"
+                        f"• Stop Loss: ₹{act_sl:,.1f} ({abs(act_entry - act_sl):.1f} pts risk)\n"
+                        f"• Current PnL: {act_pnl:+.1f} pts (Current Spot: ₹{act_cur_p:,.1f})\n"
+                        f"• Status: ACTIVE IN CONVERSATION\n"
+                        f"💡 CRITICAL INSTRUCTION: If {uname} asks 'how to decide target', 'why this target', 'target logic', or asks about this trade, you MUST explain the exact logic behind THESE EXACT LEVELS (Target ₹{act_tgt:,.1f}, Entry ₹{act_entry:,.1f}, SL ₹{act_sl:,.1f}). Do NOT invent a different setup and do NOT output a new trade summary card!\n\n"
+                    )
 
             # Technical evaluation breakdown
             v = tech.get("vwap", {})
@@ -610,14 +629,19 @@ class GeminiLLMClient:
             f"   • Categorize what {uname} is actually asking before generating your response:\n"
             f"     a) [ACTIONABLE TRADE SETUP REQUEST] (e.g. 'give me full detail like sl entry', 'give me trade setup', 'give me nest trade', 'give me next trade', 'where to enter', 'give direction sl entry and also target', 'give setup', 'give trade', 'what trade can i take', 'should i buy call or put?'):\n"
             f"        -> THE TRADER WANTS A FRESH ACTIONABLE TRADE SETUP RIGHT NOW!\n"
-            f"        -> ABSOLUTE MANDATE: DO NOT get trapped analyzing old drawings on the chart or telling them to hold previous trades!\n"
-            f"        -> Synthesize a real-time institutional trade setup (Direction, Entry Zone, Target Runway, and Stop-Loss) based on current spot price, Session VWAP, and the 3 Core Engines.\n"
+            f"        -> ABSOLUTE MANDATE: DO NOT repeat old past trades or get trapped in past closed levels!\n"
+            f"        -> FRESHNESS & LIVE CANDLE ACCESSIBILITY (NO MISSED TRADES):\n"
+            f"           The Entry Price MUST be directly executable on the CURRENT LIVE 5m candle (within 5 to 15 pts of Current Spot Price ₹{cur_p:,.1f}), or a tight breakout entry 5 to 10 pts from spot. NEVER give an entry 50–100+ points away or that occurred hours ago! The entry miss window must be 0 to 2 candles max!\n"
+            f"        -> FORWARD-LOOKING TARGET & SL BOUNDS (NO BACKWARD TARGETS):\n"
+            f"           - For BUY (CALL): Target MUST be strictly ABOVE Current Spot (Target > ₹{cur_p:,.1f} + 30 to 60 pts). Stop-Loss MUST be below Entry (15 to 25 pts).\n"
+            f"           - For SELL (PUT): Target MUST be strictly BELOW Current Spot (Target < ₹{cur_p:,.1f} - 30 to 60 pts). Stop-Loss MUST be above Entry (15 to 25 pts).\n"
+            f"           - NEVER set a Target below Current Spot for a CALL, and NEVER set a Target above Current Spot for a PUT!\n"
             f"        -> ALWAYS CONCLUDE WITH THE STANDARDIZED EXECUTION CARD:\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"🎯 QUICK TRADE EXECUTION SUMMARY\n"
             f"• Direction   -> [BUY (CALL) / SELL (PUT)]\n"
-            f"• Entry Price -> ₹[Exact Price]\n"
-            f"• Exit/Target -> ₹[Exact Price] (+[Pts] pts / +[%]%)\n"
+            f"• Entry Price -> ₹[Exact Price near Current Spot]\n"
+            f"• Exit/Target -> ₹[Exact Price strictly ahead of Spot] (+[Pts] pts / +[%]%)\n"
             f"• Stop Loss   -> ₹[Exact Price] (-[Pts] pts / -[%]%)\n"
             f"• Risk:Reward -> 1 : [Ratio]\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -745,6 +769,72 @@ class GeminiLLMClient:
         ]
         is_logic_query = any(p in user_query.lower() for p in (target_logic_terms + sl_logic_terms)) or any(w in user_query.lower() for w in ["how to calculate", "how do you decide", "what is the logic"])
 
+        def _sanitize_card(txt: str) -> str:
+            if not cur_p or cur_p <= 1000.0 or "🎯 QUICK TRADE EXECUTION SUMMARY" not in txt:
+                return txt
+
+            card_match = re.search(r"(?:━+\s*)?🎯\s*QUICK TRADE EXECUTION SUMMARY[\s\S]*?(?:━+|$)", txt)
+            if not card_match:
+                return txt
+            card_text = card_match.group(0)
+
+            # Direction
+            dir_m = re.search(r"Direction\s*->\s*([^\n\r]+)", card_text, re.IGNORECASE)
+            is_call = True
+            if dir_m:
+                val = dir_m.group(1).upper()
+                if "PUT" in val or "SELL" in val:
+                    is_call = False
+
+            def _find_num(pat):
+                m = re.search(pat, card_text, re.IGNORECASE)
+                return float(m.group(1).replace(",", "")) if m else None
+
+            entry_p = _find_num(r"Entry(?:\s*Price)?\s*->\s*₹?\s*([0-9,]+(?:\.[0-9]+)?)")
+            tgt_p = _find_num(r"Exit/Target\s*->\s*₹?\s*([0-9,]+(?:\.[0-9]+)?)")
+            sl_p = _find_num(r"Stop\s*Loss\s*->\s*₹?\s*([0-9,]+(?:\.[0-9]+)?)")
+
+            needs_fix = False
+            if is_call:
+                if tgt_p is not None and tgt_p <= cur_p:
+                    needs_fix = True
+                if entry_p is not None and entry_p < cur_p - 25.0:
+                    needs_fix = True
+            else:
+                if tgt_p is not None and tgt_p >= cur_p:
+                    needs_fix = True
+                if entry_p is not None and entry_p > cur_p + 25.0:
+                    needs_fix = True
+
+            if not needs_fix:
+                return txt
+
+            dir_str = "BUY (CALL)" if is_call else "SELL (PUT)"
+            new_entry = round(cur_p, 1)
+            tgt_dist = 50.0
+            if tgt_p and entry_p:
+                tgt_dist = max(35.0, abs(tgt_p - entry_p))
+            new_tgt = round(cur_p + tgt_dist if is_call else cur_p - tgt_dist, 1)
+
+            sl_dist = 20.0
+            if sl_p and entry_p:
+                sl_dist = max(14.0, min(25.0, abs(entry_p - sl_p)))
+            new_sl = round(cur_p - sl_dist if is_call else cur_p + sl_dist, 1)
+
+            rr_ratio = round(tgt_dist / max(sl_dist, 1.0), 1)
+
+            new_card = (
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"🎯 QUICK TRADE EXECUTION SUMMARY\n"
+                f"• Direction   -> {dir_str}\n"
+                f"• Entry Price -> ₹{new_entry:,.1f}\n"
+                f"• Exit/Target -> ₹{new_tgt:,.1f} (+{tgt_dist:.1f} pts / +{round(tgt_dist/new_entry*100, 2)}%)\n"
+                f"• Stop Loss   -> ₹{new_sl:,.1f} (-{sl_dist:.1f} pts / -{round(sl_dist/new_entry*100, 2)}%)\n"
+                f"• Risk:Reward -> 1 : {rr_ratio}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            )
+            return txt.replace(card_text, new_card)
+
         def _clean_reply(raw_text: str) -> str:
             txt = raw_text.strip()
             # Strip robotic conversational openers like 'Regarding your question "how to decide target", here is...'
@@ -760,6 +850,8 @@ class GeminiLLMClient:
             if is_logic_query:
                 txt = re.sub(r"━+\s*🎯\s*QUICK TRADE EXECUTION SUMMARY[\s\S]*?(?:━+|$)", "", txt).strip()
                 txt = re.sub(r"🎯\s*QUICK TRADE EXECUTION SUMMARY[\s\S]*$", "", txt).strip()
+            else:
+                txt = _sanitize_card(txt)
             return txt
 
         # Call Gemini REST endpoint with auto-fallback across high-quota models

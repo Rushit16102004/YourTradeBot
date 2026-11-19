@@ -1445,11 +1445,13 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
+            touch-action: none;
             z-index: 15;
         }
 
         #drawing-overlay.drawing-active {
             pointer-events: auto;
+            touch-action: none;
             cursor: crosshair;
         }
 
@@ -2922,53 +2924,12 @@
                 line-height: 1.3;
             }
 
-            /* Mobile Properties Panel - Ultra-compact, corner docked, minimal screen footprint */
-            .properties-panel {
-                top: 8px !important;
-                right: 8px !important;
-                left: auto !important;
-                width: 290px !important;
-                max-width: calc(100vw - 16px) !important;
-                max-height: 48vh !important;
-                overflow-y: auto !important;
-                padding: 10px 12px !important;
-                gap: 8px !important;
-                z-index: 1100;
-                box-shadow: 0 12px 36px rgba(0, 0, 0, 0.9) !important;
-                border-radius: 10px !important;
-            }
-            .properties-panel .prop-group {
-                gap: 4px !important;
-            }
-            .properties-panel .color-palette {
-                gap: 5px !important;
-            }
-            .properties-panel .color-swatch {
-                width: 20px !important;
-                height: 20px !important;
-            }
-            .properties-panel .drawing-quick-chips {
-                gap: 3px !important;
-                max-height: 52px !important;
-                overflow-y: auto !important;
-            }
-            .properties-panel .quick-chip-btn {
-                padding: 2.5px 6px !important;
-                font-size: 10px !important;
-            }
-            .properties-panel .remark-input {
-                padding: 5px 8px !important;
-                font-size: 11px !important;
-            }
-            .properties-panel #shape-coords-info {
-                padding: 5px 8px !important;
-                font-size: 10px !important;
-                line-height: 1.4 !important;
-            }
-            .properties-panel .btn-delete-shape {
-                padding: 6px 10px !important;
-                font-size: 11px !important;
-                margin-top: 2px !important;
+            /* Mobile: Completely remove drawing properties panel (color palette & line info box) to save screen space */
+            .properties-panel,
+            .properties-panel.open {
+                display: none !important;
+                visibility: hidden !important;
+                pointer-events: none !important;
             }
 
             /* Floating AI Copilot Trigger */
@@ -12687,14 +12648,44 @@ function showIndicatorLineActionPill(ind, point) {
                 const endTime = startTime + (25 * tfSec);
 
                 const isBuy = /buy|call|bull/i.test(dir);
+                let entryNum = Number(entry);
+                let targetNum = Number(target);
+                let stopNum = Number(stop);
+
+                // Spot-anchored sanity bounds: Target must always be ahead of current spot
+                const curSpot = curCandle ? (curCandle.close || curCandle.open) : null;
+                if (curSpot && curSpot > 1000) {
+                    if (isBuy) {
+                        if (targetNum <= curSpot) {
+                            const runway = Math.max(40, Math.abs(targetNum - entryNum));
+                            targetNum = Math.round((curSpot + runway) * 10) / 10;
+                        }
+                        if (entryNum < curSpot - 30) {
+                            entryNum = Math.round(curSpot * 10) / 10;
+                            const risk = Math.max(15, Math.min(25, Math.abs(entryNum - stopNum)));
+                            stopNum = Math.round((entryNum - risk) * 10) / 10;
+                        }
+                    } else {
+                        if (targetNum >= curSpot) {
+                            const runway = Math.max(40, Math.abs(entryNum - targetNum));
+                            targetNum = Math.round((curSpot - runway) * 10) / 10;
+                        }
+                        if (entryNum > curSpot + 30) {
+                            entryNum = Math.round(curSpot * 10) / 10;
+                            const risk = Math.max(15, Math.min(25, Math.abs(stopNum - entryNum)));
+                            stopNum = Math.round((entryNum + risk) * 10) / 10;
+                        }
+                    }
+                }
+
                 const remarkText = `AI ${isBuy ? 'CALL' : 'PUT'} Setup`;
 
                 const box = {
                     id: 'shape_' + Date.now(),
                     type: 'target_sl',
-                    entry: Number(entry),
-                    target: Number(target),
-                    stop: Number(stop),
+                    entry: entryNum,
+                    target: targetNum,
+                    stop: stopNum,
                     timeStart: startTime,
                     timeEnd: endTime,
                     color: isBuy ? '#22c55e' : '#ef4444',
@@ -12716,14 +12707,14 @@ function showIndicatorLineActionPill(ind, point) {
                 if (typeof chart !== 'undefined' && chart && typeof chart.timeScale === 'function') {
                     try { chart.timeScale().scrollToRealtime(); } catch(e) {}
                 }
-                if (typeof openPropertiesPanel === 'function') {
+                if (typeof openPropertiesPanel === 'function' && window.innerWidth > 768) {
                     openPropertiesPanel(box.id);
                 }
 
                 // Show visual confirmation toast notification
                 const toast = document.createElement('div');
                 toast.style.cssText = 'position: fixed; bottom: 80px; right: 24px; z-index: 999999; background: #0284c7; color: white; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.25); display: flex; align-items: center; gap: 8px; pointer-events: none; transition: opacity 0.4s ease;';
-                toast.innerHTML = `<span>🎯</span> Plotted AI ${isBuy ? 'CALL' : 'PUT'} Setup (Entry ₹${entry}) on Chart!`;
+                toast.innerHTML = `<span>🎯</span> Plotted AI ${isBuy ? 'CALL' : 'PUT'} Setup (Entry ₹${entryNum}) on Chart!`;
                 document.body.appendChild(toast);
                 setTimeout(() => {
                     toast.style.opacity = '0';
@@ -13685,6 +13676,7 @@ function showIndicatorLineActionPill(ind, point) {
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             g.style.cursor = cursor || 'pointer';
             g.style.pointerEvents = 'all';
+            g.style.touchAction = 'none';
 
             // Visual Handle Dot
             const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -13693,6 +13685,7 @@ function showIndicatorLineActionPill(ind, point) {
             circle.setAttribute('fill', color || '#38bdf8');
             circle.setAttribute('stroke', '#ffffff');
             circle.setAttribute('stroke-width', '2');
+            circle.style.pointerEvents = 'none';
             g.appendChild(circle);
 
             // Generous Touch/Mouse Hit Target (24px radius)
@@ -13701,6 +13694,8 @@ function showIndicatorLineActionPill(ind, point) {
             hitCircle.setAttribute('r', '24');
             hitCircle.setAttribute('fill', 'transparent');
             hitCircle.style.cursor = cursor || 'pointer';
+            hitCircle.style.pointerEvents = 'all';
+            hitCircle.style.touchAction = 'none';
             g.appendChild(hitCircle);
 
             const handleStart = (e) => {
@@ -14509,6 +14504,7 @@ function showIndicatorLineActionPill(ind, point) {
             hitBorder.setAttribute('stroke-width', '16');
             hitBorder.style.pointerEvents = 'stroke'; // STRICTLY stroke only! Interior fill is ignored!
             hitBorder.style.cursor = 'move';
+            hitBorder.style.touchAction = 'none';
 
             const handleRectPointerDown = (e) => {
                 const px = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
@@ -14517,10 +14513,11 @@ function showIndicatorLineActionPill(ind, point) {
                 e.stopPropagation();
 
                 selectedShapeId = d.id;
-                openPropertiesPanel(d.id);
+                if (window.innerWidth > 768) {
+                    openPropertiesPanel(d.id);
+                }
                 showShapeActionPill(px, py, d);
                 startRepositionDrag(e, d);
-                renderAllDrawings();
             };
             hitBorder.onmousedown = handleRectPointerDown;
             hitBorder.ontouchstart = handleRectPointerDown;
@@ -14616,6 +14613,7 @@ function showIndicatorLineActionPill(ind, point) {
             hitTgt.setAttribute('stroke-width', '16');
             hitTgt.style.pointerEvents = 'stroke';
             hitTgt.style.cursor = 'move';
+            hitTgt.style.touchAction = 'none';
             hitTgt.onmousedown = (e) => startRepositionDrag(e, d);
             hitTgt.ontouchstart = (e) => startRepositionDrag(e, d);
             g.appendChild(hitTgt);
@@ -14651,6 +14649,7 @@ function showIndicatorLineActionPill(ind, point) {
             hitStp.setAttribute('stroke-width', '16');
             hitStp.style.pointerEvents = 'stroke';
             hitStp.style.cursor = 'move';
+            hitStp.style.touchAction = 'none';
             hitStp.onmousedown = (e) => startRepositionDrag(e, d);
             hitStp.ontouchstart = (e) => startRepositionDrag(e, d);
             g.appendChild(hitStp);
@@ -14673,6 +14672,7 @@ function showIndicatorLineActionPill(ind, point) {
             hitEntry.setAttribute('stroke-width', '16');
             hitEntry.style.pointerEvents = 'stroke';
             hitEntry.style.cursor = 'move';
+            hitEntry.style.touchAction = 'none';
             hitEntry.onmousedown = (e) => startRepositionDrag(e, d);
             hitEntry.ontouchstart = (e) => startRepositionDrag(e, d);
             g.appendChild(hitEntry);
@@ -14693,6 +14693,7 @@ function showIndicatorLineActionPill(ind, point) {
             bgBadge.setAttribute('stroke-width', '1');
             bgBadge.style.pointerEvents = 'all';
             bgBadge.style.cursor = 'move';
+            bgBadge.style.touchAction = 'none';
             bgBadge.onmousedown = (e) => startRepositionDrag(e, d);
             bgBadge.ontouchstart = (e) => startRepositionDrag(e, d);
             g.appendChild(bgBadge);
@@ -14735,6 +14736,7 @@ function showIndicatorLineActionPill(ind, point) {
 
         function attachRepositionDrag(el, d) {
             if (!el) return;
+            el.style.touchAction = 'none';
             el.onmousedown = (e) => startRepositionDrag(e, d);
             el.ontouchstart = (e) => {
                 if (e.touches && e.touches.length > 0) {
@@ -14765,7 +14767,7 @@ function showIndicatorLineActionPill(ind, point) {
                 clickClientX: clientX,
                 clickClientY: clientY
             };
-            renderAllDrawings();
+            // Note: DO NOT call renderAllDrawings() on touchstart! Doing so destroys the active touch target under the user's finger, causing mobile browsers to fire touchcancel and abort dragging.
         }
 
         function processDragMove(clientX, clientY) {
@@ -14883,7 +14885,9 @@ function showIndicatorLineActionPill(ind, point) {
                     } else {
                         // User clicked or tapped without dragging: show properties modal & action pill!
                         if (selectedShapeId) {
-                            openPropertiesPanel(selectedShapeId);
+                            if (window.innerWidth > 768) {
+                                openPropertiesPanel(selectedShapeId);
+                            }
                             const clickX = draggingState.clickClientX || (e && e.clientX) || 150;
                             const clickY = draggingState.clickClientY || (e && e.clientY) || 150;
                             const s = drawings.find(x => x.id === selectedShapeId);
@@ -15059,6 +15063,9 @@ function showIndicatorLineActionPill(ind, point) {
 
         function openPropertiesPanel(shapeId, autoFocus = false) {
             selectedShapeId = shapeId;
+            if (window.innerWidth <= 768) {
+                return; // Suppressed on mobile to save full-screen chart area
+            }
             const shape = drawings.find(d => d.id === shapeId);
             if (!shape) return;
 
