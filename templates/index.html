@@ -5552,6 +5552,8 @@
                 <!-- Drawing Layer for Lines, Arrows, Arcs, Rectangles, and Target/SL Boxes -->
                 <svg id="drawing-overlay">
                     <defs id="svg-defs"></defs>
+                    <g id="sr-overlay-layer"></g>
+                    <g id="drawings-overlay-layer"></g>
                 </svg>
                 <!-- Canvas for Smooth Freehand Pencil Drawing -->
                 <canvas id="pencil-canvas"></canvas>
@@ -13583,47 +13585,59 @@ function showIndicatorLineActionPill(ind, point) {
             if (pill) pill.style.display = 'none';
         }
 
-        function renderAllDrawings() {
+        function renderAllDrawings(drawingsOnly = false) {
             const overlay = document.getElementById('drawing-overlay');
             if (!overlay || !chart || !candleSeries) return;
-            overlay.innerHTML = '<defs id="svg-defs"></defs>';
 
-            // 🛡️ Auto Support & Resistance Engine Overlay
-            renderSRLevels(overlay);
+            let srLayer = document.getElementById('sr-overlay-layer');
+            let drawingsLayer = document.getElementById('drawings-overlay-layer');
 
+            if (!srLayer || !drawingsLayer) {
+                overlay.innerHTML = '<defs id="svg-defs"></defs><g id="sr-overlay-layer"></g><g id="drawings-overlay-layer"></g>';
+                srLayer = document.getElementById('sr-overlay-layer');
+                drawingsLayer = document.getElementById('drawings-overlay-layer');
+            }
+
+            // 🛡️ Auto Support & Resistance Engine Overlay (Only re-render when not drawingsOnly)
+            if (!drawingsOnly) {
+                srLayer.innerHTML = '';
+                renderSRLevels(srLayer);
+            }
+
+            drawingsLayer.innerHTML = '';
             if (drawingsHidden) return;
 
             // Layer 1: Render 2D area shapes (rectangles, Target/SL boxes, Fibonacci, Channels, Price Range) in background
             drawings.forEach(d => {
                 if (d.type === 'rect') {
-                    renderRect(d, overlay);
+                    renderRect(d, drawingsLayer);
                 } else if (d.type === 'target_sl') {
-                    renderTargetSL(d, overlay);
+                    renderTargetSL(d, drawingsLayer);
                 } else if (d.type === 'fibonacci') {
-                    renderFibonacci(d, overlay);
+                    renderFibonacci(d, drawingsLayer);
                 } else if (d.type === 'channel') {
-                    renderChannel(d, overlay);
+                    renderChannel(d, drawingsLayer);
                 } else if (d.type === 'price_range') {
-                    renderPriceRange(d, overlay);
+                    renderPriceRange(d, drawingsLayer);
                 }
             });
 
             // Layer 2: Render 1D Line tools (trendlines, arrows, arcs, rays, vlines, text notes, pencil) ON TOP so they are always accessible!
             drawings.forEach(d => {
                 if (d.type === 'line') {
-                    renderLine(d, overlay);
+                    renderLine(d, drawingsLayer);
                 } else if (d.type === 'arrow') {
-                    renderArrow(d, overlay);
+                    renderArrow(d, drawingsLayer);
                 } else if (d.type === 'arc') {
-                    renderArc(d, overlay);
+                    renderArc(d, drawingsLayer);
                 } else if (d.type === 'ray') {
-                    renderRay(d, overlay);
+                    renderRay(d, drawingsLayer);
                 } else if (d.type === 'vline') {
-                    renderVLine(d, overlay);
+                    renderVLine(d, drawingsLayer);
                 } else if (d.type === 'text') {
-                    renderTextNote(d, overlay);
+                    renderTextNote(d, drawingsLayer);
                 } else if (d.type === 'pencil') {
-                    renderPencil(d, overlay);
+                    renderPencil(d, drawingsLayer);
                 }
             });
         }
@@ -13672,26 +13686,55 @@ function showIndicatorLineActionPill(ind, point) {
             showToast(`↩️ Undo: Restored previous drawing state (${drawingUndoStack.length}/${MAX_DRAWING_UNDO_STEPS} steps remaining)`);
         }
 
+        function freezeChartInteractions() {
+            if (chart) {
+                chart.applyOptions({
+                    handleScroll: false,
+                    handleScale: false
+                });
+            }
+        }
+
+        function unfreezeChartInteractions() {
+            if (chart) {
+                chart.applyOptions({
+                    handleScroll: {
+                        mouseWheel: true,
+                        pressedMouseMove: true,
+                        horzTouchDrag: true,
+                        vertTouchDrag: true
+                    },
+                    handleScale: {
+                        axisPressedMouseMove: true,
+                        axisDoubleClickReset: true,
+                        mouseWheel: true,
+                        pinch: true
+                    }
+                });
+            }
+        }
+
         function createHandle(cx, cy, color, cursor, onDragFn) {
+            const isMobile = window.innerWidth <= 768;
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             g.style.cursor = cursor || 'pointer';
             g.style.pointerEvents = 'all';
             g.style.touchAction = 'none';
 
-            // Visual Handle Dot
+            // Visual Handle Dot (Enlarged on mobile touch screens for high thumb visibility)
             const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             circle.setAttribute('cx', cx); circle.setAttribute('cy', cy);
-            circle.setAttribute('r', '6');
+            circle.setAttribute('r', isMobile ? '8' : '6');
             circle.setAttribute('fill', color || '#38bdf8');
             circle.setAttribute('stroke', '#ffffff');
-            circle.setAttribute('stroke-width', '2');
+            circle.setAttribute('stroke-width', isMobile ? '2.5' : '2');
             circle.style.pointerEvents = 'none';
             g.appendChild(circle);
 
-            // Generous Touch/Mouse Hit Target (24px radius)
+            // Generous Touch/Mouse Hit Target (34px radius = 68px diameter touch target on mobile)
             const hitCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             hitCircle.setAttribute('cx', cx); hitCircle.setAttribute('cy', cy);
-            hitCircle.setAttribute('r', '24');
+            hitCircle.setAttribute('r', isMobile ? '34' : '24');
             hitCircle.setAttribute('fill', 'transparent');
             hitCircle.style.cursor = cursor || 'pointer';
             hitCircle.style.pointerEvents = 'all';
@@ -13701,6 +13744,7 @@ function showIndicatorLineActionPill(ind, point) {
             const handleStart = (e) => {
                 if (e.cancelable) e.preventDefault();
                 e.stopPropagation();
+                freezeChartInteractions();
                 const overlay = document.getElementById('drawing-overlay');
                 cachedDragOverlayRect = overlay ? overlay.getBoundingClientRect() : null;
                 preDragDrawingsSnapshot = JSON.parse(safeJSONStringify(drawings || []));
@@ -13729,12 +13773,212 @@ function showIndicatorLineActionPill(ind, point) {
         function startHandleDrag(e, onDragCallback) {
             if (e.cancelable) e.preventDefault();
             e.stopPropagation();
+            freezeChartInteractions();
+            const overlay = document.getElementById('drawing-overlay');
+            cachedDragOverlayRect = overlay ? overlay.getBoundingClientRect() : null;
             preDragDrawingsSnapshot = JSON.parse(safeJSONStringify(drawings || []));
             draggingState = {
                 type: 'handle',
                 onDrag: onDragCallback,
                 hasActuallyMoved: false
             };
+        }
+
+        // ========================================================
+        // ⚡ LIVE IN-PLACE DOM RE-SHAPING (Zero DOM destruction during drag)
+        // ========================================================
+        function updateTargetSLDOM(d, g) {
+            if (!g || !chart || !candleSeries) return;
+            const x1 = timeToX(d.timeStart);
+            const x2 = timeToX(d.timeEnd);
+            const yEntry = priceToY(d.entry);
+            const yTarget = priceToY(d.target);
+            const yStop = priceToY(d.stop);
+            if (x1 == null || x2 == null || yEntry == null || yTarget == null || yStop == null) return;
+
+            const rx = Math.min(x1, x2);
+            const width = Math.max(20, Math.abs(x2 - x1));
+            const targetDiff = Math.abs(d.target - d.entry);
+            const stopDiff = Math.abs(d.entry - d.stop);
+            const rrRatio = stopDiff > 0 ? (targetDiff / stopDiff).toFixed(2) : '0.00';
+            const targetPct = d.entry ? ((targetDiff / d.entry) * 100).toFixed(2) : '0.00';
+            const stopPct = d.entry ? ((stopDiff / d.entry) * 100).toFixed(2) : '0.00';
+
+            const tgtY = Math.min(yTarget, yEntry);
+            const tgtH = Math.abs(yEntry - yTarget);
+            const stpY = Math.min(yEntry, yStop);
+            const stpH = Math.abs(yStop - yEntry);
+
+            const rectTgt = g.querySelector('[data-role="rectTgt"]');
+            if (rectTgt) { rectTgt.setAttribute('x', rx); rectTgt.setAttribute('y', tgtY); rectTgt.setAttribute('width', width); rectTgt.setAttribute('height', tgtH); }
+            const strokeTgt = g.querySelector('[data-role="strokeTgt"]');
+            if (strokeTgt) { strokeTgt.setAttribute('x', rx); strokeTgt.setAttribute('y', tgtY); strokeTgt.setAttribute('width', width); strokeTgt.setAttribute('height', tgtH); }
+            const hitTgt = g.querySelector('[data-role="hitTgt"]');
+            if (hitTgt) { hitTgt.setAttribute('x', rx); hitTgt.setAttribute('y', tgtY); hitTgt.setAttribute('width', width); hitTgt.setAttribute('height', tgtH); }
+
+            const rectStp = g.querySelector('[data-role="rectStp"]');
+            if (rectStp) { rectStp.setAttribute('x', rx); rectStp.setAttribute('y', stpY); rectStp.setAttribute('width', width); rectStp.setAttribute('height', stpH); }
+            const strokeStp = g.querySelector('[data-role="strokeStp"]');
+            if (strokeStp) { strokeStp.setAttribute('x', rx); strokeStp.setAttribute('y', stpY); strokeStp.setAttribute('width', width); strokeStp.setAttribute('height', stpH); }
+            const hitStp = g.querySelector('[data-role="hitStp"]');
+            if (hitStp) { hitStp.setAttribute('x', rx); hitStp.setAttribute('y', stpY); hitStp.setAttribute('width', width); hitStp.setAttribute('height', stpH); }
+
+            const lineEntry = g.querySelector('[data-role="lineEntry"]');
+            if (lineEntry) { lineEntry.setAttribute('x1', rx); lineEntry.setAttribute('y1', yEntry); lineEntry.setAttribute('x2', rx + width); lineEntry.setAttribute('y2', yEntry); }
+            const hitEntry = g.querySelector('[data-role="hitEntry"]');
+            if (hitEntry) { hitEntry.setAttribute('x1', rx); hitEntry.setAttribute('y1', yEntry); hitEntry.setAttribute('x2', rx + width); hitEntry.setAttribute('y2', yEntry); }
+
+            const boxTop = Math.min(yTarget, yStop);
+            const badgeW = Math.min(195, Math.max(120, width - 16));
+            const badgeH = 19;
+            const badgeX = rx + 8;
+            const badgeY = boxTop + 4;
+
+            const bgBadge = g.querySelector('[data-role="bgBadge"]');
+            if (bgBadge) { bgBadge.setAttribute('x', badgeX); bgBadge.setAttribute('y', badgeY); bgBadge.setAttribute('width', badgeW); }
+            const badgeText = g.querySelector('[data-role="badgeText"]');
+            if (badgeText) {
+                badgeText.setAttribute('x', badgeX + badgeW / 2);
+                badgeText.setAttribute('y', badgeY + 13.5);
+                badgeText.textContent = `Tgt +${targetPct}% | Stop -${stopPct}% | R:R 1 : ${rrRatio}`;
+            }
+
+            const hTop = g.querySelector('[data-handle="top"]');
+            if (hTop) { hTop.querySelectorAll('circle').forEach(c => { c.setAttribute('cx', rx + width / 2); c.setAttribute('cy', yTarget); }); }
+            const hBottom = g.querySelector('[data-handle="bottom"]');
+            if (hBottom) { hBottom.querySelectorAll('circle').forEach(c => { c.setAttribute('cx', rx + width / 2); c.setAttribute('cy', yStop); }); }
+            const hRight = g.querySelector('[data-handle="right"]');
+            if (hRight) { hRight.querySelectorAll('circle').forEach(c => { c.setAttribute('cx', rx + width); c.setAttribute('cy', yEntry); }); }
+            const hLeft = g.querySelector('[data-handle="left"]');
+            if (hLeft) { hLeft.querySelectorAll('circle').forEach(c => { c.setAttribute('cx', rx); c.setAttribute('cy', yEntry); }); }
+        }
+
+        function updateLineDOM(d, g) {
+            if (!g || !chart || !candleSeries) return;
+            const x1 = timeToX(d.time1);
+            const y1 = priceToY(d.price1);
+            const x2 = timeToX(d.time2);
+            const y2 = priceToY(d.price2);
+            if (x1 == null || y1 == null || x2 == null || y2 == null) return;
+
+            const line = g.querySelector('[data-role="line"]');
+            if (line) { line.setAttribute('x1', x1); line.setAttribute('y1', y1); line.setAttribute('x2', x2); line.setAttribute('y2', y2); }
+            const hitLine = g.querySelector('[data-role="hitLine"]');
+            if (hitLine) { hitLine.setAttribute('x1', x1); hitLine.setAttribute('y1', y1); hitLine.setAttribute('x2', x2); hitLine.setAttribute('y2', y2); }
+
+            const label = g.querySelector('[data-role="label"]');
+            if (label) { label.setAttribute('x', (x1 + x2) / 2); label.setAttribute('y', (y1 + y2) / 2 - 8); }
+
+            const h1 = g.querySelector('[data-handle="h1"]');
+            if (h1) { h1.querySelectorAll('circle').forEach(c => { c.setAttribute('cx', x1); c.setAttribute('cy', y1); }); }
+            const h2 = g.querySelector('[data-handle="h2"]');
+            if (h2) { h2.querySelectorAll('circle').forEach(c => { c.setAttribute('cx', x2); c.setAttribute('cy', y2); }); }
+        }
+
+        function updateRectDOM(d, g) {
+            if (!g || !chart || !candleSeries) return;
+            const x1 = timeToX(d.time1);
+            const y1 = priceToY(d.price1);
+            const x2 = timeToX(d.time2);
+            const y2 = priceToY(d.price2);
+            if (x1 == null || y1 == null || x2 == null || y2 == null) return;
+
+            const rx = Math.min(x1, x2);
+            const ry = Math.min(y1, y2);
+            const rw = Math.abs(x2 - x1);
+            const rh = Math.abs(y2 - y1);
+
+            const fillRect = g.querySelector('[data-role="fillRect"]');
+            if (fillRect) { fillRect.setAttribute('x', rx); fillRect.setAttribute('y', ry); fillRect.setAttribute('width', rw); fillRect.setAttribute('height', rh); }
+            const strokeRect = g.querySelector('[data-role="strokeRect"]');
+            if (strokeRect) { strokeRect.setAttribute('x', rx); strokeRect.setAttribute('y', ry); strokeRect.setAttribute('width', rw); strokeRect.setAttribute('height', rh); }
+            const hitBorder = g.querySelector('[data-role="hitBorder"]');
+            if (hitBorder) { hitBorder.setAttribute('x', rx); hitBorder.setAttribute('y', ry); hitBorder.setAttribute('width', rw); hitBorder.setAttribute('height', rh); }
+
+            const label = g.querySelector('[data-role="label"]');
+            if (label) { label.setAttribute('x', rx + rw / 2); label.setAttribute('y', ry + 16); }
+
+            const h1 = g.querySelector('[data-handle="h1"]');
+            if (h1) { h1.querySelectorAll('circle').forEach(c => { c.setAttribute('cx', x1); c.setAttribute('cy', y1); }); }
+            const h2 = g.querySelector('[data-handle="h2"]');
+            if (h2) { h2.querySelectorAll('circle').forEach(c => { c.setAttribute('cx', x2); c.setAttribute('cy', y2); }); }
+            const h3 = g.querySelector('[data-handle="h3"]');
+            if (h3) { h3.querySelectorAll('circle').forEach(c => { c.setAttribute('cx', x1); c.setAttribute('cy', y2); }); }
+            const h4 = g.querySelector('[data-handle="h4"]');
+            if (h4) { h4.querySelectorAll('circle').forEach(c => { c.setAttribute('cx', x2); c.setAttribute('cy', y1); }); }
+        }
+
+        function updateArcDOM(d, g) {
+            if (!g || !chart || !candleSeries) return;
+            const x1 = timeToX(d.time1);
+            const y1 = priceToY(d.price1);
+            const x2 = timeToX(d.time2);
+            const y2 = priceToY(d.price2);
+            const cx = timeToX(d.midTime != null ? d.midTime : Math.round((d.time1 + d.time2) / 2));
+            const cy = priceToY(d.midPrice != null ? d.midPrice : (d.price1 + d.price2) / 2);
+            if (x1 == null || y1 == null || x2 == null || y2 == null || cx == null || cy == null) return;
+
+            const dAttr = `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`;
+            const hitPath = g.querySelector('[data-role="hitPath"]');
+            if (hitPath) hitPath.setAttribute('d', dAttr);
+            const path = g.querySelector('[data-role="path"]');
+            if (path) path.setAttribute('d', dAttr);
+
+            const label = g.querySelector('[data-role="label"]');
+            if (label) { label.setAttribute('x', cx); label.setAttribute('y', cy - 10); }
+
+            const h1 = g.querySelector('[data-handle="h1"]');
+            if (h1) h1.querySelectorAll('circle').forEach(c => { c.setAttribute('cx', x1); c.setAttribute('cy', y1); });
+            const h2 = g.querySelector('[data-handle="h2"]');
+            if (h2) h2.querySelectorAll('circle').forEach(c => { c.setAttribute('cx', x2); c.setAttribute('cy', y2); });
+            const hMid = g.querySelector('[data-handle="hMid"]');
+            if (hMid) hMid.querySelectorAll('circle').forEach(c => { c.setAttribute('cx', cx); c.setAttribute('cy', cy); });
+        }
+
+        function applyRepositionDelta(d, snap, curX, curY, startX, startY) {
+            const curT = xToTime(curX);
+            const startT = xToTime(startX);
+            const curP = yToPrice(curY);
+            const startP = yToPrice(startY);
+            if (curT == null || startT == null || curP == null || startP == null) return false;
+            const dt = curT - startT;
+            const dp = curP - startP;
+
+            if (d.type === 'line' || d.type === 'arrow' || d.type === 'rect' || d.type === 'fibonacci' || d.type === 'channel' || d.type === 'price_range') {
+                d.time1 = snap.time1 + dt;
+                d.price1 = snap.price1 + dp;
+                d.time2 = snap.time2 + dt;
+                d.price2 = snap.price2 + dp;
+            } else if (d.type === 'ray') {
+                d.time1 = snap.time1 + dt;
+                d.price1 = snap.price1 + dp;
+            } else if (d.type === 'vline') {
+                d.time1 = snap.time1 + dt;
+            } else if (d.type === 'text') {
+                d.time1 = snap.time1 + dt;
+                d.price1 = snap.price1 + dp;
+            } else if (d.type === 'arc') {
+                d.time1 = snap.time1 + dt;
+                d.price1 = snap.price1 + dp;
+                d.time2 = snap.time2 + dt;
+                d.price2 = snap.price2 + dp;
+                d.midTime = snap.midTime + dt;
+                d.midPrice = snap.midPrice + dp;
+            } else if (d.type === 'target_sl') {
+                d.entry = snap.entry + dp;
+                d.target = snap.target + dp;
+                d.stop = snap.stop + dp;
+                d.timeStart = snap.timeStart + dt;
+                d.timeEnd = snap.timeEnd + dt;
+            } else if (d.type === 'pencil') {
+                if (snap.points && Array.isArray(snap.points)) {
+                    d.points = snap.points.map(pt => ({
+                        time: pt.time + dt,
+                        price: pt.price + dp
+                    }));
+                }
+            }
+            return true;
         }
 
         // 📐 ADVANCED DRAWING TOOLS ENGINE (FIBONACCI, RAY, CHANNEL, RULER, TEXT)
@@ -14292,6 +14536,7 @@ function showIndicatorLineActionPill(ind, point) {
 
             const isSel = d.id === selectedShapeId;
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.id = 'shape_g_' + d.id;
             g.style.cursor = 'move';
             g.style.pointerEvents = 'all';
 
@@ -14301,6 +14546,7 @@ function showIndicatorLineActionPill(ind, point) {
             hitLine.setAttribute('x2', x2); hitLine.setAttribute('y2', y2);
             hitLine.setAttribute('stroke', 'transparent');
             hitLine.setAttribute('stroke-width', '16');
+            hitLine.setAttribute('data-role', 'hitLine');
             attachRepositionDrag(hitLine, d);
             g.appendChild(hitLine);
 
@@ -14311,6 +14557,7 @@ function showIndicatorLineActionPill(ind, point) {
             line.setAttribute('stroke', d.color);
             line.setAttribute('stroke-width', isSel ? '3' : (d.width || '2'));
             if (isSel) line.setAttribute('stroke-dasharray', '5,4');
+            line.setAttribute('data-role', 'line');
             g.appendChild(line);
 
             // Remark label
@@ -14320,12 +14567,27 @@ function showIndicatorLineActionPill(ind, point) {
 
             // Resizing Handles when selected
             if (isSel) {
-                g.appendChild(createHandle(x1, y1, d.color, 'move', (nx, ny) => {
-                    d.time1 = xToTime(nx); d.price1 = yToPrice(ny);
-                }));
-                g.appendChild(createHandle(x2, y2, d.color, 'move', (nx, ny) => {
-                    d.time2 = xToTime(nx); d.price2 = yToPrice(ny);
-                }));
+                const h1 = createHandle(x1, y1, d.color, 'move', (nx, ny) => {
+                    const nt = xToTime(nx); const np = yToPrice(ny);
+                    if (nt != null && np != null) {
+                        d.time1 = nt; d.price1 = np;
+                        updateLineDOM(d, g);
+                        return true;
+                    }
+                });
+                h1.setAttribute('data-handle', 'h1');
+                g.appendChild(h1);
+
+                const h2 = createHandle(x2, y2, d.color, 'move', (nx, ny) => {
+                    const nt = xToTime(nx); const np = yToPrice(ny);
+                    if (nt != null && np != null) {
+                        d.time2 = nt; d.price2 = np;
+                        updateLineDOM(d, g);
+                        return true;
+                    }
+                });
+                h2.setAttribute('data-handle', 'h2');
+                g.appendChild(h2);
             }
             overlay.appendChild(g);
         }
@@ -14360,6 +14622,7 @@ function showIndicatorLineActionPill(ind, point) {
             }
 
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.id = 'shape_g_' + d.id;
             g.style.cursor = 'move';
             g.style.pointerEvents = 'all';
 
@@ -14368,6 +14631,7 @@ function showIndicatorLineActionPill(ind, point) {
             hitLine.setAttribute('x2', x2); hitLine.setAttribute('y2', y2);
             hitLine.setAttribute('stroke', 'transparent');
             hitLine.setAttribute('stroke-width', '16');
+            hitLine.setAttribute('data-role', 'hitLine');
             attachRepositionDrag(hitLine, d);
             g.appendChild(hitLine);
 
@@ -14377,6 +14641,7 @@ function showIndicatorLineActionPill(ind, point) {
             line.setAttribute('stroke', d.color);
             line.setAttribute('stroke-width', isSel ? '3.5' : (d.width || '2.5'));
             line.setAttribute('marker-end', `url(#${markerId})`);
+            line.setAttribute('data-role', 'line');
             g.appendChild(line);
 
             if (d.remark) {
@@ -14384,12 +14649,27 @@ function showIndicatorLineActionPill(ind, point) {
             }
 
             if (isSel) {
-                g.appendChild(createHandle(x1, y1, d.color, 'move', (nx, ny) => {
-                    d.time1 = xToTime(nx); d.price1 = yToPrice(ny);
-                }));
-                g.appendChild(createHandle(x2, y2, d.color, 'move', (nx, ny) => {
-                    d.time2 = xToTime(nx); d.price2 = yToPrice(ny);
-                }));
+                const h1 = createHandle(x1, y1, d.color, 'move', (nx, ny) => {
+                    const nt = xToTime(nx); const np = yToPrice(ny);
+                    if (nt != null && np != null) {
+                        d.time1 = nt; d.price1 = np;
+                        updateLineDOM(d, g);
+                        return true;
+                    }
+                });
+                h1.setAttribute('data-handle', 'h1');
+                g.appendChild(h1);
+
+                const h2 = createHandle(x2, y2, d.color, 'move', (nx, ny) => {
+                    const nt = xToTime(nx); const np = yToPrice(ny);
+                    if (nt != null && np != null) {
+                        d.time2 = nt; d.price2 = np;
+                        updateLineDOM(d, g);
+                        return true;
+                    }
+                });
+                h2.setAttribute('data-handle', 'h2');
+                g.appendChild(h2);
             }
             overlay.appendChild(g);
         }
@@ -14407,6 +14687,7 @@ function showIndicatorLineActionPill(ind, point) {
 
             const isSel = d.id === selectedShapeId;
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.id = 'shape_g_' + d.id;
             g.style.cursor = 'pointer';
             g.style.pointerEvents = 'all';
 
@@ -14416,6 +14697,7 @@ function showIndicatorLineActionPill(ind, point) {
             hitPath.setAttribute('fill', 'none');
             hitPath.setAttribute('stroke', 'transparent');
             hitPath.setAttribute('stroke-width', '22');
+            hitPath.setAttribute('data-role', 'hitPath');
             attachRepositionDrag(hitPath, d);
             g.appendChild(hitPath);
 
@@ -14429,6 +14711,7 @@ function showIndicatorLineActionPill(ind, point) {
                 path.setAttribute('stroke-dasharray', '5,4');
                 path.setAttribute('filter', 'drop-shadow(0px 0px 4px rgba(255, 152, 0, 0.6))');
             }
+            path.setAttribute('data-role', 'path');
             g.appendChild(path);
 
             if (d.remark) {
@@ -14437,23 +14720,40 @@ function showIndicatorLineActionPill(ind, point) {
 
             if (isSel) {
                 // Endpoint 1
-                g.appendChild(createHandle(x1, y1, d.color || '#ff9800', 'move', (nx, ny) => {
+                const h1 = createHandle(x1, y1, d.color || '#ff9800', 'move', (nx, ny) => {
                     const nt = xToTime(nx), np = yToPrice(ny);
-                    if (nt != null) d.time1 = nt;
-                    if (np != null) d.price1 = np;
-                }));
+                    if (nt != null && np != null) {
+                        d.time1 = nt; d.price1 = np;
+                        updateArcDOM(d, g);
+                        return true;
+                    }
+                });
+                h1.setAttribute('data-handle', 'h1');
+                g.appendChild(h1);
+
                 // Endpoint 2
-                g.appendChild(createHandle(x2, y2, d.color || '#ff9800', 'move', (nx, ny) => {
+                const h2 = createHandle(x2, y2, d.color || '#ff9800', 'move', (nx, ny) => {
                     const nt = xToTime(nx), np = yToPrice(ny);
-                    if (nt != null) d.time2 = nt;
-                    if (np != null) d.price2 = np;
-                }));
-                // Middle bend handle (prominent yellow bend control point)
-                g.appendChild(createHandle(cx, cy, '#ffd600', 'pointer', (nx, ny) => {
+                    if (nt != null && np != null) {
+                        d.time2 = nt; d.price2 = np;
+                        updateArcDOM(d, g);
+                        return true;
+                    }
+                });
+                h2.setAttribute('data-handle', 'h2');
+                g.appendChild(h2);
+
+                // Middle bend handle
+                const hMid = createHandle(cx, cy, '#ffd600', 'pointer', (nx, ny) => {
                     const nt = xToTime(nx), np = yToPrice(ny);
-                    if (nt != null) d.midTime = nt;
-                    if (np != null) d.midPrice = np;
-                }));
+                    if (nt != null && np != null) {
+                        d.midTime = nt; d.midPrice = np;
+                        updateArcDOM(d, g);
+                        return true;
+                    }
+                });
+                hMid.setAttribute('data-handle', 'hMid');
+                g.appendChild(hMid);
             }
             overlay.appendChild(g);
         }
@@ -14473,6 +14773,7 @@ function showIndicatorLineActionPill(ind, point) {
 
             const isSel = d.id === selectedShapeId;
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.id = 'shape_g_' + d.id;
             g.style.pointerEvents = 'none'; // Container allows pass-through to chart canvas!
 
             // 1. Shaded Interior Fill (Color Part): Pass-through to candle canvas!
@@ -14482,6 +14783,7 @@ function showIndicatorLineActionPill(ind, point) {
             fillRect.setAttribute('fill', d.color);
             fillRect.setAttribute('fill-opacity', '0.22');
             fillRect.setAttribute('stroke', 'none');
+            fillRect.setAttribute('data-role', 'fillRect');
             fillRect.style.pointerEvents = 'none'; // Clicks & touch pass through freely to pan/zoom/candle canvas!
             g.appendChild(fillRect);
 
@@ -14492,6 +14794,7 @@ function showIndicatorLineActionPill(ind, point) {
             strokeRect.setAttribute('fill', 'none');
             strokeRect.setAttribute('stroke', d.color);
             strokeRect.setAttribute('stroke-width', isSel ? '2.5' : '1.5');
+            strokeRect.setAttribute('data-role', 'strokeRect');
             strokeRect.style.pointerEvents = 'none';
             g.appendChild(strokeRect);
 
@@ -14502,6 +14805,7 @@ function showIndicatorLineActionPill(ind, point) {
             hitBorder.setAttribute('fill', 'none');
             hitBorder.setAttribute('stroke', 'transparent');
             hitBorder.setAttribute('stroke-width', '16');
+            hitBorder.setAttribute('data-role', 'hitBorder');
             hitBorder.style.pointerEvents = 'stroke'; // STRICTLY stroke only! Interior fill is ignored!
             hitBorder.style.cursor = 'move';
             hitBorder.style.touchAction = 'none';
@@ -14541,19 +14845,50 @@ function showIndicatorLineActionPill(ind, point) {
             }
 
             if (isSel) {
-                // 4 Resizing Corners (createHandle has pointer-events: all)
-                g.appendChild(createHandle(x1, y1, d.color, 'nwse-resize', (nx, ny) => {
-                    d.time1 = xToTime(nx); d.price1 = yToPrice(ny);
-                }));
-                g.appendChild(createHandle(x2, y2, d.color, 'nwse-resize', (nx, ny) => {
-                    d.time2 = xToTime(nx); d.price2 = yToPrice(ny);
-                }));
-                g.appendChild(createHandle(x1, y2, d.color, 'nesw-resize', (nx, ny) => {
-                    d.time1 = xToTime(nx); d.price2 = yToPrice(ny);
-                }));
-                g.appendChild(createHandle(x2, y1, d.color, 'nesw-resize', (nx, ny) => {
-                    d.time2 = xToTime(nx); d.price1 = yToPrice(ny);
-                }));
+                // 4 Resizing Corners
+                const h1 = createHandle(x1, y1, d.color, 'nwse-resize', (nx, ny) => {
+                    const nt = xToTime(nx); const np = yToPrice(ny);
+                    if (nt != null && np != null) {
+                        d.time1 = nt; d.price1 = np;
+                        updateRectDOM(d, g);
+                        return true;
+                    }
+                });
+                h1.setAttribute('data-handle', 'h1');
+                g.appendChild(h1);
+
+                const h2 = createHandle(x2, y2, d.color, 'nwse-resize', (nx, ny) => {
+                    const nt = xToTime(nx); const np = yToPrice(ny);
+                    if (nt != null && np != null) {
+                        d.time2 = nt; d.price2 = np;
+                        updateRectDOM(d, g);
+                        return true;
+                    }
+                });
+                h2.setAttribute('data-handle', 'h2');
+                g.appendChild(h2);
+
+                const h3 = createHandle(x1, y2, d.color, 'nesw-resize', (nx, ny) => {
+                    const nt = xToTime(nx); const np = yToPrice(ny);
+                    if (nt != null && np != null) {
+                        d.time1 = nt; d.price2 = np;
+                        updateRectDOM(d, g);
+                        return true;
+                    }
+                });
+                h3.setAttribute('data-handle', 'h3');
+                g.appendChild(h3);
+
+                const h4 = createHandle(x2, y1, d.color, 'nesw-resize', (nx, ny) => {
+                    const nt = xToTime(nx); const np = yToPrice(ny);
+                    if (nt != null && np != null) {
+                        d.time2 = nt; d.price1 = np;
+                        updateRectDOM(d, g);
+                        return true;
+                    }
+                });
+                h4.setAttribute('data-handle', 'h4');
+                g.appendChild(h4);
             }
             overlay.appendChild(g);
         }
@@ -14580,6 +14915,7 @@ function showIndicatorLineActionPill(ind, point) {
             const stopPct = ((stopDiff / d.entry) * 100).toFixed(2);
 
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.id = 'shape_g_' + d.id;
             g.style.pointerEvents = 'none'; // Container allows pass-through to chart canvas!
 
             // 1. Target Box Fill (Green) - Pass-through to candle canvas!
@@ -14591,6 +14927,7 @@ function showIndicatorLineActionPill(ind, point) {
             rectTgt.setAttribute('fill', '#089981');
             rectTgt.setAttribute('fill-opacity', '0.25');
             rectTgt.setAttribute('stroke', 'none');
+            rectTgt.setAttribute('data-role', 'rectTgt');
             rectTgt.style.pointerEvents = 'none'; // Green fill never captures clicks!
             g.appendChild(rectTgt);
 
@@ -14601,6 +14938,7 @@ function showIndicatorLineActionPill(ind, point) {
             strokeTgt.setAttribute('fill', 'none');
             strokeTgt.setAttribute('stroke', '#089981');
             strokeTgt.setAttribute('stroke-width', '1.5');
+            strokeTgt.setAttribute('data-role', 'strokeTgt');
             strokeTgt.style.pointerEvents = 'none';
             g.appendChild(strokeTgt);
 
@@ -14611,6 +14949,7 @@ function showIndicatorLineActionPill(ind, point) {
             hitTgt.setAttribute('fill', 'none');
             hitTgt.setAttribute('stroke', 'transparent');
             hitTgt.setAttribute('stroke-width', '16');
+            hitTgt.setAttribute('data-role', 'hitTgt');
             hitTgt.style.pointerEvents = 'stroke';
             hitTgt.style.cursor = 'move';
             hitTgt.style.touchAction = 'none';
@@ -14627,6 +14966,7 @@ function showIndicatorLineActionPill(ind, point) {
             rectStp.setAttribute('fill', '#f23645');
             rectStp.setAttribute('fill-opacity', '0.25');
             rectStp.setAttribute('stroke', 'none');
+            rectStp.setAttribute('data-role', 'rectStp');
             rectStp.style.pointerEvents = 'none'; // Red fill never captures clicks!
             g.appendChild(rectStp);
 
@@ -14637,6 +14977,7 @@ function showIndicatorLineActionPill(ind, point) {
             strokeStp.setAttribute('fill', 'none');
             strokeStp.setAttribute('stroke', '#f23645');
             strokeStp.setAttribute('stroke-width', '1.5');
+            strokeStp.setAttribute('data-role', 'strokeStp');
             strokeStp.style.pointerEvents = 'none';
             g.appendChild(strokeStp);
 
@@ -14647,6 +14988,7 @@ function showIndicatorLineActionPill(ind, point) {
             hitStp.setAttribute('fill', 'none');
             hitStp.setAttribute('stroke', 'transparent');
             hitStp.setAttribute('stroke-width', '16');
+            hitStp.setAttribute('data-role', 'hitStp');
             hitStp.style.pointerEvents = 'stroke';
             hitStp.style.cursor = 'move';
             hitStp.style.touchAction = 'none';
@@ -14661,6 +15003,7 @@ function showIndicatorLineActionPill(ind, point) {
             lineEntry.setAttribute('stroke', '#2962ff');
             lineEntry.setAttribute('stroke-width', '2');
             lineEntry.setAttribute('stroke-dasharray', '5,4');
+            lineEntry.setAttribute('data-role', 'lineEntry');
             lineEntry.style.pointerEvents = 'none';
             g.appendChild(lineEntry);
 
@@ -14670,6 +15013,7 @@ function showIndicatorLineActionPill(ind, point) {
             hitEntry.setAttribute('x2', rx + width); hitEntry.setAttribute('y2', yEntry);
             hitEntry.setAttribute('stroke', 'transparent');
             hitEntry.setAttribute('stroke-width', '16');
+            hitEntry.setAttribute('data-role', 'hitEntry');
             hitEntry.style.pointerEvents = 'stroke';
             hitEntry.style.cursor = 'move';
             hitEntry.style.touchAction = 'none';
@@ -14691,6 +15035,7 @@ function showIndicatorLineActionPill(ind, point) {
             bgBadge.setAttribute('fill', 'rgba(15, 23, 42, 0.85)');
             bgBadge.setAttribute('stroke', isSel ? '#2962ff' : 'rgba(255, 255, 255, 0.18)');
             bgBadge.setAttribute('stroke-width', '1');
+            bgBadge.setAttribute('data-role', 'bgBadge');
             bgBadge.style.pointerEvents = 'all';
             bgBadge.style.cursor = 'move';
             bgBadge.style.touchAction = 'none';
@@ -14705,27 +15050,59 @@ function showIndicatorLineActionPill(ind, point) {
             badgeText.setAttribute('font-size', '10');
             badgeText.setAttribute('font-weight', '700');
             badgeText.setAttribute('text-anchor', 'middle');
+            badgeText.setAttribute('data-role', 'badgeText');
             badgeText.style.pointerEvents = 'none';
             badgeText.textContent = `Tgt +${targetPct}% | Stop -${stopPct}% | R:R 1 : ${rrRatio}`;
             g.appendChild(badgeText);
 
             // 5. Draggable Handles: UP, DOWN, LEFT, RIGHT!
             // Top (Target Price Resize)
-            g.appendChild(createHandle(rx + width / 2, yTarget, '#00e676', 'ns-resize', (nx, ny) => {
-                const np = yToPrice(ny); if (np) d.target = np;
-            }));
+            const hTop = createHandle(rx + width / 2, yTarget, '#00e676', 'ns-resize', (nx, ny) => {
+                const np = yToPrice(ny);
+                if (np != null) {
+                    d.target = np;
+                    updateTargetSLDOM(d, g);
+                    return true;
+                }
+            });
+            hTop.setAttribute('data-handle', 'top');
+            g.appendChild(hTop);
+
             // Bottom (Stop Loss Price Resize)
-            g.appendChild(createHandle(rx + width / 2, yStop, '#ff5252', 'ns-resize', (nx, ny) => {
-                const np = yToPrice(ny); if (np) d.stop = np;
-            }));
+            const hBottom = createHandle(rx + width / 2, yStop, '#ff5252', 'ns-resize', (nx, ny) => {
+                const np = yToPrice(ny);
+                if (np != null) {
+                    d.stop = np;
+                    updateTargetSLDOM(d, g);
+                    return true;
+                }
+            });
+            hBottom.setAttribute('data-handle', 'bottom');
+            g.appendChild(hBottom);
+
             // Right (Width / Future Candle Time Resize)
-            g.appendChild(createHandle(rx + width, yEntry, '#2962ff', 'ew-resize', (nx, ny) => {
-                const nt = xToTime(nx); if (nt) d.timeEnd = nt;
-            }));
+            const hRight = createHandle(rx + width, yEntry, '#2962ff', 'ew-resize', (nx, ny) => {
+                const nt = xToTime(nx);
+                if (nt != null) {
+                    d.timeEnd = nt;
+                    updateTargetSLDOM(d, g);
+                    return true;
+                }
+            });
+            hRight.setAttribute('data-handle', 'right');
+            g.appendChild(hRight);
+
             // Left (Start Time Resize)
-            g.appendChild(createHandle(rx, yEntry, '#2962ff', 'ew-resize', (nx, ny) => {
-                const nt = xToTime(nx); if (nt) d.timeStart = nt;
-            }));
+            const hLeft = createHandle(rx, yEntry, '#2962ff', 'ew-resize', (nx, ny) => {
+                const nt = xToTime(nx);
+                if (nt != null) {
+                    d.timeStart = nt;
+                    updateTargetSLDOM(d, g);
+                    return true;
+                }
+            });
+            hLeft.setAttribute('data-handle', 'left');
+            g.appendChild(hLeft);
 
             overlay.appendChild(g);
         }
@@ -14751,6 +15128,8 @@ function showIndicatorLineActionPill(ind, point) {
             if (e.cancelable) e.preventDefault();
             e.stopPropagation();
 
+            freezeChartInteractions();
+
             selectedShapeId = d.id;
             const overlay = document.getElementById('drawing-overlay');
             cachedDragOverlayRect = overlay ? overlay.getBoundingClientRect() : null;
@@ -14758,14 +15137,18 @@ function showIndicatorLineActionPill(ind, point) {
             const startY = cachedDragOverlayRect ? (clientY - cachedDragOverlayRect.top) : clientY;
 
             preDragDrawingsSnapshot = JSON.parse(safeJSONStringify(drawings || []));
+            const shapeG = document.getElementById('shape_g_' + d.id);
             draggingState = {
                 type: 'reposition',
                 shape: d,
+                shapeG: shapeG,
                 startX, startY,
                 snapshot: JSON.parse(JSON.stringify(d)),
                 hasActuallyMoved: false,
                 clickClientX: clientX,
-                clickClientY: clientY
+                clickClientY: clientY,
+                lastCurX: startX,
+                lastCurY: startY
             };
             // Note: DO NOT call renderAllDrawings() on touchstart! Doing so destroys the active touch target under the user's finger, causing mobile browsers to fire touchcancel and abort dragging.
         }
@@ -14792,59 +15175,26 @@ function showIndicatorLineActionPill(ind, point) {
             const curX = clientX - cachedDragOverlayRect.left;
             const curY = clientY - cachedDragOverlayRect.top;
 
-            updateDrawingCrosshair(curX, curY);
+            if (activeTool !== 'select') {
+                updateDrawingCrosshair(curX, curY);
+            }
 
             if (draggingState.type === 'handle') {
-                draggingState.onDrag(curX, curY);
-                renderAllDrawings();
+                const handledInPlace = draggingState.onDrag ? draggingState.onDrag(curX, curY) : false;
+                if (!handledInPlace) {
+                    renderAllDrawings(true);
+                }
             } else if (draggingState.type === 'reposition') {
-                const snap = draggingState.snapshot;
-                const d = draggingState.shape;
+                draggingState.lastCurX = curX;
+                draggingState.lastCurY = curY;
+                const dx = curX - draggingState.startX;
+                const dy = curY - draggingState.startY;
 
-                const curT = xToTime(curX);
-                const startT = xToTime(draggingState.startX);
-                const curP = yToPrice(curY);
-                const startP = yToPrice(draggingState.startY);
-
-                if (curT != null && startT != null && curP != null && startP != null) {
-                    const dt = curT - startT;
-                    const dp = curP - startP;
-
-                    if (d.type === 'line' || d.type === 'arrow' || d.type === 'rect' || d.type === 'fibonacci' || d.type === 'channel' || d.type === 'price_range') {
-                        d.time1 = snap.time1 + dt;
-                        d.price1 = snap.price1 + dp;
-                        d.time2 = snap.time2 + dt;
-                        d.price2 = snap.price2 + dp;
-                    } else if (d.type === 'ray') {
-                        d.time1 = snap.time1 + dt;
-                        d.price1 = snap.price1 + dp;
-                    } else if (d.type === 'vline') {
-                        d.time1 = snap.time1 + dt;
-                    } else if (d.type === 'text') {
-                        d.time1 = snap.time1 + dt;
-                        d.price1 = snap.price1 + dp;
-                    } else if (d.type === 'arc') {
-                        d.time1 = snap.time1 + dt;
-                        d.price1 = snap.price1 + dp;
-                        d.time2 = snap.time2 + dt;
-                        d.price2 = snap.price2 + dp;
-                        d.midTime = snap.midTime + dt;
-                        d.midPrice = snap.midPrice + dp;
-                    } else if (d.type === 'target_sl') {
-                        d.entry = snap.entry + dp;
-                        d.target = snap.target + dp;
-                        d.stop = snap.stop + dp;
-                        d.timeStart = snap.timeStart + dt;
-                        d.timeEnd = snap.timeEnd + dt;
-                    } else if (d.type === 'pencil') {
-                        if (snap.points && Array.isArray(snap.points)) {
-                            d.points = snap.points.map(pt => ({
-                                time: pt.time + dt,
-                                price: pt.price + dp
-                            }));
-                        }
-                    }
-                    renderAllDrawings();
+                if (draggingState.shapeG) {
+                    draggingState.shapeG.setAttribute('transform', `translate(${dx}, ${dy})`);
+                } else {
+                    applyRepositionDelta(draggingState.shape, draggingState.snapshot, curX, curY, draggingState.startX, draggingState.startY);
+                    renderAllDrawings(true);
                 }
             }
         }
@@ -14862,6 +15212,8 @@ function showIndicatorLineActionPill(ind, point) {
             }, { passive: false });
 
             const endDrag = (e) => {
+                unfreezeChartInteractions();
+
                 if (rafDragId) {
                     cancelAnimationFrame(rafDragId);
                     rafDragId = null;
@@ -14870,6 +15222,22 @@ function showIndicatorLineActionPill(ind, point) {
                 cachedDragOverlayRect = null;
 
                 if (draggingState) {
+                    if (draggingState.type === 'reposition') {
+                        if (draggingState.shapeG) {
+                            draggingState.shapeG.removeAttribute('transform');
+                        }
+                        if (draggingState.hasActuallyMoved && draggingState.lastCurX != null && draggingState.lastCurY != null) {
+                            applyRepositionDelta(
+                                draggingState.shape,
+                                draggingState.snapshot,
+                                draggingState.lastCurX,
+                                draggingState.lastCurY,
+                                draggingState.startX,
+                                draggingState.startY
+                            );
+                        }
+                    }
+
                     if (draggingState.hasActuallyMoved) {
                         if (preDragDrawingsSnapshot) {
                             pushDrawingUndoSnapshot(preDragDrawingsSnapshot);
@@ -14927,8 +15295,10 @@ function showIndicatorLineActionPill(ind, point) {
             t.setAttribute('font-size', '11');
             t.setAttribute('font-weight', '700');
             t.setAttribute('text-anchor', 'middle');
+            t.setAttribute('data-role', 'label');
             t.textContent = text;
             parent.appendChild(t);
+            return t;
         }
 
         // Preview Line / Arrow / Arc / Rect while dragging
