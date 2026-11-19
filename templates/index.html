@@ -2728,13 +2728,8 @@
                 z-index: 2100 !important;
             }
 
-            /* Subheader Bar: Compact and Clean */
+            /* Subheader Bar: Suppressed on mobile to maximize chart height */
             .sub-bar {
-                height: 24px;
-                padding: 0 8px;
-                font-size: 10px;
-            }
-            .sub-bar div:last-child {
                 display: none !important;
             }
 
@@ -2833,20 +2828,28 @@
                 transform: translateY(-1px);
             }
 
-            /* Mobile Drawing Toggle - positioned cleanly above volume pane */
+            /* Mobile Drawing Toggle - positioned cleanly at bottom-left corner */
             .mobile-draw-toggle {
                 display: flex !important;
-                bottom: 95px !important;
+                position: fixed !important;
+                bottom: 12px !important;
                 left: 10px !important;
-                width: 36px !important;
-                height: 36px !important;
-                font-size: 15px !important;
+                width: 38px !important;
+                height: 38px !important;
+                font-size: 16px !important;
                 z-index: 1050 !important;
             }
+            .mobile-draw-toggle.active-tool {
+                background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+                color: #ffffff !important;
+                border-color: #60a5fa !important;
+                box-shadow: 0 0 14px rgba(59, 130, 246, 0.8) !important;
+            }
 
-            /* Mobile Jump to Latest Candle Button - Positioned above volume pane on right */
+            /* Mobile Jump to Latest Candle Button - Positioned above dock on right */
             .btn-jump-latest {
-                bottom: 115px !important;
+                position: fixed !important;
+                bottom: 58px !important;
                 right: 12px !important;
                 left: auto !important;
                 transform: none !important;
@@ -2859,7 +2862,15 @@
                 transform: translateY(-2px) !important;
             }
 
-            /* Mobile Floating Terminal Action Dock (Docked at bottom-right corner, leaving volume completely clear) */
+            /* Floating Drawing Action Pill: Docks at top-center on mobile so it NEVER covers handles */
+            #shape-action-pill {
+                top: 10px !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                max-width: 92vw !important;
+            }
+
+            /* Mobile Floating Terminal Action Dock (Docked at bottom-right corner, leaving chart clear) */
             .floating-terminal-dock {
                 position: fixed !important;
                 bottom: 10px !important;
@@ -3936,17 +3947,17 @@
         }
         @media (max-width: 768px) {
             .guest-vip-banner {
-                padding: 4px 8px;
-                font-size: 11px;
-                gap: 6px;
+                padding: 3px 6px;
+                font-size: 10px;
+                gap: 5px;
                 flex-wrap: nowrap;
                 align-items: center;
                 box-sizing: border-box;
-                max-height: 42px;
+                max-height: 36px;
                 overflow: hidden;
             }
             .guest-vip-content {
-                gap: 5px;
+                gap: 4px;
                 flex: 1;
                 min-width: 0;
                 flex-wrap: nowrap;
@@ -3954,12 +3965,12 @@
                 overflow: hidden;
             }
             .guest-vip-badge {
-                font-size: 9px;
-                padding: 2px 5px;
+                font-size: 8.5px;
+                padding: 1.5px 4px;
                 flex-shrink: 0;
             }
             .guest-vip-text {
-                font-size: 11px;
+                font-size: 10.5px;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
@@ -3971,16 +3982,23 @@
                 gap: 4px;
                 flex-shrink: 0;
                 flex-wrap: nowrap;
+                align-items: center;
             }
             .guest-vip-btn {
-                padding: 4px 8px;
-                font-size: 10px;
+                padding: 3px 6px;
+                font-size: 9.5px;
                 white-space: nowrap;
             }
             .guest-connect-dev-btn {
-                padding: 4px 7px;
-                font-size: 10px;
+                padding: 3px 5px;
+                font-size: 9.5px;
                 white-space: nowrap;
+            }
+            .guest-vip-close {
+                font-size: 14px;
+                padding: 2px 5px;
+                color: #94a3b8;
+                line-height: 1;
             }
         }
 
@@ -5375,6 +5393,7 @@
             <button type="button" class="guest-connect-dev-btn" onclick="openDeveloperContactModal()" title="Connect with Developer or Webpage Provider">
                 <span>💬 <span class="hide-on-mobile">Connect with Developer or Webpage Provider</span><span class="show-on-mobile">Help</span></span>
             </button>
+            <button type="button" class="guest-vip-close" onclick="dismissGuestVipBanner(event)" title="Dismiss banner">✕</button>
         </div>
     </div>
 
@@ -11704,13 +11723,20 @@ function showIndicatorLineActionPill(ind, point) {
         });
 
         function selectTool(toolName) {
-            if (!requireAuth('use chart drawing tools (trendlines, zones, target/SL boxes)')) return;
             activeTool = toolName;
 
             // Auto-dismiss mobile toolbar when a tool is selected on phone
+            const drawToggleBtn = document.getElementById('mobile-draw-toggle');
             if (window.innerWidth <= 768) {
                 const sidebar = document.getElementById('drawing-sidebar');
                 if (sidebar) sidebar.classList.remove('mobile-open');
+            }
+            if (drawToggleBtn) {
+                if (toolName !== 'select') {
+                    drawToggleBtn.classList.add('active-tool');
+                } else {
+                    drawToggleBtn.classList.remove('active-tool');
+                }
             }
             document.querySelectorAll('.tool-btn').forEach(btn => {
                 if (btn.id !== 'tool-hide') btn.classList.remove('active');
@@ -12550,20 +12576,32 @@ function showIndicatorLineActionPill(ind, point) {
                 }
             };
 
+            let lastTouchDrawPos = null;
+
             overlay.addEventListener('mousedown', handleDrawingPointerDown);
             overlay.addEventListener('touchstart', (e) => {
                 if (e.touches && e.touches.length === 1 && activeTool !== 'select' && !drawingsHidden) {
                     if (e.cancelable) e.preventDefault();
                     const t = e.touches[0];
+                    lastTouchDrawPos = { clientX: t.clientX, clientY: t.clientY };
                     handleDrawingPointerDown({ clientX: t.clientX, clientY: t.clientY });
                 }
             }, { passive: false });
 
             overlay.addEventListener('touchmove', (e) => {
-                if (e.touches && e.touches.length === 1 && isDrawing && activeTool === 'pencil') {
+                if (e.touches && e.touches.length === 1 && isDrawing && activeTool !== 'select') {
                     if (e.cancelable) e.preventDefault();
                     const t = e.touches[0];
-                    handlePencilMove(t.clientX, t.clientY);
+                    lastTouchDrawPos = { clientX: t.clientX, clientY: t.clientY };
+                    if (activeTool === 'pencil') {
+                        handlePencilMove(t.clientX, t.clientY);
+                    } else if (drawStartPoint) {
+                        const rect = overlay.getBoundingClientRect();
+                        const curX = t.clientX - rect.left;
+                        const curY = t.clientY - rect.top;
+                        updateDrawingCrosshair(curX, curY);
+                        renderDrawingPreview(drawStartPoint.x, drawStartPoint.y, curX, curY);
+                    }
                 }
             }, { passive: false });
 
@@ -12599,6 +12637,19 @@ function showIndicatorLineActionPill(ind, point) {
             overlay.addEventListener('touchend', () => {
                 if (activeTool === 'pencil' && isDrawing) {
                     finishPencilDrawing();
+                } else if (isDrawing && drawStartPoint && activeTool !== 'select') {
+                    if (lastTouchDrawPos) {
+                        const rect = overlay.getBoundingClientRect();
+                        const curX = lastTouchDrawPos.clientX - rect.left;
+                        const curY = lastTouchDrawPos.clientY - rect.top;
+                        const dist = Math.hypot(curX - drawStartPoint.x, curY - drawStartPoint.y);
+                        if (dist >= 14) {
+                            handleDrawingPointerDown({ clientX: lastTouchDrawPos.clientX, clientY: lastTouchDrawPos.clientY });
+                            lastTouchDrawPos = null;
+                            return;
+                        }
+                    }
+                    lastTouchDrawPos = null;
                 }
             });
 
@@ -12606,6 +12657,7 @@ function showIndicatorLineActionPill(ind, point) {
                 if (activeTool === 'pencil' && isDrawing) {
                     finishPencilDrawing();
                 }
+                lastTouchDrawPos = null;
             });
 
             overlay.addEventListener('mouseleave', () => {
@@ -12636,8 +12688,12 @@ function showIndicatorLineActionPill(ind, point) {
             recordCurrentDrawingUndoState();
             drawings.push(box);
             saveDrawings();
+            selectedShapeId = box.id;
             renderAllDrawings();
             openPropertiesPanel(box.id);
+            if (window.innerWidth <= 768) {
+                showShapeActionPill(0, 0, box);
+            }
         }
 
         function plotTradeSetupOnChart(dir, entry, target, stop) {
@@ -13575,8 +13631,16 @@ function showIndicatorLineActionPill(ind, point) {
             }
 
             pill.style.display = 'flex';
-            pill.style.left = Math.max(10, Math.min(wrapRect.width - 200, x)) + 'px';
-            pill.style.top = Math.max(10, y) + 'px';
+            if (window.innerWidth <= 768) {
+                // Mobile: Dock cleanly at top-center of chart so it NEVER blocks handles or the drawing!
+                pill.style.left = '50%';
+                pill.style.transform = 'translateX(-50%)';
+                pill.style.top = '10px';
+            } else {
+                pill.style.transform = 'none';
+                pill.style.left = Math.max(10, Math.min(wrapRect.width - 200, x)) + 'px';
+                pill.style.top = Math.max(10, y) + 'px';
+            }
         }
 
         function hideShapeActionPill(e) {
@@ -13731,11 +13795,12 @@ function showIndicatorLineActionPill(ind, point) {
             circle.style.pointerEvents = 'none';
             g.appendChild(circle);
 
-            // Generous Touch/Mouse Hit Target (34px radius = 68px diameter touch target on mobile)
+            // Generous Touch/Mouse Hit Target (36px radius = 72px diameter touch target on mobile)
             const hitCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             hitCircle.setAttribute('cx', cx); hitCircle.setAttribute('cy', cy);
-            hitCircle.setAttribute('r', isMobile ? '34' : '24');
-            hitCircle.setAttribute('fill', 'transparent');
+            hitCircle.setAttribute('r', isMobile ? '36' : '24');
+            hitCircle.setAttribute('fill', '#000000');
+            hitCircle.setAttribute('fill-opacity', '0');
             hitCircle.style.cursor = cursor || 'pointer';
             hitCircle.style.pointerEvents = 'all';
             hitCircle.style.touchAction = 'none';
@@ -13748,19 +13813,21 @@ function showIndicatorLineActionPill(ind, point) {
                 const overlay = document.getElementById('drawing-overlay');
                 cachedDragOverlayRect = overlay ? overlay.getBoundingClientRect() : null;
                 preDragDrawingsSnapshot = JSON.parse(safeJSONStringify(drawings || []));
+                const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+                const clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
                 draggingState = {
                     type: 'handle',
                     onDrag: onDragFn,
-                    hasActuallyMoved: false
+                    hasActuallyMoved: false,
+                    clickClientX: clientX,
+                    clickClientY: clientY
                 };
             };
 
-            g.onmousedown = handleStart;
-            g.ontouchstart = (e) => {
-                if (e.touches && e.touches.length > 0) {
-                    handleStart(e);
-                }
-            };
+            hitCircle.addEventListener('mousedown', handleStart);
+            hitCircle.addEventListener('touchstart', handleStart, { passive: false });
+            g.addEventListener('mousedown', handleStart);
+            g.addEventListener('touchstart', handleStart, { passive: false });
             return g;
         }
 
@@ -14950,11 +15017,11 @@ function showIndicatorLineActionPill(ind, point) {
             hitTgt.setAttribute('stroke', 'transparent');
             hitTgt.setAttribute('stroke-width', '16');
             hitTgt.setAttribute('data-role', 'hitTgt');
+            hitTgt.setAttribute('stroke-width', window.innerWidth <= 768 ? '26' : '16');
             hitTgt.style.pointerEvents = 'stroke';
             hitTgt.style.cursor = 'move';
             hitTgt.style.touchAction = 'none';
-            hitTgt.onmousedown = (e) => startRepositionDrag(e, d);
-            hitTgt.ontouchstart = (e) => startRepositionDrag(e, d);
+            attachRepositionDrag(hitTgt, d);
             g.appendChild(hitTgt);
 
             // 2. Stop Loss Box Fill (Red) - Pass-through to candle canvas!
@@ -14989,11 +15056,11 @@ function showIndicatorLineActionPill(ind, point) {
             hitStp.setAttribute('stroke', 'transparent');
             hitStp.setAttribute('stroke-width', '16');
             hitStp.setAttribute('data-role', 'hitStp');
+            hitStp.setAttribute('stroke-width', window.innerWidth <= 768 ? '26' : '16');
             hitStp.style.pointerEvents = 'stroke';
             hitStp.style.cursor = 'move';
             hitStp.style.touchAction = 'none';
-            hitStp.onmousedown = (e) => startRepositionDrag(e, d);
-            hitStp.ontouchstart = (e) => startRepositionDrag(e, d);
+            attachRepositionDrag(hitStp, d);
             g.appendChild(hitStp);
 
             // 3. Entry Center Line (Dashed)
@@ -15014,11 +15081,11 @@ function showIndicatorLineActionPill(ind, point) {
             hitEntry.setAttribute('stroke', 'transparent');
             hitEntry.setAttribute('stroke-width', '16');
             hitEntry.setAttribute('data-role', 'hitEntry');
+            hitEntry.setAttribute('stroke-width', window.innerWidth <= 768 ? '26' : '16');
             hitEntry.style.pointerEvents = 'stroke';
             hitEntry.style.cursor = 'move';
             hitEntry.style.touchAction = 'none';
-            hitEntry.onmousedown = (e) => startRepositionDrag(e, d);
-            hitEntry.ontouchstart = (e) => startRepositionDrag(e, d);
+            attachRepositionDrag(hitEntry, d);
             g.appendChild(hitEntry);
 
             // 4. Compact Risk / Reward Ratio Badge (Positioned at top edge away from entry candles)
@@ -15039,8 +15106,7 @@ function showIndicatorLineActionPill(ind, point) {
             bgBadge.style.pointerEvents = 'all';
             bgBadge.style.cursor = 'move';
             bgBadge.style.touchAction = 'none';
-            bgBadge.onmousedown = (e) => startRepositionDrag(e, d);
-            bgBadge.ontouchstart = (e) => startRepositionDrag(e, d);
+            attachRepositionDrag(bgBadge, d);
             g.appendChild(bgBadge);
 
             const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -15114,12 +15180,11 @@ function showIndicatorLineActionPill(ind, point) {
         function attachRepositionDrag(el, d) {
             if (!el) return;
             el.style.touchAction = 'none';
-            el.onmousedown = (e) => startRepositionDrag(e, d);
-            el.ontouchstart = (e) => {
-                if (e.touches && e.touches.length > 0) {
-                    startRepositionDrag(e, d);
-                }
+            const handler = (e) => {
+                startRepositionDrag(e, d);
             };
+            el.addEventListener('mousedown', handler);
+            el.addEventListener('touchstart', handler, { passive: false });
         }
 
         function startRepositionDrag(e, d) {
@@ -15264,6 +15329,12 @@ function showIndicatorLineActionPill(ind, point) {
                     }
                     preDragDrawingsSnapshot = null;
                     draggingState = null;
+                    // On mobile, keep the shape action pill cleanly docked at top-center whenever a shape is selected!
+                    if (window.innerWidth <= 768 && selectedShapeId) {
+                        const s = drawings.find(x => x.id === selectedShapeId);
+                        if (s) showShapeActionPill(0, 0, s);
+                    }
+
                     if (activeTool === 'select') {
                         hideDrawingCrosshair();
                     }
@@ -15303,8 +15374,10 @@ function showIndicatorLineActionPill(ind, point) {
 
         // Preview Line / Arrow / Arc / Rect while dragging
         function renderDrawingPreview(x1, y1, x2, y2) {
-            renderAllDrawings();
+            renderAllDrawings(true);
             const overlay = document.getElementById('drawing-overlay');
+            if (!overlay) return;
+            const targetLayer = document.getElementById('drawings-overlay-layer') || overlay;
             if (activeTool === 'line' || activeTool === 'arrow') {
                 const pLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                 pLine.setAttribute('x1', x1); pLine.setAttribute('y1', y1);
@@ -15312,18 +15385,18 @@ function showIndicatorLineActionPill(ind, point) {
                 pLine.setAttribute('stroke', '#2962ff');
                 pLine.setAttribute('stroke-width', '2');
                 pLine.setAttribute('stroke-dasharray', '5,5');
-                overlay.appendChild(pLine);
+                targetLayer.appendChild(pLine);
             } else if (activeTool === 'arc') {
                 const pPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 const dx = x2 - x1, dy = y2 - y1;
                 const dist = Math.hypot(dx, dy);
                 const bowY = (y1 + y2) / 2 - Math.max(30, dist * 0.25);
-                pPath.setAttribute('d', `M ${x1} ${y1} Q ${(x1 + x2) / 2} ${bowY} ${x2} ${y2}`);
+                pPath.setAttribute('d', 'M ' + x1 + ' ' + y1 + ' Q ' + ((x1 + x2) / 2) + ' ' + bowY + ' ' + x2 + ' ' + y2);
                 pPath.setAttribute('fill', 'none');
                 pPath.setAttribute('stroke', '#ff9800');
                 pPath.setAttribute('stroke-width', '2');
                 pPath.setAttribute('stroke-dasharray', '5,5');
-                overlay.appendChild(pPath);
+                targetLayer.appendChild(pPath);
             } else if (activeTool === 'rect') {
                 const pRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 pRect.setAttribute('x', Math.min(x1, x2)); pRect.setAttribute('y', Math.min(y1, y2));
@@ -15331,7 +15404,7 @@ function showIndicatorLineActionPill(ind, point) {
                 pRect.setAttribute('fill', 'rgba(8, 153, 129, 0.2)');
                 pRect.setAttribute('stroke', '#089981');
                 pRect.setAttribute('stroke-width', '1.5');
-                overlay.appendChild(pRect);
+                targetLayer.appendChild(pRect);
             } else if (activeTool === 'fibonacci') {
                 // Live Fibonacci preview
                 const pLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -15340,7 +15413,7 @@ function showIndicatorLineActionPill(ind, point) {
                 pLine.setAttribute('stroke', '#38bdf8');
                 pLine.setAttribute('stroke-width', '1.5');
                 pLine.setAttribute('stroke-dasharray', '4,4');
-                overlay.appendChild(pLine);
+                targetLayer.appendChild(pLine);
                 const ratios = [0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0];
                 const minX = Math.min(x1, x2), maxX = Math.max(x1, x2, (overlay.clientWidth || 800));
                 ratios.forEach(r => {
@@ -15351,7 +15424,7 @@ function showIndicatorLineActionPill(ind, point) {
                     l.setAttribute('stroke', r === 0.618 ? '#14b8a6' : '#94a3b8');
                     l.setAttribute('stroke-width', r === 0.618 ? '1.5' : '1');
                     l.setAttribute('stroke-dasharray', '2,2');
-                    overlay.appendChild(l);
+                    targetLayer.appendChild(l);
                 });
             } else if (activeTool === 'channel') {
                 const pLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -15360,7 +15433,7 @@ function showIndicatorLineActionPill(ind, point) {
                 pLine.setAttribute('stroke', '#06b6d4');
                 pLine.setAttribute('stroke-width', '1.8');
                 pLine.setAttribute('stroke-dasharray', '3,3');
-                overlay.appendChild(pLine);
+                targetLayer.appendChild(pLine);
             } else if (activeTool === 'price_range') {
                 const pBox = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 pBox.setAttribute('x', Math.min(x1, x2)); pBox.setAttribute('y', Math.min(y1, y2));
@@ -15369,7 +15442,7 @@ function showIndicatorLineActionPill(ind, point) {
                 pBox.setAttribute('stroke', y2 < y1 ? '#22c55e' : '#ef4444');
                 pBox.setAttribute('stroke-width', '1.5');
                 pBox.setAttribute('stroke-dasharray', '3,3');
-                overlay.appendChild(pBox);
+                targetLayer.appendChild(pBox);
             }
         }
 
@@ -18423,6 +18496,22 @@ function showIndicatorLineActionPill(ind, point) {
 
         let guestMobileBannerTimer = null;
 
+        function dismissGuestVipBanner(e) {
+            if (e) e.stopPropagation();
+            const b = document.getElementById('guest-vip-banner');
+            if (b) {
+                b.style.opacity = '0';
+                b.style.maxHeight = '0px';
+                b.style.paddingTop = '0px';
+                b.style.paddingBottom = '0px';
+                b.style.marginTop = '0px';
+                b.style.marginBottom = '0px';
+                b.style.border = 'none';
+                b.style.overflow = 'hidden';
+                setTimeout(() => { b.style.display = 'none'; }, 300);
+            }
+        }
+
         function showGuestVipBannerIfNeeded() {
             const banner = document.getElementById('guest-vip-banner');
             if (!banner) return;
@@ -18431,31 +18520,16 @@ function showIndicatorLineActionPill(ind, point) {
                 banner.style.display = 'flex';
                 banner.style.opacity = '1';
                 banner.style.maxHeight = '';
-                banner.style.transition = 'opacity 0.6s ease, max-height 0.6s ease, padding 0.6s ease, margin 0.6s ease';
+                banner.style.transition = 'opacity 0.4s ease, max-height 0.4s ease, padding 0.4s ease, margin 0.4s ease';
 
-                // Mobile screen rule: automatically remove banner after 15 seconds to maximize chart space
+                // Mobile screen rule: automatically remove banner after 5 seconds to maximize chart space
                 // Big screen rule: keep permanently on display (do not remove)
                 const isMobile = window.innerWidth <= 768;
                 if (isMobile) {
                     if (guestMobileBannerTimer) clearTimeout(guestMobileBannerTimer);
                     guestMobileBannerTimer = setTimeout(() => {
-                        const b = document.getElementById('guest-vip-banner');
-                        if (b && window.innerWidth <= 768) {
-                            b.style.opacity = '0';
-                            b.style.maxHeight = '0px';
-                            b.style.paddingTop = '0px';
-                            b.style.paddingBottom = '0px';
-                            b.style.marginTop = '0px';
-                            b.style.marginBottom = '0px';
-                            b.style.border = 'none';
-                            b.style.overflow = 'hidden';
-                            setTimeout(() => {
-                                if (b && window.innerWidth <= 768) {
-                                    b.style.display = 'none';
-                                }
-                            }, 600);
-                        }
-                    }, 15000);
+                        dismissGuestVipBanner();
+                    }, 5000);
                 } else {
                     if (guestMobileBannerTimer) {
                         clearTimeout(guestMobileBannerTimer);
