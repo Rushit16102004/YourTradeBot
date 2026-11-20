@@ -14,12 +14,14 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sys
 import threading
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, List, Tuple
 
 import pytz
 IST = pytz.timezone("Asia/Kolkata")
@@ -34,6 +36,63 @@ from engine.rate_limiter import copilot_rate_limiter, SlidingWindowRateLimiter
 from temp_storage import TEMP_STORAGE_DIR
 
 auth_rate_limiter = SlidingWindowRateLimiter(max_requests=10, window_seconds=60.0, cooldown_seconds=0.5)
+
+class BruteForceShield:
+    """
+    In-memory Brute Force Protection and Rate Limiting Shield.
+    Tracks failed login attempts by IP and Username/Email.
+    Locks out after 5 consecutive failures for 15 minutes (900 seconds).
+    """
+    def __init__(self, max_failures: int = 5, lockout_seconds: int = 900):
+        self.max_failures = max_failures
+        self.lockout_seconds = lockout_seconds
+        self.failed_attempts: Dict[str, List[float]] = {}
+        self.lockouts: Dict[str, float] = {}
+        self._lock = threading.Lock()
+
+    def is_locked(self, identifier: str, ip: str) -> Tuple[bool, int]:
+        now = time.time()
+        with self._lock:
+            # Check IP lockout
+            ip_lock = self.lockouts.get(f"ip_{ip}", 0)
+            if ip_lock > now:
+                return True, int(ip_lock - now)
+            # Check Identifier lockout
+            if identifier:
+                id_lock = self.lockouts.get(f"user_{identifier.lower()}", 0)
+                if id_lock > now:
+                    return True, int(id_lock - now)
+        return False, 0
+
+    def record_failure(self, identifier: str, ip: str) -> Tuple[bool, int]:
+        now = time.time()
+        with self._lock:
+            window_start = now - self.lockout_seconds
+            keys = [f"ip_{ip}"]
+            if identifier:
+                keys.append(f"user_{identifier.lower()}")
+
+            locked = False
+            for key in keys:
+                attempts = [t for t in self.failed_attempts.get(key, []) if t > window_start]
+                attempts.append(now)
+                self.failed_attempts[key] = attempts
+                if len(attempts) >= self.max_failures:
+                    self.lockouts[key] = now + self.lockout_seconds
+                    locked = True
+            if locked:
+                return True, self.lockout_seconds
+        return False, 0
+
+    def record_success(self, identifier: str, ip: str):
+        with self._lock:
+            self.failed_attempts.pop(f"ip_{ip}", None)
+            self.lockouts.pop(f"ip_{ip}", None)
+            if identifier:
+                self.failed_attempts.pop(f"user_{identifier.lower()}", None)
+                self.lockouts.pop(f"user_{identifier.lower()}", None)
+
+brute_force_shield = BruteForceShield(max_failures=5, lockout_seconds=900)
 
 def get_client_ip(request: Request) -> str:
     """Extracts real client IP address respecting X-Forwarded-For reverse proxy header."""
@@ -906,7 +965,7 @@ async def api_check_phone(phone: str = "", country_code: str = "+91"):
 @app.post("/api/auth/register")
 async def api_register(request: Request, payload: dict = Body(...)):
     """Registers a new user, records legal policy acceptance, and issues a 30-day JWT token."""
-    client_ip = request.client.host if request.client else "127.0.0.1"
+    client_ip = get_client_ip(request)
     allowed, wait_sec, _ = auth_rate_limiter.check_rate_limit(f"reg_{client_ip}")
     if not allowed:
         return JSONResponse(
@@ -934,7 +993,6 @@ async def api_register(request: Request, payload: dict = Body(...)):
 
     phone = str(payload.get("phone") or payload.get("mobile") or "").strip()
     country_code = str(payload.get("country_code") or "+91").strip()
-    client_ip = request.client.host if request.client else "127.0.0.1"
     user_agent = request.headers.get("user-agent", "")
     ok, msg, u = user_db.register_user(username, email, password, trading_style, accepted_policy=True, ip_address=client_ip, user_agent=user_agent, phone=phone, country_code=country_code)
     if not ok:
@@ -952,21 +1010,48 @@ async def api_register(request: Request, payload: dict = Body(...)):
 
 @app.post("/api/auth/login")
 async def api_login(request: Request, payload: dict = Body(...)):
-    """Authenticates user via username or email and returns a signed JWT token."""
-    client_ip = request.client.host if request.client else "127.0.0.1"
+    """Authenticates user via username or email with Brute Force Protection and rate limiting."""
+    client_ip = get_client_ip(request)
+    identifier = str(payload.get("username") or payload.get("email") or payload.get("login") or "").strip()
+    password = str(payload.get("password") or "")
+
+    # 1. Check Brute-Force lockout (5 failures = 15 min lock)
+    is_locked, remaining_sec = brute_force_shield.is_locked(identifier, client_ip)
+    if is_locked:
+        mins = max(1, remaining_sec // 60)
+        return JSONResponse(
+            status_code=429,
+            content={
+                "status": "error",
+                "message": f"Too many failed login attempts. To protect your account, login is temporarily locked for {mins} minute(s)."
+            }
+        )
+
+    # 2. Sliding window request rate limiter
     allowed, wait_sec, _ = auth_rate_limiter.check_rate_limit(f"login_{client_ip}")
     if not allowed:
         return JSONResponse(
             status_code=429,
             content={"status": "error", "message": f"Too many login attempts. Please wait {wait_sec}s before trying again."}
         )
-    user_agent = request.headers.get("user-agent", "")
-    identifier = payload.get("username") or payload.get("email") or payload.get("login") or ""
-    password = payload.get("password", "")
 
+    user_agent = request.headers.get("user-agent", "")
     ok, msg, u, token = user_db.authenticate_user(identifier, password, ip_address=client_ip, user_agent=user_agent)
     if not ok:
+        locked_now, lock_sec = brute_force_shield.record_failure(identifier, client_ip)
+        if locked_now:
+            mins = max(1, lock_sec // 60)
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "status": "error",
+                    "message": f"Too many incorrect password attempts. To protect your account, access is locked for {mins} minutes."
+                }
+            )
         return JSONResponse(status_code=401, content={"status": "error", "message": msg})
+
+    # Reset failure counter on success
+    brute_force_shield.record_success(identifier, client_ip)
 
     return JSONResponse(content={
         "status": "ok",
@@ -982,7 +1067,8 @@ async def api_accept_policy(request: Request):
     u = get_current_user_from_request(request)
     if not u:
         return JSONResponse(status_code=401, content={"status": "error", "message": "Authentication required"})
-    client_ip = request.client.host if request.client else "127.0.0.1"
+    client_ip = get_client_ip(request)
+    user_db.record_policy_acceptance(u["sub"], ip_address=client_ip)
     user_db.record_policy_acceptance(u["sub"], ip_address=client_ip)
     return JSONResponse(content={"status": "ok", "message": "Policy acceptance recorded"})
 
@@ -2236,6 +2322,17 @@ async def rag_chat(request: Request, payload: dict = Body(...)):
 
         # Ask RAG service with user_id drawing context isolation
         res = service.ask(query=user_message, market_state=market_state, user_id=user_id)
+
+        # ⚖️ Persistent SEBI Disclaimer: Automatically attach short, permanent disclaimer to every AI trade suggestion
+        reply_text = str(res.get("reply") or res.get("response") or "")
+        is_trade_suggestion = bool(
+            re.search(r'(?:QUICK\s*)?TRADE\s*EXECUTION\s*SUMMARY|Entry\s*Price|Exit/Target|Stop\s*Loss|Risk:Reward', reply_text, re.IGNORECASE)
+        )
+        if is_trade_suggestion and "SEBI Disclaimer" not in reply_text:
+            sebi_short_disclaimer = "\n\n> ⚖️ **SEBI Disclaimer:** Educational & algorithmic study only. Not SEBI-registered advisory. Derivatives trading carries substantial capital risk."
+            reply_text = reply_text.rstrip() + sebi_short_disclaimer
+            res["reply"] = reply_text
+            res["response"] = reply_text
 
         # Save to conversational memory in SQLite (supports both authenticated traders & guests)
         try:

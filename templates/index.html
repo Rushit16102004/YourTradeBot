@@ -5551,10 +5551,16 @@
                     <circle cx="12" cy="12" r="3"></circle>
                 </svg>
             </button>
-            <button class="tool-btn" id="tool-undo" data-tooltip="Undo Drawing (Ctrl+Z) - Up to 5 Steps" onclick="undoDrawingAction()">
+            <button class="tool-btn" id="tool-undo" data-tooltip="Undo Drawing (Ctrl+Z)" onclick="undoDrawingAction()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="1 4 1 10 7 10"></polyline>
                     <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                </svg>
+            </button>
+            <button class="tool-btn" id="tool-redo" data-tooltip="Redo Drawing (Ctrl+Y / Ctrl+Shift+Z)" onclick="redoDrawingAction()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
                 </svg>
             </button>
             <button class="tool-btn" id="tool-clear" data-tooltip="Clear All Drawings" onclick="clearAllDrawings()">
@@ -6042,6 +6048,17 @@
                 if (adminTip) adminTip.style.display = 'none';
             }
         }, { passive: true });
+
+        // 📳 Mobile Haptic Feedback Engine
+        function triggerHaptic(type = 'light') {
+            if (typeof navigator === 'undefined' || !navigator.vibrate) return;
+            try {
+                if (type === 'light') navigator.vibrate(10);
+                else if (type === 'medium') navigator.vibrate(22);
+                else if (type === 'success') navigator.vibrate([12, 35, 15]);
+                else if (type === 'warning') navigator.vibrate([25, 40, 25]);
+            } catch(e) {}
+        }
 
         let chartData = null;
         let chart = null;
@@ -11733,6 +11750,7 @@ function showIndicatorLineActionPill(ind, point) {
         }
 
         function toggleMobileDrawingSidebar() {
+            triggerHaptic('medium');
             const sidebar = document.getElementById('drawing-sidebar');
             if (sidebar) sidebar.classList.toggle('mobile-open');
         }
@@ -11758,6 +11776,7 @@ function showIndicatorLineActionPill(ind, point) {
         });
 
         function selectTool(toolName) {
+            triggerHaptic('light');
             activeTool = toolName;
 
             // Auto-dismiss mobile toolbar when a tool is selected on phone
@@ -12796,6 +12815,7 @@ function showIndicatorLineActionPill(ind, point) {
                 }
                 if (typeof renderAllDrawings === 'function') {
                     renderAllDrawings();
+                    triggerHaptic('success');
                 }
                 if (typeof chart !== 'undefined' && chart && typeof chart.timeScale === 'function') {
                     try { chart.timeScale().scrollToRealtime(); } catch(e) {}
@@ -13745,11 +13765,25 @@ function showIndicatorLineActionPill(ind, point) {
         // ========================================================
         // 🎯 CONTROL HANDLES & REPOSITIONING DRAG ENGINE
         // ========================================================
-        // ↩️ DRAWING UNDO ENGINE (Up to 5 steps back with Ctrl+Z)
+        // ↩️ DRAWING UNDO & REDO ENGINE (Up to 30 steps with Ctrl+Z / Ctrl+Y & Mobile Buttons)
         // ========================================================
-        const MAX_DRAWING_UNDO_STEPS = 5;
+        const MAX_DRAWING_UNDO_STEPS = 30;
         let drawingUndoStack = [];
+        let drawingRedoStack = [];
         let preDragDrawingsSnapshot = null;
+
+        function updateUndoRedoButtons() {
+            const undoBtn = document.getElementById('tool-undo');
+            const redoBtn = document.getElementById('tool-redo');
+            if (undoBtn) {
+                undoBtn.style.opacity = drawingUndoStack.length > 0 ? '1' : '0.45';
+                undoBtn.title = `Undo Drawing (Ctrl+Z) - ${drawingUndoStack.length} step(s)`;
+            }
+            if (redoBtn) {
+                redoBtn.style.opacity = drawingRedoStack.length > 0 ? '1' : '0.45';
+                redoBtn.title = `Redo Drawing (Ctrl+Y / Ctrl+Shift+Z) - ${drawingRedoStack.length} step(s)`;
+            }
+        }
 
         function pushDrawingUndoSnapshot(snapshot) {
             if (!snapshot || !Array.isArray(snapshot)) return;
@@ -13761,8 +13795,11 @@ function showIndicatorLineActionPill(ind, point) {
                 }
                 drawingUndoStack.push(JSON.parse(snapStr));
                 if (drawingUndoStack.length > MAX_DRAWING_UNDO_STEPS) {
-                    drawingUndoStack.shift(); // Strictly retain last 5 steps back
+                    drawingUndoStack.shift();
                 }
+                // Performing a new drawing action clears the redo stack
+                drawingRedoStack = [];
+                updateUndoRedoButtons();
             } catch(e) {}
         }
 
@@ -13772,17 +13809,48 @@ function showIndicatorLineActionPill(ind, point) {
 
         function undoDrawingAction() {
             if (!drawingUndoStack || drawingUndoStack.length === 0) {
-                showToast("ℹ️ Nothing to undo (0/5 steps in drawing history)");
+                showToast("ℹ️ Nothing to undo");
                 return;
             }
-            const previousState = drawingUndoStack.pop();
-            drawings = JSON.parse(safeJSONStringify(previousState));
-            selectedShapeId = null;
-            closePropertiesPanel();
-            hideShapeActionPill();
-            saveDrawings();
-            renderAllDrawings();
-            showToast(`↩️ Undo: Restored previous drawing state (${drawingUndoStack.length}/${MAX_DRAWING_UNDO_STEPS} steps remaining)`);
+            try {
+                // Save current state into redo stack
+                drawingRedoStack.push(JSON.parse(safeJSONStringify(drawings || [])));
+                if (drawingRedoStack.length > MAX_DRAWING_UNDO_STEPS) drawingRedoStack.shift();
+
+                const previousState = drawingUndoStack.pop();
+                drawings = JSON.parse(safeJSONStringify(previousState));
+                selectedShapeId = null;
+                closePropertiesPanel();
+                hideShapeActionPill();
+                saveDrawings();
+                renderAllDrawings();
+                updateUndoRedoButtons();
+                triggerHaptic('medium');
+                showToast(`↩️ Undo: Restored drawing (${drawingUndoStack.length} undo steps left)`);
+            } catch(e) {}
+        }
+
+        function redoDrawingAction() {
+            if (!drawingRedoStack || drawingRedoStack.length === 0) {
+                showToast("ℹ️ Nothing to redo");
+                return;
+            }
+            try {
+                // Save current state into undo stack
+                drawingUndoStack.push(JSON.parse(safeJSONStringify(drawings || [])));
+                if (drawingUndoStack.length > MAX_DRAWING_UNDO_STEPS) drawingUndoStack.shift();
+
+                const nextState = drawingRedoStack.pop();
+                drawings = JSON.parse(safeJSONStringify(nextState));
+                selectedShapeId = null;
+                closePropertiesPanel();
+                hideShapeActionPill();
+                saveDrawings();
+                renderAllDrawings();
+                updateUndoRedoButtons();
+                triggerHaptic('medium');
+                showToast(`↪️ Redo: Re-applied drawing (${drawingRedoStack.length} redo steps left)`);
+            } catch(e) {}
         }
 
         function freezeChartInteractions() {
@@ -15386,15 +15454,20 @@ function showIndicatorLineActionPill(ind, point) {
             window.addEventListener('touchend', endDrag);
             window.addEventListener('touchcancel', endDrag);
 
-            // Global Ctrl+Z (Undo) Shortcut for drawings
+            // Global Ctrl+Z (Undo) and Ctrl+Y / Ctrl+Shift+Z (Redo) Shortcuts for drawings
             window.addEventListener('keydown', (e) => {
                 const targetTag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
                 if (targetTag === 'input' || targetTag === 'textarea' || (e.target && e.target.isContentEditable)) {
-                    return; // Allow native input undo
+                    return; // Allow native text input undo/redo
                 }
-                if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z') && !e.shiftKey) {
-                    e.preventDefault();
-                    undoDrawingAction();
+                if (e.ctrlKey || e.metaKey) {
+                    if ((e.key === 'z' || e.key === 'Z') && !e.shiftKey) {
+                        e.preventDefault();
+                        undoDrawingAction();
+                    } else if (((e.key === 'z' || e.key === 'Z') && e.shiftKey) || e.key === 'y' || e.key === 'Y') {
+                        e.preventDefault();
+                        redoDrawingAction();
+                    }
                 }
             });
         }
@@ -16652,6 +16725,11 @@ function showIndicatorLineActionPill(ind, point) {
                                 </div>
                             </div>
                             ${plotBtnHtml}
+                            <!-- Persistent SEBI Disclaimer Footer & Watermark for AI Trade Suggestions -->
+                            <div class="hud-sebi-watermark" style="margin-top: 10px; padding: 6px 10px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; font-size: 11px; color: #94a3b8; display: flex; align-items: center; gap: 7px; line-height: 1.4;">
+                                <span style="font-size: 13px;">⚖️</span>
+                                <span><b>SEBI Disclaimer:</b> Educational & algorithmic study only. Not SEBI-registered advisory. Derivatives trading carries substantial capital risk.</span>
+                            </div>
                         </div>
                     `;
                     html = html.replace(block, '[[TRADE_CARD_PLACEHOLDER]]');
@@ -16707,6 +16785,46 @@ function showIndicatorLineActionPill(ind, point) {
                 }
             }
             return finalHtml;
+        }
+
+        // 🌊 Word-by-Word Streaming Response Engine for AI Copilot (Client-Side Typing Animation)
+        function streamCopilotWords(bubbleEl, fullText, onDone) {
+            const tokens = fullText.match(/\S+|\s+/g) || [fullText];
+            let tokenIdx = 0;
+            let currentText = '';
+            let isCancelled = false;
+
+            function finishInstantly() {
+                if (isCancelled) return;
+                isCancelled = true;
+                bubbleEl.removeEventListener('click', finishInstantly);
+                bubbleEl.innerHTML = formatCopilotMarkdown(fullText);
+                scrollCopilotToBottom();
+                triggerHaptic('success');
+                if (onDone) onDone();
+            }
+
+            bubbleEl.addEventListener('click', finishInstantly);
+
+            function step() {
+                if (isCancelled) return;
+                const batchSize = Math.max(1, Math.min(3, Math.ceil(tokens.length / 150)));
+                for (let b = 0; b < batchSize && tokenIdx < tokens.length; b++) {
+                    currentText += tokens[tokenIdx];
+                    tokenIdx++;
+                }
+
+                if (tokenIdx >= tokens.length) {
+                    finishInstantly();
+                    return;
+                }
+
+                bubbleEl.innerHTML = formatCopilotMarkdown(currentText) + '<span class="streaming-cursor" style="color: #38bdf8; font-weight: 800; margin-left: 2px;">▍</span>';
+                scrollCopilotToBottom();
+                setTimeout(step, 18);
+            }
+
+            step();
         }
 
         async function sendCopilotMessage(promptOverride = null) {
@@ -16769,6 +16887,7 @@ function showIndicatorLineActionPill(ind, point) {
                 <div class="copilot-msg-meta"><span>You • ${nowTime}</span></div>
             `;
             messages.appendChild(userMsgEl);
+            triggerHaptic('light');
 
             // 2. Add Typing Indicator
             const typingEl = document.createElement('div');
@@ -16872,35 +16991,36 @@ function showIndicatorLineActionPill(ind, point) {
                 }
 
                 let botReply = data.response || data.reply || "No response received.";
-                
-                const disclaimer = data.risk_disclaimer || "Trading involves substantial risk. Invest at your own risk.";
 
                 const botMsgEl = document.createElement('div');
                 botMsgEl.className = 'copilot-msg assistant';
-                botMsgEl.innerHTML = `
-                    <div class="copilot-msg-bubble">
-                        ${formatCopilotMarkdown(botReply)}
-                    </div>
-                    <div class="copilot-msg-meta">
-                        <span>AI Strategy Copilot • ${nowTime}</span>
-                    </div>
-                `;
+                const bubbleEl = document.createElement('div');
+                bubbleEl.className = 'copilot-msg-bubble';
+                const metaEl = document.createElement('div');
+                metaEl.className = 'copilot-msg-meta';
+                metaEl.innerHTML = `<span>AI Strategy Copilot • ${nowTime}</span>`;
+                botMsgEl.appendChild(bubbleEl);
+                botMsgEl.appendChild(metaEl);
                 messages.appendChild(botMsgEl);
 
-                // Show guest prompt status banner
-                if (!token) {
-                    const currentGuestCount = getGuestChatCount();
-                    const rem = Math.max(0, 2 - currentGuestCount);
-                    const guestPill = document.createElement('div');
-                    if (rem > 0) {
-                        guestPill.style.cssText = 'text-align: center; margin: 4px 0 8px 0; font-size: 11px; color: #38bdf8;';
-                        guestPill.innerHTML = `✨ <i>Free Guest Preview: ${rem} prompt remaining • <a href="javascript:void(0)" onclick="openAuthModal('register')" style="color: #10b981; font-weight: 700; text-decoration: underline;">Register Free</a> for unlimited chats</i>`;
-                    } else {
-                        guestPill.style.cssText = 'text-align: center; margin: 6px 0 10px 0; font-size: 11.5px; color: #f59e0b; background: rgba(245, 158, 11, 0.1); border: 1px dashed rgba(245, 158, 11, 0.35); border-radius: 8px; padding: 6px 10px;';
-                        guestPill.innerHTML = `🚀 <b>2 of 2 Free Chats Used!</b> Next prompt requires a free account: <a href="javascript:void(0)" onclick="openAuthModal('register')" style="color: #38bdf8; font-weight: 800; text-decoration: underline;">Create 100% Free Account Now</a>`;
+                // Word-by-Word Streaming Animation
+                streamCopilotWords(bubbleEl, botReply, () => {
+                    // Show guest prompt status banner after streaming finishes
+                    if (!token) {
+                        const currentGuestCount = getGuestChatCount();
+                        const rem = Math.max(0, 2 - currentGuestCount);
+                        const guestPill = document.createElement('div');
+                        if (rem > 0) {
+                            guestPill.style.cssText = 'text-align: center; margin: 4px 0 8px 0; font-size: 11px; color: #38bdf8;';
+                            guestPill.innerHTML = `✨ <i>Free Guest Preview: ${rem} prompt remaining • <a href="javascript:void(0)" onclick="openAuthModal('register')" style="color: #10b981; font-weight: 700; text-decoration: underline;">Register Free</a> for unlimited chats</i>`;
+                        } else {
+                            guestPill.style.cssText = 'text-align: center; margin: 6px 0 10px 0; font-size: 11.5px; color: #f59e0b; background: rgba(245, 158, 11, 0.1); border: 1px dashed rgba(245, 158, 11, 0.35); border-radius: 8px; padding: 6px 10px;';
+                            guestPill.innerHTML = `🚀 <b>2 of 2 Free Chats Used!</b> Next prompt requires a free account: <a href="javascript:void(0)" onclick="openAuthModal('register')" style="color: #38bdf8; font-weight: 800; text-decoration: underline;">Create 100% Free Account Now</a>`;
+                        }
+                        messages.appendChild(guestPill);
+                        scrollCopilotToBottom();
                     }
-                    messages.appendChild(guestPill);
-                }
+                });
 
             } catch (err) {
                 const typingNode = document.getElementById('copilot-typing-bubble');
