@@ -1529,29 +1529,50 @@ def verify_registration_otp(phone: str, otp_code: str) -> Tuple[bool, str]:
     return True, "Verified"
 
 
+def sanitize_phone_number(phone: str, country_code: str = "+91") -> Tuple[bool, str, str, str]:
+    """
+    Validates and standardizes a mobile number worldwide based on country code.
+    If country_code is +91 (India): must start with 6, 7, 8, or 9 and be 10 digits.
+    For other country codes: digits only, length between 6 and 14 digits.
+    Returns: (is_valid: bool, full_formatted_phone: str, clean_local_digits: str, error_message: str)
+    """
+    cc = str(country_code or "+91").strip()
+    if not cc.startswith("+"):
+        cc = "+" + cc
+    cc_digits = re.sub(r"[^\d]", "", cc) or "91"
+    clean_cc = "+" + cc_digits
+
+    raw_local = re.sub(r"[^\d]", "", str(phone or "").strip())
+
+    if clean_cc == "+91":
+        if raw_local.startswith("91") and len(raw_local) == 12:
+            raw_local = raw_local[2:]
+        elif raw_local.startswith("0") and len(raw_local) == 11:
+            raw_local = raw_local[1:]
+
+        if len(raw_local) != 10 or raw_local[0] not in "6789":
+            return False, "", raw_local, "Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9."
+        full_phone = f"+91 {raw_local}"
+        return True, full_phone, raw_local, ""
+    else:
+        if len(raw_local) < 6 or len(raw_local) > 15:
+            return False, "", raw_local, f"Please enter a valid mobile number for {clean_cc} (between 6 and 14 digits)."
+        full_phone = f"{clean_cc} {raw_local}"
+        return True, full_phone, raw_local, ""
+
+
 def sanitize_indian_phone(phone: str) -> Tuple[bool, str, str]:
-    """
-    Validates and standardizes a 10-digit Indian mobile number.
-    Must start with 6, 7, 8, or 9.
-    Returns: (is_valid: bool, clean_10_digits: str, error_message: str)
-    """
-    raw = re.sub(r"[^\d]", "", str(phone or "").strip())
-    if raw.startswith("91") and len(raw) == 12:
-        raw = raw[2:]
-    elif raw.startswith("0") and len(raw) == 11:
-        raw = raw[1:]
-
-    if len(raw) != 10 or raw[0] not in "6789":
-        return False, raw, "Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9."
-    return True, raw, ""
+    """Backwards-compatible wrapper for Indian phone sanitization."""
+    ok, full_p, local_p, err = sanitize_phone_number(phone, "+91")
+    return ok, local_p, err
 
 
-def check_phone_available(phone: str) -> Tuple[bool, str]:
+def check_phone_available(phone: str, country_code: str = "+91") -> Tuple[bool, str]:
     """
-    Checks if an Indian mobile number is valid and not already registered.
+    Checks if a mobile number is valid and not already registered worldwide.
     Returns: (is_available: bool, message: str)
     """
-    valid, clean_phone, err = sanitize_indian_phone(phone)
+    valid, full_phone, local_digits, err = sanitize_phone_number(phone, country_code)
     if not valid:
         return False, err
 
@@ -1559,11 +1580,12 @@ def check_phone_available(phone: str) -> Tuple[bool, str]:
         conn = get_db_connection()
         cursor = conn.cursor()
         try:
-            cursor.execute("SELECT id FROM users WHERE phone = ?", (clean_phone,))
+            # Check full_phone and local_digits for complete backwards compatibility
+            cursor.execute("SELECT id FROM users WHERE phone = ? OR phone = ?", (full_phone, local_digits))
             row = cursor.fetchone()
             if row:
-                return False, f"Mobile number '+91 {clean_phone}' is already registered. Please Log In."
-            return True, f"Mobile number '+91 {clean_phone}' is available for registration."
+                return False, f"Mobile number \x27{full_phone}\x27 is already registered. Please Log In."
+            return True, f"Mobile number \x27{full_phone}\x27 is available for registration."
         except Exception as e:
             logger.error("Error checking phone availability: %s", e)
             return False, f"Database error checking phone: {e}"
@@ -1598,7 +1620,7 @@ def check_username_available(username: str) -> Tuple[bool, str]:
         finally:
             conn.close()
 
-def register_user(username: str, email: str, password: str, trading_style: str = "intraday_scalper", accepted_policy: bool = True, ip_address: str = "127.0.0.1", user_agent: str = "", phone: str = "") -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+def register_user(username: str, email: str, password: str, trading_style: str = "intraday_scalper", accepted_policy: bool = True, ip_address: str = "127.0.0.1", user_agent: str = "", phone: str = "", country_code: str = "+91") -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
     Registers a new user.
     Returns: (success: bool, message: str, user_dict_or_none)
@@ -1645,15 +1667,15 @@ def register_user(username: str, email: str, password: str, trading_style: str =
 
             clean_phone = ""
             if phone:
-                p_ok, clean_p, p_err = sanitize_indian_phone(phone)
+                p_ok, full_p, local_p, p_err = sanitize_phone_number(phone, country_code)
                 if not p_ok:
                     return False, p_err, None
-                clean_phone = clean_p
-                cursor.execute("SELECT id FROM users WHERE phone = ?", (clean_phone,))
+                clean_phone = full_p
+                cursor.execute("SELECT id FROM users WHERE phone = ? OR phone = ?", (full_p, local_p))
                 if cursor.fetchone():
-                    return False, f"Mobile number '+91 {clean_phone}' is already registered to another account.", None
+                    return False, f"Mobile number '{full_p}' is already registered to another account.", None
             else:
-                return False, "Indian mobile number is required to register.", None
+                clean_phone = "" 
 
             cursor.execute(
                 """

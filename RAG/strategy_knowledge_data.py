@@ -166,7 +166,41 @@ STRATEGY_KNOWLEDGE_DOCS: List[Dict[str, Any]] = [
     # ---------------------------------------------------------
     # 7. Risk Management, Stop Loss & Capital Protection Policy
     # ---------------------------------------------------------
+        # ---------------------------------------------------------
+    # 7. Comprehensive Terms of Service, Legal Policy & Regulatory Notice
+    # ---------------------------------------------------------
     {
+        "id": "legal_terms_of_service_full_policy",
+        "title": "Comprehensive Terms of Service, SEBI Notice, Developer Immunity & Privacy Policy",
+        "category": "LEGAL_POLICY",
+        "tags": "terms_and_conditions, policy, sebi, disclaimer, privacy, liability, legal, developer, rushit_bodra, t_and_c",
+        "content": (
+            "COMPREHENSIVE TERMS OF SERVICE, REGULATORY NOTICE, DEVELOPER IMMUNITY & PRIVACY POLICY:\n"
+            "Primary Notice: This platform (NIFTY 50 Pro Terminal) is strictly a CHARTING & COMPUTATIONAL ANALYTICS SOFTWARE. It does NOT provide investment advice, financial recommendations, or portfolio management services.\n\n"
+            "1. Charting & Analytics Software Only — No Personalized Investment or Tax Advice:\n"
+            "   This platform, its charting terminal, algorithmic indicators (Session VWAP, Standard Deviation Bands, Moving Averages, Support & Resistance confluence matrices), and AI Strategy Copilot are computational research and technical visualization tools. Neither this platform nor its developers (including Lead Developer Rushit Bodra) are registered as Investment Advisers (IA), Research Analysts (RA), Portfolio Managers, or Stock Brokers under SEBI regulations or any statutory financial framework. General analytical tools and educational charts are not tailored to any individual\x27s personal financial circumstances, risk profile, or tax situation. Users must obtain certified advice from qualified, SEBI-registered professionals before making financial decisions.\n\n"
+            "2. Broker Interface Priority & Live Execution Disclaimer:\n"
+            "   The user is solely responsible for authorizing live trading, maintaining appropriate broker permissions, and independently verifying all orders, executions, fills, cancellations, open positions, and account balances directly through their broker\x27s official application or interface. Users must NEVER assume an order has been executed or cancelled merely because this platform displays a status, mark, or signal. The platform does not control independent third-party broker systems.\n\n"
+            "3. Independent Verification of Signals, Indicators & Chart Calculations:\n"
+            "   All real-time prices, VWAP calculations, candlestick patterns, and Support & Resistance barrier levels are algorithmic approximations calculated from incoming market data. Real-world market liquidity, spreads, and broker fills may vary significantly. Users must independently verify all levels and assume full responsibility for all market participation.\n\n"
+            "4. Latency, Data Synchronization, Price Slip & Feed Discrepancy Disclaimer:\n"
+            "   Financial exchange tick data feeds may suffer network latency, data packet loss, or timestamp discrepancies. The platform is not responsible for execution slippage, latency delays, or price discrepancies between exchange data feeds and broker order execution terminals.\n\n"
+            "5. Algorithmic Backtesting & Forward Strategy Simulation Limitations:\n"
+            "   Past performance, historical backtests, and forward simulations do not guarantee future trading profits. Market dynamics, regime shifts, and unexpected macro volatility can lead to substantial financial drawdown.\n\n"
+            "6. Scheduled Maintenance, API Connectivity & Unforeseen System Downtime:\n"
+            "   The platform and cloud servers may intermittently undergo maintenance, recalibration, data synchronization, or system updates without prior notice. The user is solely responsible for monitoring live positions and risk through their official broker terminal.\n\n"
+            "7. AI Strategy Copilot & Developer Communication Disclaimer:\n"
+            "   Any explanations, technical assistance, prompt responses, documentation, or messages provided by the AI Strategy Copilot or developer are strictly informational, educational, and academic in nature. They do not constitute performance guarantees, financial advisory, or investment recommendations. Users remain 100% personally responsible for their actions.\n\n"
+            "8. Privacy Policy & AI Model Training Data Usage:\n"
+            "   We securely store user chat history and queries for future model training purposes and continuous technical analysis optimization. This data is securely saved in our private database with strict encryption and access controls. Your conversations remain protected and private to your account.\n\n"
+            "9. Capital Risk Disclosure & User Risk Allocation (>93% Retail Loss Warning):\n"
+            "   Trading in financial markets, equities, and especially leveraged Index Futures & Options (F&O) involves catastrophic financial risk that can result in the complete depletion of all deployed capital. Official SEBI research shows that over 93% of individual retail traders in equity derivatives incur severe net losses. Users alone decide how much capital to expose. Never trade or deploy money you cannot afford to lose completely.\n\n"
+            "10. Complete Developer Immunity, Indemnification & Limitation of Liability:\n"
+            "    The user assumes full responsibility for their own trading decisions, trade execution instructions, position sizing, leverage, and financial exposure. Under no circumstances or legal theories shall the Lead Developer (Rushit Bodra, rushitbodra@gmail.com), contributors, or operators be liable for direct, indirect, consequential, punitive, slippage, latency, or execution losses.\n\n"
+            "Lead Developer & Strategy Architect: Rushit Bodra (rushitbodra@gmail.com). System Version: 2026.10-Enterprise."
+        ),
+    },
+{
         "id": "strat_risk_policy_disclaimer",
         "title": "Mandatory Risk Management Policy & Statutory Loss Disclaimer",
         "category": "RISK_POLICY",

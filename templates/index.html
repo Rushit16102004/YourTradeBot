@@ -2777,6 +2777,9 @@
                 box-shadow: 6px 0 24px rgba(0, 0, 0, 0.85);
                 transform: translateX(-100%);
                 transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+                padding-bottom: 55px !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch !important;
             }
             .drawing-sidebar.mobile-open {
                 transform: translateX(0);
@@ -2844,6 +2847,27 @@
                 color: #ffffff !important;
                 border-color: #60a5fa !important;
                 box-shadow: 0 0 14px rgba(59, 130, 246, 0.8) !important;
+            }
+
+            /* When drawing sidebar is open on mobile, hide floating pencil toggle so it never overlaps #tool-clear (delete button) */
+            .drawing-sidebar.mobile-open ~ .chart-viewport .mobile-draw-toggle,
+            .drawing-sidebar.mobile-open ~ #chart-viewport .mobile-draw-toggle {
+                display: none !important;
+            }
+
+            /* Admin Traffic Center Tooltip / Modal: Fix display on mobile */
+            #admin-stats-tooltip {
+                position: fixed !important;
+                top: 76px !important;
+                right: 8px !important;
+                left: auto !important;
+                width: 320px !important;
+                max-width: calc(100vw - 16px) !important;
+                max-height: calc(100dvh - 86px) !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                z-index: 99999 !important;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(124, 58, 237, 0.4) !important;
             }
 
             /* Mobile Jump to Latest Candle Button - Positioned above dock on right */
@@ -6001,12 +6025,23 @@
             closeAllDropdowns();
         }
 
-        // Click outside closes dropdowns
+        // Click or Touch outside closes dropdowns (specifically when touching canvas or chart on mobile)
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.custom-dropdown')) {
+            if (!e.target.closest('.custom-dropdown') && !e.target.closest('.dropdown-menu-panel')) {
                 closeAllDropdowns();
             }
         });
+
+        // Touchstart listener on mobile: touching chart canvas, drawings overlay or workspace closes dropdowns immediately
+        document.addEventListener('touchstart', (e) => {
+            if (!e.target.closest('.custom-dropdown') && !e.target.closest('.dropdown-menu-panel') && !e.target.closest('#user-dropdown-menu') && !e.target.closest('#admin-stats-tooltip') && !e.target.closest('#btn-admin-stats') && !e.target.closest('#user-avatar-btn')) {
+                closeAllDropdowns();
+                const userMenu = document.getElementById('user-dropdown-menu');
+                if (userMenu) userMenu.style.display = 'none';
+                const adminTip = document.getElementById('admin-stats-tooltip');
+                if (adminTip) adminTip.style.display = 'none';
+            }
+        }, { passive: true });
 
         let chartData = null;
         let chart = null;
@@ -14184,39 +14219,42 @@ function showIndicatorLineActionPill(ind, point) {
             const x1 = timeToX(d.time1);
             const y1 = priceToY(d.price1);
             if (x1 == null || y1 == null) return;
-            const maxX = overlay.clientWidth || 1200;
+            const rootViewport = document.getElementById("chart-viewport") || document.getElementById("main-chart-wrapper");
+            const viewWidth = rootViewport ? rootViewport.clientWidth : (window.innerWidth || 1400);
+            const maxX = Math.max(viewWidth + 3000, 6000);
             const isSel = d.id === selectedShapeId;
-            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            g.style.cursor = 'move';
-            g.style.pointerEvents = 'all';
+            const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            g.style.cursor = "move";
+            g.style.pointerEvents = "all";
 
             // Hit line
-            const hit = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            hit.setAttribute('x1', x1); hit.setAttribute('y1', y1);
-            hit.setAttribute('x2', maxX); hit.setAttribute('y2', y1);
-            hit.setAttribute('stroke', 'transparent');
-            hit.setAttribute('stroke-width', '16');
+            const hit = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            hit.setAttribute("x1", x1); hit.setAttribute("y1", y1);
+            hit.setAttribute("x2", maxX); hit.setAttribute("y2", y1);
+            hit.setAttribute("stroke", "transparent");
+            hit.setAttribute("stroke-width", window.innerWidth <= 768 ? "26" : "16");
             attachRepositionDrag(hit, d);
             g.appendChild(hit);
 
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', x1); line.setAttribute('y1', y1);
-            line.setAttribute('x2', maxX); line.setAttribute('y2', y1);
-            line.setAttribute('stroke', d.color || '#f59e0b');
-            line.setAttribute('stroke-width', isSel ? '3' : (d.width || '2'));
-            if (isSel) line.setAttribute('stroke-dasharray', '4,3');
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", x1); line.setAttribute("y1", y1);
+            line.setAttribute("x2", maxX); line.setAttribute("y2", y1);
+            line.setAttribute("stroke", d.color || "#f59e0b");
+            line.setAttribute("stroke-width", isSel ? "3" : (d.width || "2"));
+            if (isSel) line.setAttribute("stroke-dasharray", "4,3");
             g.appendChild(line);
 
-            const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            dot.setAttribute('cx', x1); dot.setAttribute('cy', y1);
-            dot.setAttribute('r', isSel ? '6' : '4');
-            dot.setAttribute('fill', d.color || '#f59e0b');
+            const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            dot.setAttribute("cx", x1); dot.setAttribute("cy", y1);
+            dot.setAttribute("r", isSel ? "6" : "4");
+            dot.setAttribute("fill", d.color || "#f59e0b");
             g.appendChild(dot);
 
-            renderLabel(maxX - 80, y1 - 6, `₹${d.price1.toFixed(2)}`, d.color || '#f59e0b', g);
+            const labelX = Math.min(viewWidth - 80, maxX - 80);
+            renderLabel(Math.max(x1 + 60, labelX), y1 - 6, `₹${d.price1.toFixed(2)}`, d.color || "#f59e0b", g);
 
             if (isSel) {
-                renderResizeHandle(x1, y1, d.color || '#f59e0b', g, (curX, curY) => {
+                renderResizeHandle(x1, y1, d.color || "#f59e0b", g, (curX, curY) => {
                     const t = xToTime(curX), p = yToPrice(curY);
                     if (t && p) { d.time1 = t; d.price1 = p; }
                 });
@@ -14228,33 +14266,35 @@ function showIndicatorLineActionPill(ind, point) {
         function renderVLine(d, overlay) {
             const x1 = timeToX(d.time1);
             if (x1 == null) return;
-            const maxY = overlay.clientHeight || 600;
+            const rootViewport = document.getElementById("chart-viewport") || document.getElementById("main-chart-wrapper");
+            const viewHeight = rootViewport ? rootViewport.clientHeight : (window.innerHeight || 800);
+            const maxY = Math.max(viewHeight + 1500, 3500);
             const isSel = d.id === selectedShapeId;
-            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            g.style.cursor = 'ew-resize';
-            g.style.pointerEvents = 'all';
+            const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            g.style.cursor = "ew-resize";
+            g.style.pointerEvents = "all";
 
-            const hit = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            hit.setAttribute('x1', x1); hit.setAttribute('y1', 0);
-            hit.setAttribute('x2', x1); hit.setAttribute('y2', maxY);
-            hit.setAttribute('stroke', 'transparent');
-            hit.setAttribute('stroke-width', '18');
+            const hit = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            hit.setAttribute("x1", x1); hit.setAttribute("y1", 0);
+            hit.setAttribute("x2", x1); hit.setAttribute("y2", maxY);
+            hit.setAttribute("stroke", "transparent");
+            hit.setAttribute("stroke-width", window.innerWidth <= 768 ? "28" : "18");
             attachRepositionDrag(hit, d);
             g.appendChild(hit);
 
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', x1); line.setAttribute('y1', 0);
-            line.setAttribute('x2', x1); line.setAttribute('y2', maxY);
-            line.setAttribute('stroke', d.color || '#a855f7');
-            line.setAttribute('stroke-width', isSel ? '2.5' : (d.width || '1.5'));
-            line.setAttribute('stroke-dasharray', '4,4');
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", x1); line.setAttribute("y1", 0);
+            line.setAttribute("x2", x1); line.setAttribute("y2", maxY);
+            line.setAttribute("stroke", d.color || "#a855f7");
+            line.setAttribute("stroke-width", isSel ? "2.5" : (d.width || "1.5"));
+            line.setAttribute("stroke-dasharray", "4,4");
             g.appendChild(line);
 
-            const dateStr = new Date(d.time1 * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            renderLabel(x1 + 6, 24, dateStr, d.color || '#a855f7', g);
+            const dateStr = new Date(d.time1 * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+            renderLabel(x1 + 6, 24, dateStr, d.color || "#a855f7", g);
 
             if (isSel) {
-                renderResizeHandle(x1, 24, d.color || '#a855f7', g, (curX, curY) => {
+                renderResizeHandle(x1, 24, d.color || "#a855f7", g, (curX, curY) => {
                     const t = xToTime(curX);
                     if (t) d.time1 = t;
                 });
@@ -17256,17 +17296,25 @@ function showIndicatorLineActionPill(ind, point) {
                         <input id="reg-confirm-password" type="password" autocomplete="new-password" required minlength="6" placeholder="Re-enter your password" oninput="checkPasswordMatch()" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none; transition: border-color 0.2s ease;">
                     </div>
 
-                    <!-- 5. Mobile Number (India) -->
-                    <div style="margin-bottom: 12px;">
+                    <!-- 5. Worldwide Mobile Number with Searchable Country Code -->
+                    <div style="margin-bottom: 12px; position: relative;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                            <label style="font-size: 12px; color: #94a3b8; font-weight: 600;">Mobile Number (India) <span style="font-size: 11px; color: #64748b; font-weight: 500;">(Optional)</span></label>
+                            <label style="font-size: 12px; color: #94a3b8; font-weight: 600;">Mobile Number <span style="font-size: 11px; color: #64748b; font-weight: 500;">(Optional)</span></label>
                             <span id="reg-phone-status" style="font-size: 11px;"></span>
                         </div>
-                        <div style="display: flex; gap: 8px;">
-                            <div style="background: #1e293b; border: 1px solid #334155; color: #94a3b8; padding: 9px 12px; border-radius: 8px; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                                <span>🇮🇳</span> +91
+                        <div style="display: flex; gap: 8px; position: relative;">
+                            <!-- Searchable Country Code Trigger Button -->
+                            <button type="button" id="reg-country-btn" onclick="toggleCountryCodeDropdown(event)" style="background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: pointer; flex-shrink: 0; outline: none; transition: all 0.2s ease;">
+                                <span id="reg-country-flag">🇮🇳</span> <span id="reg-country-code">+91</span> <span style="font-size: 9px; color: #94a3b8;">▼</span>
+                            </button>
+                            <!-- Searchable Country Code Popup List -->
+                            <div id="reg-country-dropdown" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; width: 280px; max-width: 90vw; background: #0f172a; border: 1px solid #3b82f6; border-radius: 8px; box-shadow: 0 16px 36px rgba(0,0,0,0.9); z-index: 10001; padding: 8px; box-sizing: border-box;">
+                                <input type="text" id="reg-country-search" placeholder="Type country or code (+91, US...)" oninput="filterCountryList(this.value)" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #475569; color: #f8fafc; padding: 7px 10px; border-radius: 6px; font-size: 12px; outline: none; margin-bottom: 6px;">
+                                <div id="reg-country-list" style="max-height: 180px; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 2px;">
+                                    <!-- Populated dynamically by JS -->
+                                </div>
                             </div>
-                            <input id="reg-phone" type="tel" maxlength="10" placeholder="10-digit mobile number" oninput="handleRegPhoneInput()" onblur="checkPhoneAvailability()" style="flex: 1; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 14px; outline: none; letter-spacing: 0.5px; transition: border-color 0.2s ease;">
+                            <input id="reg-phone" type="tel" maxlength="10" placeholder="10-digit mobile number" oninput="handleRegPhoneInput()" onblur="checkPhoneAvailability()" style="flex: 1; min-width: 0; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 14px; outline: none; letter-spacing: 0.5px; transition: border-color 0.2s ease;">
                         </div>
                         <div id="reg-phone-hint" style="font-size: 11px; color: #64748b; margin-top: 4px;"></div>
                     </div>
@@ -18708,16 +18756,169 @@ function showIndicatorLineActionPill(ind, point) {
         }
 
         // ==============================================================
-        // 🔐 Clean Registration Flow: Live Username Availability & Indian Mobile Validation (No OTP)
+        // 🔐 Clean Registration Flow: Live Username Availability & Worldwide Mobile Validation (No OTP)
         let usernameCheckTimer = null;
         let isUsernameAvailable = false;
         let phoneCheckTimer = null;
         let isPhoneAvailable = null;
+        let selectedCountryCode = '+91';
+        let selectedCountryFlag = '🇮🇳';
+
+        const countryCodeData = [
+            { code: '+91', flag: '🇮🇳', name: 'India' },
+            { code: '+1', flag: '🇺🇸', name: 'United States' },
+            { code: '+1', flag: '🇨🇦', name: 'Canada' },
+            { code: '+44', flag: '🇬🇧', name: 'United Kingdom' },
+            { code: '+971', flag: '🇦🇪', name: 'United Arab Emirates' },
+            { code: '+966', flag: '🇸🇦', name: 'Saudi Arabia' },
+            { code: '+65', flag: '🇸🇬', name: 'Singapore' },
+            { code: '+61', flag: '🇦🇺', name: 'Australia' },
+            { code: '+49', flag: '🇩🇪', name: 'Germany' },
+            { code: '+33', flag: '🇫🇷', name: 'France' },
+            { code: '+81', flag: '🇯🇵', name: 'Japan' },
+            { code: '+7', flag: '🇷🇺', name: 'Russia' },
+            { code: '+86', flag: '🇨🇳', name: 'China' },
+            { code: '+55', flag: '🇧🇷', name: 'Brazil' },
+            { code: '+27', flag: '🇿🇦', name: 'South Africa' },
+            { code: '+62', flag: '🇮🇩', name: 'Indonesia' },
+            { code: '+60', flag: '🇲🇾', name: 'Malaysia' },
+            { code: '+92', flag: '🇵🇰', name: 'Pakistan' },
+            { code: '+880', flag: '🇧🇩', name: 'Bangladesh' },
+            { code: '+977', flag: '🇳🇵', name: 'Nepal' },
+            { code: '+94', flag: '🇱🇰', name: 'Sri Lanka' },
+            { code: '+974', flag: '🇶🇦', name: 'Qatar' },
+            { code: '+965', flag: '🇰🇼', name: 'Kuwait' },
+            { code: '+968', flag: '🇴🇲', name: 'Oman' },
+            { code: '+973', flag: '🇧🇭', name: 'Bahrain' },
+            { code: '+234', flag: '🇳🇬', name: 'Nigeria' },
+            { code: '+90', flag: '🇹🇷', name: 'Turkey' },
+            { code: '+39', flag: '🇮🇹', name: 'Italy' },
+            { code: '+34', flag: '🇪🇸', name: 'Spain' },
+            { code: '+31', flag: '🇳🇱', name: 'Netherlands' },
+            { code: '+41', flag: '🇨🇭', name: 'Switzerland' },
+            { code: '+46', flag: '🇸🇪', name: 'Sweden' },
+            { code: '+47', flag: '🇳🇴', name: 'Norway' },
+            { code: '+64', flag: '🇳🇿', name: 'New Zealand' },
+            { code: '+63', flag: '🇵🇭', name: 'Philippines' },
+            { code: '+66', flag: '🇹🇭', name: 'Thailand' },
+            { code: '+84', flag: '🇻🇳', name: 'Vietnam' },
+            { code: '+52', flag: '🇲🇽', name: 'Mexico' },
+            { code: '+54', flag: '🇦🇷', name: 'Argentina' },
+            { code: '+20', flag: '🇪🇬', name: 'Egypt' },
+            { code: '+254', flag: '🇰🇪', name: 'Kenya' },
+            { code: '+82', flag: '🇰🇷', name: 'South Korea' },
+            { code: '+353', flag: '🇮🇪', name: 'Ireland' },
+            { code: '+972', flag: '🇮🇱', name: 'Israel' },
+            { code: '+48', flag: '🇵🇱', name: 'Poland' },
+            { code: '+351', flag: '🇵🇹', name: 'Portugal' },
+            { code: '+32', flag: '🇧🇪', name: 'Belgium' },
+            { code: '+43', flag: '🇦🇹', name: 'Austria' },
+            { code: '+852', flag: '🇭🇰', name: 'Hong Kong' },
+            { code: '+886', flag: '🇹🇼', name: 'Taiwan' }
+        ];
+
+        function renderCountryCodeList(filterText = '') {
+            const listEl = document.getElementById('reg-country-list');
+            if (!listEl) return;
+            const q = (filterText || '').toLowerCase().trim();
+            const filtered = countryCodeData.filter(c => 
+                c.name.toLowerCase().includes(q) || 
+                c.code.includes(q) || 
+                c.code.replace('+', '').includes(q)
+            );
+            if (filtered.length === 0) {
+                listEl.innerHTML = '<div style="padding: 8px; color: #94a3b8; font-size: 11px; text-align: center;">No country found</div>';
+                return;
+            }
+            listEl.innerHTML = filtered.map(c => {
+                const isSel = selectedCountryCode === c.code;
+                const safeName = c.name.replace(/'/g, "\\'");
+                return `<div onclick="selectCountryCode('${c.code}', '${c.flag}', '${safeName}')" style="display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; border-radius: 5px; cursor: pointer; font-size: 12px; color: ${isSel ? '#38bdf8' : '#e2e8f0'}; background: ${isSel ? 'rgba(56, 189, 248, 0.15)' : 'transparent'}; transition: background 0.15s ease;">` +
+                    `<span style="display: flex; align-items: center; gap: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">` +
+                        `<span style="font-size: 14px;">${c.flag}</span>` +
+                        `<span>${c.name}</span>` +
+                    `</span>` +
+                    `<span style="font-weight: 700; color: #94a3b8; font-size: 11px; margin-left: 8px;">${c.code}</span>` +
+                `</div>`;
+            }).join('');
+        }
+
+        function toggleCountryCodeDropdown(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            const drop = document.getElementById('reg-country-dropdown');
+            if (!drop) return;
+            const isShown = drop.style.display === 'block';
+            drop.style.display = isShown ? 'none' : 'block';
+            if (!isShown) {
+                renderCountryCodeList();
+                const searchInput = document.getElementById('reg-country-search');
+                if (searchInput) {
+                    searchInput.value = '';
+                    setTimeout(() => searchInput.focus(), 60);
+                }
+            }
+        }
+
+        function filterCountryList(val) {
+            renderCountryCodeList(val);
+        }
+
+        function selectCountryCode(code, flag, name) {
+            selectedCountryCode = code;
+            selectedCountryFlag = flag;
+            const codeEl = document.getElementById('reg-country-code');
+            const flagEl = document.getElementById('reg-country-flag');
+            const phoneInput = document.getElementById('reg-phone');
+            if (codeEl) codeEl.textContent = code;
+            if (flagEl) flagEl.textContent = flag;
+            const drop = document.getElementById('reg-country-dropdown');
+            if (drop) drop.style.display = 'none';
+
+            if (phoneInput) {
+                if (code === '+91') {
+                    phoneInput.maxLength = 10;
+                    phoneInput.placeholder = '10-digit mobile number';
+                } else {
+                    phoneInput.maxLength = 14;
+                    phoneInput.placeholder = 'Mobile number (' + code + ')';
+                }
+                phoneInput.focus();
+            }
+            handleRegPhoneInput();
+        }
+
+        // Close country dropdown when tapping outside
+        document.addEventListener('click', (e) => {
+            const drop = document.getElementById('reg-country-dropdown');
+            if (drop && drop.style.display === 'block' && !e.target.closest('#reg-country-dropdown') && !e.target.closest('#reg-country-btn')) {
+                drop.style.display = 'none';
+            }
+        });
+
+        // 2-Minute Periodic Guest Login Popup
+        let guestPeriodicTimer = null;
+        function setupGuestPeriodicPopup() {
+            if (guestPeriodicTimer) clearInterval(guestPeriodicTimer);
+            guestPeriodicTimer = setInterval(() => {
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    const overlay = document.getElementById('auth-modal-overlay');
+                    if (!overlay || overlay.style.display !== 'flex') {
+                        openAuthModal('login');
+                    }
+                }
+            }, 120000); // 120,000 ms = 2 minutes
+        }
+        setupGuestPeriodicPopup();
 
         function handleRegPhoneInput() {
             const input = document.getElementById('reg-phone');
             if (!input) return;
-            input.value = input.value.replace(/\D/g, '').substring(0, 10);
+            const maxLen = (selectedCountryCode === '+91') ? 10 : 14;
+            input.value = input.value.replace(/\D/g, '').substring(0, maxLen);
             if (phoneCheckTimer) clearTimeout(phoneCheckTimer);
             phoneCheckTimer = setTimeout(checkPhoneAvailability, 300);
         }
@@ -18735,19 +18936,29 @@ function showIndicatorLineActionPill(ind, point) {
                 isPhoneAvailable = null;
                 return;
             }
-            if (clean.length < 10 || !['6', '7', '8', '9'].includes(clean[0])) {
-                if (statusEl) statusEl.innerHTML = '<span style="color: #f87171;">Must be 10 digits (6-9)</span>';
-                phoneInput.style.borderColor = '#f59e0b';
-                isPhoneAvailable = false;
-                return;
+
+            if (selectedCountryCode === '+91') {
+                if (clean.length < 10 || !['6', '7', '8', '9'].includes(clean[0])) {
+                    if (statusEl) statusEl.innerHTML = '<span style="color: #f87171;">Must be 10 digits (6-9)</span>';
+                    phoneInput.style.borderColor = '#f59e0b';
+                    isPhoneAvailable = false;
+                    return;
+                }
+            } else {
+                if (clean.length < 6 || clean.length > 14) {
+                    if (statusEl) statusEl.innerHTML = '<span style="color: #f87171;">6-14 digits required</span>';
+                    phoneInput.style.borderColor = '#f59e0b';
+                    isPhoneAvailable = false;
+                    return;
+                }
             }
 
             try {
-                const res = await fetch(`/api/auth/check-phone?phone=${clean}`);
+                const res = await fetch(`/api/auth/check-phone?phone=${encodeURIComponent(clean)}&country_code=${encodeURIComponent(selectedCountryCode)}`);
                 const data = await res.json();
                 if (data.available) {
                     if (statusEl) statusEl.innerHTML = '<span style="color: #34d399; font-weight: 600;">✅ Available</span>';
-                    if (hint) hint.innerHTML = '<span style="color: #34d399;">✅ Valid Indian mobile number (+91 ' + clean + ')</span>';
+                    if (hint) hint.innerHTML = `<span style="color: #34d399;">✅ Valid number (${selectedCountryCode} ${clean})</span>`;
                     phoneInput.style.borderColor = '#10b981';
                     isPhoneAvailable = true;
                 } else {
@@ -18898,15 +19109,26 @@ function showIndicatorLineActionPill(ind, point) {
                 return;
             }
 
-            // 5. Indian Mobile Number validation (Optional; if entered, must be 10 digits starting with 6, 7, 8, 9)
+            // 5. Mobile Number validation (Optional; validated according to selected country code)
             if (phone) {
-                if (phone.length !== 10 || !['6', '7', '8', '9'].includes(phone[0])) {
-                    if (errBox) {
-                        errBox.innerText = 'Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9 (or leave blank).';
-                        errBox.style.display = 'block';
+                if (selectedCountryCode === '+91') {
+                    if (phone.length !== 10 || !['6', '7', '8', '9'].includes(phone[0])) {
+                        if (errBox) {
+                            errBox.innerText = 'Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9 (or leave blank).';
+                            errBox.style.display = 'block';
+                        }
+                        phoneInput && phoneInput.focus();
+                        return;
                     }
-                    phoneInput && phoneInput.focus();
-                    return;
+                } else {
+                    if (phone.length < 6 || phone.length > 14) {
+                        if (errBox) {
+                            errBox.innerText = `Please enter a valid mobile number (6 to 14 digits) for country code ${selectedCountryCode}.`;
+                            errBox.style.display = 'block';
+                        }
+                        phoneInput && phoneInput.focus();
+                        return;
+                    }
                 }
                 if (isPhoneAvailable === false) {
                     if (errBox) {
@@ -18958,6 +19180,7 @@ function showIndicatorLineActionPill(ind, point) {
                         email: email,
                         password: password,
                         confirm_password: confirmPassword,
+                        country_code: selectedCountryCode,
                         phone: phone,
                         trading_style: style,
                         accepted_policy: true

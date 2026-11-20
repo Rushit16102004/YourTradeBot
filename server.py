@@ -893,12 +893,13 @@ async def api_check_username(username: str = ""):
 
 
 @app.get("/api/auth/check-phone")
-async def api_check_phone(phone: str = ""):
-    """Checks whether the requested mobile number is available for registration."""
+async def api_check_phone(phone: str = "", country_code: str = "+91"):
+    """Checks whether the requested mobile number is available for registration worldwide."""
     phone = (phone or "").strip()
+    country_code = (country_code or "+91").strip()
     if not phone:
         return JSONResponse(status_code=400, content={"status": "error", "available": False, "message": "Mobile number is required."})
-    available, msg = user_db.check_phone_available(phone)
+    available, msg = user_db.check_phone_available(phone, country_code=country_code)
     return JSONResponse(content={"status": "ok", "available": available, "message": msg})
 
 
@@ -932,9 +933,10 @@ async def api_register(request: Request, payload: dict = Body(...)):
         )
 
     phone = str(payload.get("phone") or payload.get("mobile") or "").strip()
+    country_code = str(payload.get("country_code") or "+91").strip()
     client_ip = request.client.host if request.client else "127.0.0.1"
     user_agent = request.headers.get("user-agent", "")
-    ok, msg, u = user_db.register_user(username, email, password, trading_style, accepted_policy=True, ip_address=client_ip, user_agent=user_agent, phone=phone)
+    ok, msg, u = user_db.register_user(username, email, password, trading_style, accepted_policy=True, ip_address=client_ip, user_agent=user_agent, phone=phone, country_code=country_code)
     if not ok:
         return JSONResponse(status_code=400, content={"status": "error", "message": msg})
 
