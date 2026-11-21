@@ -187,8 +187,8 @@
             <div class="header-line-right">
                 <!-- 📊 Indicators Dropdown Menu -->
                 <div class="custom-dropdown" id="dropdown-indicators">
-                <button class="dropdown-trigger-btn active" id="btn-indicators-dropdown" onclick="toggleDropdown('dropdown-indicators')" title="Manage Chart Indicators (VWAP, Bands, SMA, Signals)">
-                    <span>📊 <span class="hide-on-mobile">Indicators</span><span class="show-on-mobile">Ind</span></span> <span class="ind-count-badge" id="ind-active-count">4</span> <span class="arrow-down">▾</span>
+                <button class="dropdown-trigger-btn" id="btn-indicators-dropdown" onclick="toggleDropdown('dropdown-indicators')" title="Manage Chart Indicators (VWAP, Bands, SMA, Signals)">
+                    <span>📊 <span class="hide-on-mobile">Indicators</span><span class="show-on-mobile">Ind</span></span> <span class="ind-count-badge" id="ind-active-count">0</span> <span class="arrow-down">▾</span>
                 </button>
                                                 <div class="dropdown-menu-panel dropdown-align-right" style="min-width: 320px; max-height: 82vh; overflow-y: auto;" id="panel-indicators-dropdown">
                     <!-- Header (Clean, without Add New) -->
@@ -220,7 +220,7 @@
                             </div>
                         </div>
                         <label class="modern-switch-wrap" onclick="event.stopPropagation()">
-                            <input type="checkbox" id="chk-signals" checked onchange="toggleSignals()">
+                            <input type="checkbox" id="chk-signals" onchange="toggleSignals()">
                             <span class="modern-switch-slider"></span>
                         </label>
                     </div>
@@ -328,7 +328,7 @@
                         <div style="display: flex; align-items: center; gap: 4px;" onclick="event.stopPropagation()">
                             <button class="ind-gear-btn" onclick="openDynamicIndicatorModal('builtin_vwap')" title="VWAP Settings">⚙️</button>
                             <label class="modern-switch-wrap">
-                                <input type="checkbox" id="chk-vwap" checked onchange="toggleVWAP()">
+                                <input type="checkbox" id="chk-vwap" onchange="toggleVWAP()">
                                 <span class="modern-switch-slider"></span>
                             </label>
                         </div>
@@ -345,7 +345,7 @@
                         </div>
                         <div style="display: flex; align-items: center; gap: 4px;" onclick="event.stopPropagation()">
                             <label class="modern-switch-wrap">
-                                <input type="checkbox" id="chk-bands" checked onchange="toggleVWAPBands()">
+                                <input type="checkbox" id="chk-bands" onchange="toggleVWAPBands()">
                                 <span class="modern-switch-slider"></span>
                             </label>
                         </div>
@@ -600,8 +600,8 @@
 
                 <!-- 🛡️ S&R Dropdown Menu -->
                 <div class="custom-dropdown" id="dropdown-sr">
-                <button class="dropdown-trigger-btn" id="btn-sr-dropdown" onclick="toggleDropdown('dropdown-sr')" title="Support & Resistance Levels & Multi-Month Confluence">
-                    <span id="sr-dropdown-label">🛡️ S&R: OFF</span> <span class="arrow-down">▾</span>
+                <button class="dropdown-trigger-btn active-sr-head" id="btn-sr-dropdown" onclick="toggleDropdown('dropdown-sr')" title="Support & Resistance Levels & Multi-Month Confluence">
+                    <span id="sr-dropdown-label">🛡️ S&R (All 4M): <b>ON</b></span> <span class="arrow-down">▾</span>
                 </button>
                 <div class="dropdown-menu-panel dropdown-align-right" style="min-width: 290px;" id="panel-sr-dropdown">
                     <div class="dropdown-header">Support & Resistance Engine</div>
@@ -615,7 +615,7 @@
                             </div>
                         </div>
                         <label class="modern-switch-wrap" onclick="event.stopPropagation()">
-                            <input type="checkbox" id="chk-sr-master" onchange="toggleSRLevels()">
+                            <input type="checkbox" id="chk-sr-master" checked onchange="toggleSRLevels()">
                             <span class="modern-switch-slider"></span>
                         </label>
                     </div>
@@ -1304,6 +1304,16 @@
 
         <!-- Quick Strategy Prompt Suggestion Pills -->
         <div class="copilot-pills-bar">
+            <!-- ⚡ High-Impact Direct Queries (1-Click for Guest & Logged-in Traders) -->
+            <button class="copilot-pill" onclick="sendQuickPrompt('What is the next high-probability trade setup on NIFTY 50? Provide exact Entry price, Invalidation/Stop Loss, Target runway, and Risk-to-Reward ratio based on active institutional VWAP and S&R confluence.')" style="border-color: #3b82f6; color: #60a5fa; background: rgba(59, 130, 246, 0.15); font-weight: 700;">
+                🎯 Next Possible Trade Setup
+            </button>
+            <button class="copilot-pill" onclick="sendQuickPrompt('Analyze the current NIFTY 50 market condition: What is the trend structure, institutional VWAP ±2σ bias, volume confirmation, and key support/resistance boundaries right now?')" style="border-color: #10b981; color: #34d399; background: rgba(16, 185, 129, 0.15); font-weight: 700;">
+                📊 Current Market Condition
+            </button>
+            <button class="copilot-pill" onclick="sendQuickPrompt('What is today\'s projected closing target and expected trading range for NIFTY 50? Highlight key institutional liquidity levels and likely closing consolidation zones.')" style="border-color: #f59e0b; color: #fbbf24; background: rgba(245, 158, 11, 0.15); font-weight: 700;">
+                🏁 Today's Expected Close Target
+            </button>
             <button class="copilot-pill" onclick="openNewsModal()" style="border-color: #38bdf8; color: #38bdf8; background: rgba(56, 189, 248, 0.12); font-weight: 700;">
                 📰 News Sentiment
             </button>
@@ -1337,7 +1347,19 @@
         <div class="copilot-messages-container" id="copilot-messages">
             <div class="copilot-msg assistant">
                 <div class="copilot-msg-bubble">
-                    👋 <b>Welcome!</b> How can I help you?
+                    👋 <b>Welcome to NIFTY 50 AI Strategy Copilot!</b><br>
+                    <span style="font-size: 11.5px; opacity: 0.85;">Tap an instant direct institutional analysis below or ask any custom question:</span>
+                    <div style="display: flex; flex-direction: column; gap: 7px; margin-top: 10px;">
+                        <button onclick="sendQuickPrompt('What is the next high-probability trade setup on NIFTY 50? Provide exact Entry price, Invalidation/Stop Loss, Target runway, and Risk-to-Reward ratio based on active institutional VWAP and S&R confluence.')" style="text-align: left; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.35); color: #93c5fd; padding: 8px 11px; border-radius: 7px; font-size: 11.5px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.22)'" onmouseout="this.style.background='rgba(59, 130, 246, 0.12)'">
+                            🎯 <b>Next Possible Trade Setup</b> <div style="opacity: 0.75; font-size: 10.5px; margin-top: 2px;">Entry price, Invalidation SL, Target runway & RR</div>
+                        </button>
+                        <button onclick="sendQuickPrompt('Analyze the current NIFTY 50 market condition: What is the trend structure, institutional VWAP ±2σ bias, volume confirmation, and key support/resistance boundaries right now?')" style="text-align: left; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); color: #6ee7b7; padding: 8px 11px; border-radius: 7px; font-size: 11.5px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(16, 185, 129, 0.22)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.12)'">
+                            📊 <b>Current Market Condition</b> <div style="opacity: 0.75; font-size: 10.5px; margin-top: 2px;">Trend structure, VWAP ±2σ bias & volume order flow</div>
+                        </button>
+                        <button onclick="sendQuickPrompt('What is today\'s projected closing target and expected trading range for NIFTY 50? Highlight key institutional liquidity levels and likely closing consolidation zones.')" style="text-align: left; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); color: #fcd34d; padding: 8px 11px; border-radius: 7px; font-size: 11.5px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(245, 158, 11, 0.22)'" onmouseout="this.style.background='rgba(245, 158, 11, 0.12)'">
+                            🏁 <b>Today's Expected Close Target</b> <div style="opacity: 0.75; font-size: 10.5px; margin-top: 2px;">Projected closing target, day's range & liquidity zones</div>
+                        </button>
+                    </div>
                 </div>
                 <div class="copilot-msg-meta">
                     <span>Copilot • Ready</span>
@@ -1530,9 +1552,9 @@
             active_oscillator: 'rsi'
         };
 
-        // Indicator Toggles (VWAP, ±2σ Exhaustion Bands, SMA) - Default VWAP & ±2σ Boundaries Active
-        let isVWAPEnabled = true;
-        let isBandsEnabled = true;
+        // Indicator Toggles (VWAP, ±2σ Exhaustion Bands, SMA) - All Indicators Default OFF in Guest Mode (Only S&R Active)
+        let isVWAPEnabled = false;
+        let isBandsEnabled = false;
         let isSMAEnabled = false;
 
         function toggleVWAP() {
@@ -14742,11 +14764,12 @@ function showIndicatorLineActionPill(ind, point) {
         // ==============================================================
 
         function resetAllIndicatorsToDefaultOff() {
-            isVWAPEnabled = true;
-            isBandsEnabled = true;
+            isVWAPEnabled = false;
+            isBandsEnabled = false;
             isSMAEnabled = false;
             isSignalsEnabled = false;
             isSREnabled = true;
+            currentSRPeriod = 'all';
 
             if (indConfig) {
                 indConfig.ema9_enabled = false;
@@ -14886,11 +14909,11 @@ function showIndicatorLineActionPill(ind, point) {
 
             if (prefs) {
                 // Restore saved preferences
-                isVWAPEnabled = (prefs.vwap !== undefined) ? !!prefs.vwap : true;
-                isBandsEnabled = (prefs.bands !== undefined) ? !!prefs.bands : isVWAPEnabled;
+                isVWAPEnabled = (prefs.vwap !== undefined) ? !!prefs.vwap : false;
+                isBandsEnabled = (prefs.bands !== undefined) ? !!prefs.bands : false;
                 isSMAEnabled = !!prefs.sma;
                 isSignalsEnabled = !!prefs.signals;
-                isSREnabled = !!prefs.sr_enabled;
+                isSREnabled = (prefs.sr_enabled !== undefined) ? !!prefs.sr_enabled : true;
                 if (prefs.sr_period) currentSRPeriod = prefs.sr_period;
                 if (prefs.timeframe && prefs.timeframe !== currentTimeframe) {
                     currentTimeframe = prefs.timeframe;
