@@ -303,6 +303,12 @@ async def lifespan(app: FastAPI):
         NewsSentimentEngine.get_instance().start_background_poller(interval_sec=90)
     except Exception as e_news:
         logger.warning("Could not start NewsSentimentEngine background poller: %s", e_news)
+    # Start Daily Automated Backup Scheduler (keeps rolling 14-day backups)
+    try:
+        from database.backup_manager import start_daily_backup_scheduler
+        start_daily_backup_scheduler()
+    except Exception as e_bk:
+        logger.warning("Could not start BackupManager scheduler: %s", e_bk)
     logger.info("Local Web Server ready at http://localhost:8000")
     yield
     logger.info("Shutting down Local Web Server...")
@@ -336,14 +342,8 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
 
-@app.get("/static/lightweight-charts.standalone.production.js")
-async def serve_chart_js():
-    js_path = STATIC_DIR / "lightweight-charts.standalone.production.js"
-    if js_path.exists():
-        with open(js_path, "rb") as f:
-            content = f.read()
-        return Response(content=content, media_type="application/javascript")
-    return Response(content=b"", status_code=404)
+# Mount Static Directory for modular CSS, JS and Assets
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -1423,6 +1423,46 @@ async def api_download_users_csv(request: Request, admin_key: str = Query(""), t
             filename="registered_users.csv"
         )
     return JSONResponse(status_code=404, content={"status": "error", "message": "Users CSV not found"})
+
+
+@app.post("/api/admin/create-backup")
+async def api_admin_create_backup(request: Request, admin_key: str = Query("")):
+    """Manually triggers an atomic compressed backup archive of SQLite DB and all audit CSVs."""
+    from database import backup_manager
+    is_authorized = False
+    if admin_key and (admin_key == user_db.ADMIN_MASTER_KEY or admin_center.verify_admin_master_key(admin_key)):
+        is_authorized = True
+    else:
+        u = get_current_user_from_request(request)
+        if u and u.get("role") == "admin":
+            is_authorized = True
+
+    if not is_authorized:
+        return JSONResponse(status_code=403, content={"error": "Admin authorization required."})
+
+    res = backup_manager.create_system_backup()
+    if res:
+        return JSONResponse(content=res)
+    return JSONResponse(status_code=500, content={"error": "Failed to create backup archive."})
+
+
+@app.get("/api/admin/backups")
+async def api_admin_list_backups(request: Request, admin_key: str = Query("")):
+    """Lists available rolling system backups with metadata."""
+    from database import backup_manager
+    is_authorized = False
+    if admin_key and (admin_key == user_db.ADMIN_MASTER_KEY or admin_center.verify_admin_master_key(admin_key)):
+        is_authorized = True
+    else:
+        u = get_current_user_from_request(request)
+        if u and u.get("role") == "admin":
+            is_authorized = True
+
+    if not is_authorized:
+        return JSONResponse(status_code=403, content={"error": "Admin authorization required."})
+
+    archives = backup_manager.list_available_backups()
+    return JSONResponse(content={"status": "ok", "backups": archives, "count": len(archives)})
 
 # ==============================================================
 # 🌐 Live Visitor IP Intelligence & Daily Activity Dashboard

@@ -56,6 +56,8 @@ latest_session_url.txt
 # Vector Embeddings Database
 RAG/chroma_db/
 data_cache/
+backups/*
+!backups/.gitkeep
 
 # ==========================================
 # PYTHON COMPILED & SYSTEM ARTIFACTS

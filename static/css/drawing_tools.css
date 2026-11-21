@@ -1,0 +1,336 @@
+        /* Left-side TradingView Drawing Sidebar */
+        .drawing-sidebar {
+            width: 48px;
+            background-color: var(--bg-panel);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 0;
+            gap: 6px;
+            flex-shrink: 0;
+            z-index: 25;
+        }
+
+        .tool-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.15s ease;
+            position: relative;
+        }
+
+        .tool-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+        }
+
+        .tool-btn svg {
+            width: 18px;
+            height: 18px;
+            display: block;
+            pointer-events: none;
+            flex-shrink: 0;
+            transition: transform 0.15s ease;
+        }
+
+        .tool-btn:hover svg {
+            transform: scale(1.08);
+        }
+
+        .mobile-draw-toggle svg {
+            width: 20px;
+            height: 20px;
+            display: block;
+            pointer-events: none;
+        }
+
+        .tool-btn.active {
+            background: rgba(41, 98, 255, 0.2);
+            color: #2962ff;
+            border-color: #2962ff;
+        }
+
+        .tool-btn.btn-hidden-active {
+            color: #ff5252;
+            background: rgba(255, 82, 82, 0.15);
+        }
+
+        .tool-btn::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            left: 52px;
+            background: #1e222d;
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            border: 1px solid var(--border-color);
+            z-index: 50;
+        }
+
+        .tool-btn:hover::after {
+            opacity: 1;
+        }
+
+        .tool-divider {
+            width: 28px;
+            height: 1px;
+            background-color: var(--border-color);
+            margin: 3px 0;
+        }
+
+        /* Chart Canvas & SVG Overlay */
+        .chart-viewport {
+            flex: 1;
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-panel);
+        }
+
+        #chart-container {
+            width: 100%;
+            height: 100%;
+            min-height: 400px;
+            display: block;
+            background: #070a13;
+        }
+
+        /* Interactive Drawing Overlay SVG */
+        #drawing-overlay {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            touch-action: none;
+            z-index: 15;
+        }
+
+        #drawing-overlay.drawing-active {
+            pointer-events: auto;
+            touch-action: none;
+            cursor: crosshair;
+        }
+
+        /* 🎯 Cursor Priority Hierarchy: 1 Candle, 2 Drawing, 3 Indicator, 4 S&R Line */
+        /* When cursor is over a candle, overlay elements become transparent to mouse events */
+        #drawing-overlay.candle-priority-active,
+        #drawing-overlay.candle-priority-active * {
+            pointer-events: none !important;
+        }
+
+        /* Freehand Pencil Canvas */
+        #pencil-canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 14;
+        }
+
+        #pencil-canvas.pencil-active {
+            pointer-events: auto;
+            cursor: crosshair;
+        }
+
+        /* Floating Top-Left Legend for Current Candle OHLC & SMA */
+        .ohlc-legend {
+            position: absolute;
+            top: 10px;
+            left: 14px;
+            z-index: 20;
+            font-size: 12px;
+            color: var(--text-muted);
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: rgba(19, 23, 34, 0.75);
+            padding: 4px 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .ohlc-legend b {
+            color: var(--text-main);
+        }
+
+        /* Sliding Properties Window */
+        .quick-chip-btn {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 3px 7px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .quick-chip-btn:hover {
+            background: #2563eb;
+            border-color: #38bdf8;
+            color: #ffffff;
+        }
+        .properties-panel {
+            position: absolute;
+            top: 14px;
+            right: 18px;
+            width: 330px;
+            background: #181c27;
+            border: 1px solid #2a2e39;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            z-index: 40;
+            padding: 14px;
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            transform: translateX(10px);
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .properties-panel.open {
+            display: flex;
+            transform: translateX(0);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        .panel-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .panel-close-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 16px;
+            padding: 2px;
+        }
+        .panel-close-btn:hover { color: #fff; }
+
+        .prop-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .prop-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .color-palette {
+            display: flex;
+            gap: 8px;
+        }
+
+        .color-swatch {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.1s;
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.15);
+        }
+
+        .color-swatch.active {
+            border-color: #fff;
+        }
+
+        .remark-input {
+            background: #131722;
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 7px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            outline: none;
+            width: 100%;
+        }
+
+        .remark-input:focus {
+            border-color: var(--primary);
+        }
+
+        .btn-delete-shape {
+            background: rgba(242, 54, 69, 0.15);
+            border: 1px solid var(--red);
+            color: #ff5252;
+            padding: 7px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.15s;
+        }
+
+        .btn-delete-shape:hover {
+            background: var(--red);
+            color: #fff;
+        }
+
+        /* Loading Spinner */
+        #loading-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(14, 17, 23, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            font-size: 15px;
+            font-weight: 600;
+            color: #90caf9;
+        }
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    

@@ -1,0 +1,677 @@
+        /* ═══════════════════════════════════════════════════════════
+           SMARTPHONES & MOBILE SCREENS (<= 768px)
+           Ultra-Responsive High-Density Mobile Terminal Architecture
+           ═══════════════════════════════════════════════════════════ */
+        @media (max-width: 768px) {
+            /* Full viewport setup with dynamic viewport height */
+            html, body {
+                height: 100dvh;
+                overflow: hidden;
+            }
+
+            /* Responsive 2-Row Mobile Header (Line 1 = Live Ticker, Line 2 = Controls & Dropdowns) */
+            header {
+                height: auto;
+                min-height: auto;
+                padding: 0;
+                display: flex;
+                flex-direction: column;
+                overflow: visible;
+                background-color: var(--bg-panel);
+                border-bottom: 1px solid var(--border-color);
+                z-index: 100;
+                position: relative;
+            }
+
+            /* Responsive visibility swap */
+            .hide-on-mobile {
+                display: none !important;
+            }
+            .show-on-mobile {
+                display: inline !important;
+            }
+
+            /* LINE 1: Live Market & Quote Intelligence Ticker */
+            .header-line-top {
+                height: 35px;
+                padding: 0 6px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                overflow-x: auto;
+                white-space: nowrap;
+                scrollbar-width: none;
+                -webkit-overflow-scrolling: touch;
+                gap: 5px;
+            }
+            .header-line-top::-webkit-scrollbar {
+                display: none;
+            }
+
+            .brand-badge {
+                font-size: 10px;
+                padding: 2.5px 5px;
+                letter-spacing: 0;
+                white-space: nowrap;
+                flex-shrink: 0;
+                border-radius: 4px;
+            }
+
+            .ltp-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 3px;
+                padding: 2px 4px;
+                font-size: 11px;
+                background: rgba(255, 255, 255, 0.04);
+                border-radius: 4px;
+                min-width: 0;
+                flex-shrink: 0;
+            }
+
+            .ltp-price {
+                font-size: 11.5px;
+                font-weight: 700;
+                white-space: nowrap;
+            }
+
+            .ltp-change-badge {
+                font-size: 9.5px;
+                padding: 1px 3px;
+                gap: 2px;
+                white-space: nowrap;
+                border-radius: 3px;
+            }
+
+            .nifty-breadth-badge {
+                font-size: 9px;
+                padding: 1px 4px;
+                gap: 2px;
+                white-space: nowrap;
+                border-radius: 3px;
+            }
+
+            .market-status-pill {
+                padding: 2px 5px;
+                font-size: 9.5px;
+                gap: 4px;
+                flex-shrink: 0;
+                white-space: nowrap;
+            }
+            #market-status-text {
+                display: none !important; /* Keep pulse dot visible to maximize space */
+            }
+
+            .candle-timer-pill {
+                padding: 2px 5px;
+                font-size: 9.5px;
+                gap: 2px;
+                flex-shrink: 0;
+                white-space: nowrap;
+            }
+            .yaxis-candle-timer {
+                font-size: 9px;
+                padding: 1px 2px;
+                gap: 2px;
+            }
+            .yaxis-candle-timer .timer-tf {
+                font-size: 8px;
+                padding: 0 2px;
+            }
+            .timer-tf-label {
+                display: none !important;
+            }
+
+            /* LINE 2: All Dropdowns & Feature Controls Bar */
+            .header-line-bottom {
+                height: 38px;
+                padding: 0 6px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                overflow-x: auto;
+                white-space: nowrap;
+                scrollbar-width: none;
+                -webkit-overflow-scrolling: touch;
+                gap: 4px;
+            }
+            .header-line-bottom::-webkit-scrollbar {
+                display: none;
+            }
+
+            .header-line-left, .header-line-right {
+                gap: 4px;
+            }
+
+            #mtf-ribbon {
+                display: none !important;
+            }
+
+            .header-divider {
+                display: none !important;
+            }
+
+            .dropdown-trigger-btn {
+                padding: 3px 6px;
+                font-size: 10.5px;
+                gap: 3px;
+                height: 28px;
+                border-radius: 5px;
+                white-space: nowrap;
+            }
+
+            .dropdown-trigger-btn .ind-count-badge {
+                font-size: 9px;
+                padding: 1px 4px;
+                border-radius: 8px;
+            }
+
+            .dropdown-trigger-btn .arrow-down {
+                font-size: 8px;
+            }
+
+            .btn-action {
+                padding: 3px 6px;
+                font-size: 10.5px;
+                height: 28px;
+                border-radius: 5px;
+                white-space: nowrap;
+            }
+
+            #auth-nav-container {
+                margin-left: 0 !important;
+                flex-shrink: 0;
+            }
+
+            #btn-guest-login {
+                padding: 3px 6px !important;
+                font-size: 10.5px !important;
+                height: 28px !important;
+                border-radius: 5px !important;
+            }
+
+            #btn-user-menu {
+                padding: 3px 6px !important;
+                font-size: 10.5px !important;
+                height: 28px !important;
+                border-radius: 5px !important;
+            }
+
+            /* Dropdowns: Clamped and positioned right below the 2-row header */
+            .dropdown-menu-panel {
+                position: fixed !important;
+                top: 76px !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                right: auto !important;
+                width: min(94vw, 360px) !important;
+                max-width: 94vw !important;
+                min-width: 260px !important;
+                max-height: calc(100dvh - 86px) !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(255, 255, 255, 0.12) !important;
+                z-index: 2000 !important;
+                animation: dropdownSlideMobile 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            }
+
+            @keyframes dropdownSlideMobile {
+                from {
+                    opacity: 0;
+                    transform: translate(-50%, -6px) scale(0.98);
+                }
+                to {
+                    opacity: 1;
+                    transform: translate(-50%, 0) scale(1);
+                }
+            }
+
+            #panel-tf-dropdown {
+                width: min(90vw, 270px) !important;
+                min-width: 220px !important;
+            }
+
+            #panel-patterns-dropdown {
+                width: min(94vw, 380px) !important;
+                min-width: 0 !important;
+                max-width: 95vw !important;
+            }
+
+            #heavyweights-badge {
+                max-width: 88vw;
+                overflow-x: auto;
+                scrollbar-width: none;
+                -webkit-overflow-scrolling: touch;
+                flex-shrink: 0;
+            }
+            #heavyweights-badge::-webkit-scrollbar {
+                display: none;
+            }
+
+            #user-dropdown-menu {
+                position: fixed !important;
+                top: 76px !important;
+                right: 8px !important;
+                left: auto !important;
+                width: 250px !important;
+                max-width: 90vw !important;
+                z-index: 2100 !important;
+            }
+
+            /* Subheader Bar: Suppressed on mobile to maximize chart height */
+            .sub-bar {
+                display: none !important;
+            }
+
+            /* Workspace takes 100% of remaining screen */
+            .workspace {
+                flex: 1;
+                min-height: 0;
+                height: auto;
+            }
+
+            /* Sub-pane height limit on mobile so chart has plenty of room */
+            #sub-pane-container {
+                height: 125px !important;
+            }
+            #sub-pane-header {
+                height: 25px !important;
+                padding: 0 6px !important;
+            }
+            .osc-tab-btn {
+                padding: 1px 5px !important;
+                font-size: 9.5px !important;
+            }
+            .sub-pane-live-vals {
+                font-size: 9.5px !important;
+            }
+
+            /* S&R Popup Alerts centered on mobile */
+            .sr-popup-overlay {
+                top: 8px !important;
+                left: 8px !important;
+                right: 8px !important;
+                width: auto !important;
+                max-width: calc(100vw - 16px) !important;
+            }
+
+            /* Drawing Sidebar: Off-Canvas Sliding Drawer */
+            .drawing-sidebar {
+                position: absolute;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                width: 52px;
+                z-index: 150;
+                background-color: #131722;
+                box-shadow: 6px 0 24px rgba(0, 0, 0, 0.85);
+                transform: translateX(-100%);
+                transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+                padding-bottom: 55px !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
+            .drawing-sidebar.mobile-open {
+                transform: translateX(0);
+            }
+
+            .mobile-sidebar-close {
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+                color: #f87171 !important;
+                background: rgba(239, 68, 68, 0.15) !important;
+                border-radius: 6px;
+                margin-bottom: 4px;
+            }
+            .mobile-sidebar-close-divider {
+                display: block !important;
+            }
+
+            /* Admin Visitor Analytics Badge & Modal/Tooltip */
+            #admin-analytics-badge {
+                position: relative;
+                display: none;
+                align-items: center;
+                gap: 4px;
+                margin-right: 6px;
+            }
+            #btn-admin-stats {
+                background: rgba(168, 85, 247, 0.15) !important;
+                border: 1px solid rgba(168, 85, 247, 0.5) !important;
+                color: #e9d5ff !important;
+                font-weight: 700 !important;
+                padding: 4px 10px !important;
+                border-radius: 6px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                gap: 6px !important;
+                cursor: pointer !important;
+                transition: all 0.2s ease !important;
+            }
+            #btn-admin-stats:hover {
+                background: rgba(168, 85, 247, 0.28) !important;
+                border-color: #a855f7 !important;
+                transform: translateY(-1px);
+                box-shadow: 0 4px 14px rgba(168, 85, 247, 0.35);
+            }
+            #btn-admin-download-csv:hover {
+                background: rgba(37, 99, 235, 0.35) !important;
+                border-color: #60a5fa !important;
+                transform: translateY(-1px);
+            }
+
+            /* Mobile Drawing Toggle - positioned cleanly at bottom-left corner */
+            .mobile-draw-toggle {
+                display: flex !important;
+                position: fixed !important;
+                bottom: 12px !important;
+                left: 10px !important;
+                width: 38px !important;
+                height: 38px !important;
+                font-size: 16px !important;
+                z-index: 1050 !important;
+            }
+            .mobile-draw-toggle.active-tool {
+                background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+                color: #ffffff !important;
+                border-color: #60a5fa !important;
+                box-shadow: 0 0 14px rgba(59, 130, 246, 0.8) !important;
+            }
+
+            /* When drawing sidebar is open on mobile, hide floating pencil toggle so it never overlaps #tool-clear (delete button) */
+            .drawing-sidebar.mobile-open ~ .chart-viewport .mobile-draw-toggle,
+            .drawing-sidebar.mobile-open ~ #chart-viewport .mobile-draw-toggle {
+                display: none !important;
+            }
+
+            /* Admin Traffic Center Tooltip / Modal: Fix display on mobile */
+            #admin-stats-tooltip {
+                position: fixed !important;
+                top: 76px !important;
+                right: 8px !important;
+                left: auto !important;
+                width: 320px !important;
+                max-width: calc(100vw - 16px) !important;
+                max-height: calc(100dvh - 86px) !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                z-index: 99999 !important;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(124, 58, 237, 0.4) !important;
+            }
+
+            /* Mobile Jump to Latest Candle Button - Positioned above dock on right */
+            .btn-jump-latest {
+                position: fixed !important;
+                bottom: 58px !important;
+                right: 12px !important;
+                left: auto !important;
+                transform: none !important;
+                padding: 5px 11px !important;
+                font-size: 11px !important;
+                border-radius: 20px !important;
+                z-index: 45 !important;
+            }
+            .btn-jump-latest:hover {
+                transform: translateY(-2px) !important;
+            }
+
+            /* Floating Drawing Action Pill: Docks at top-center on mobile so it NEVER covers handles */
+            #shape-action-pill {
+                top: 10px !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                max-width: 92vw !important;
+            }
+
+            /* Mobile Floating Terminal Action Dock (Docked at bottom-right corner, leaving chart clear) */
+            .floating-terminal-dock {
+                position: fixed !important;
+                bottom: 10px !important;
+                right: 10px !important;
+                left: auto !important;
+                top: auto !important;
+                transform: none !important;
+                z-index: 1100 !important;
+                padding: 3px 5px !important;
+                gap: 4px !important;
+                max-width: 260px !important;
+                box-sizing: border-box !important;
+                border-radius: 9999px !important;
+            }
+
+            .floating-terminal-dock .dock-drag-handle {
+                display: none !important;
+            }
+
+            .floating-terminal-dock .dock-btn {
+                padding: 5px 9px !important;
+                font-size: 11px !important;
+                gap: 4px !important;
+                border-radius: 9999px !important;
+            }
+
+            .floating-terminal-dock .dock-btn span {
+                font-size: 11px !important;
+            }
+
+            .floating-terminal-dock .dock-minimize-btn {
+                width: 18px !important;
+                height: 18px !important;
+                font-size: 12px !important;
+                padding: 0 !important;
+            }
+
+            .floating-terminal-dock.minimized {
+                bottom: 10px !important;
+                right: 10px !important;
+                left: auto !important;
+                top: auto !important;
+                transform: none !important;
+                padding: 5px 12px !important;
+            }
+
+            /* Chart Viewport: 100% Full Width Edge-to-Edge */
+            .chart-viewport {
+                width: 100% !important;
+                height: 100% !important;
+            }
+
+            /* Compact Top Legend */
+            .ohlc-legend {
+                top: 4px;
+                left: 6px;
+                font-size: 9px;
+                padding: 2px 5px;
+                gap: 4px;
+                max-width: calc(100vw - 12px);
+                flex-wrap: wrap;
+                line-height: 1.3;
+            }
+
+            /* Mobile: Completely remove drawing properties panel (color palette & line info box) to save screen space */
+            .properties-panel,
+            .properties-panel.open {
+                display: none !important;
+                visibility: hidden !important;
+                pointer-events: none !important;
+            }
+
+            /* Floating AI Copilot Trigger */
+            .ai-copilot-trigger {
+                bottom: 12px;
+                right: 12px;
+                padding: 6px 11px;
+                font-size: 11px;
+                gap: 5px;
+                box-shadow: 0 4px 18px rgba(37, 99, 235, 0.6);
+            }
+            .copilot-pulse-dot {
+                width: 6px;
+                height: 6px;
+            }
+
+            /* Native Mobile Bottom Sheet / Drawer for AI Copilot */
+            .ai-copilot-panel {
+                position: fixed !important;
+                top: auto !important;
+                bottom: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                width: 100vw !important;
+                max-width: 100vw !important;
+                height: 84dvh !important;
+                max-height: 88dvh !important;
+                border-radius: 20px 20px 0 0 !important;
+                border: 1px solid #334155 !important;
+                border-bottom: none !important;
+                box-shadow: 0 -12px 50px rgba(0, 0, 0, 0.95) !important;
+                resize: none !important;
+                animation: mobileSheetUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            }
+            @keyframes mobileSheetUp {
+                from { transform: translateY(100%); }
+                to { transform: translateY(0); }
+            }
+
+            .copilot-resize-grip {
+                display: none !important;
+            }
+
+            .copilot-header {
+                cursor: default !important;
+                padding: 6px 14px 10px 14px;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+            }
+
+            .copilot-mobile-bar {
+                display: block;
+                width: 44px;
+                height: 5px;
+                background: #475569;
+                border-radius: 999px;
+                margin: 2px auto 8px auto;
+                flex-shrink: 0;
+            }
+
+            .copilot-header-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                width: 100%;
+            }
+
+            .copilot-drag-hint {
+                display: none !important;
+            }
+
+            .copilot-messages-container {
+                padding: 10px 8px;
+            }
+
+            .copilot-msg-bubble {
+                max-width: 95%;
+                font-size: 11.5px;
+                padding: 8px 10px;
+            }
+
+            .copilot-input-bar {
+                padding: 6px 8px;
+                gap: 5px;
+            }
+            .copilot-input {
+                font-size: 12px;
+                padding: 8px 10px;
+            }
+            .copilot-send-btn {
+                padding: 8px 12px;
+                font-size: 11.5px;
+            }
+
+            /* Responsive Modals */
+            .history-modal-container {
+                width: 96vw !important;
+                max-width: 96vw !important;
+                max-height: 88dvh !important;
+                border-radius: 12px !important;
+                margin: 0 auto;
+            }
+            .history-modal-body {
+                padding: 10px !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
+            .history-modal-body table {
+                min-width: 580px;
+            }
+
+            .rag-key-modal-card {
+                width: 94vw !important;
+                max-width: 94vw !important;
+                padding: 14px !important;
+            }
+
+            /* Candle AI Pill */
+            .ai-candle-pill {
+                font-size: 10.5px;
+                padding: 3px 6px 3px 8px;
+                max-width: 88vw;
+            }
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           EXTRA SMALL MOBILE SCREENS (<= 390px)
+           Ultra-compact spacing and micro font sizing
+           ═══════════════════════════════════════════════════════════ */
+        @media (max-width: 390px) {
+            header {
+                padding: 4px 6px;
+                gap: 3px 4px;
+                min-height: 66px;
+            }
+
+            .brand-badge {
+                font-size: 9.5px;
+                padding: 2px 4px;
+            }
+
+            .ltp-price {
+                font-size: 11px;
+            }
+
+            .ltp-change-badge {
+                font-size: 9px;
+                padding: 1px 2px;
+            }
+
+            .nifty-breadth-badge {
+                font-size: 8.5px;
+                padding: 1px 3px;
+            }
+
+            .candle-timer-pill {
+                font-size: 9px;
+                padding: 1px 4px;
+            }
+
+            .dropdown-trigger-btn {
+                padding: 2px 4px;
+                font-size: 9.5px;
+                height: 26px;
+            }
+
+            .btn-action {
+                padding: 2px 4px;
+                font-size: 9.5px;
+                height: 26px;
+            }
+
+            #btn-guest-login, #btn-user-menu {
+                padding: 2px 5px !important;
+                font-size: 9.5px !important;
+                height: 26px !important;
+            }
+        }
+

@@ -1,0 +1,806 @@
+        /* ========================================================
+           🤖 RAG AI STRATEGY COPILOT (QUANTITATIVE ENGINE + CHROMADB)
+           ======================================================== */
+        /* Clean Floating Dock for Pre-Flight & AI Strategy Copilot */
+        .floating-terminal-dock {
+            position: fixed;
+            bottom: 40px;
+            right: 85px;
+            z-index: 1200;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(15, 23, 42, 0.94);
+            backdrop-filter: blur(12px);
+            padding: 4px 6px;
+            border-radius: 9999px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+            user-select: none;
+            width: auto;
+            max-width: max-content;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .dock-drag-handle {
+            cursor: grab;
+            color: #64748b;
+            font-size: 13px;
+            padding: 0 3px 0 6px;
+            display: flex;
+            align-items: center;
+            transition: color 0.15s ease;
+        }
+        .dock-drag-handle:hover {
+            color: #cbd5e1;
+        }
+        .dock-drag-handle:active {
+            cursor: grabbing;
+        }
+        .dock-minimize-btn {
+            background: transparent;
+            border: none;
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            padding: 2px 7px 2px 3px;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            transition: color 0.15s ease;
+        }
+        .dock-minimize-btn:hover {
+            color: #f1f5f9;
+        }
+        .floating-terminal-dock.minimized {
+            padding: 6px 12px;
+            gap: 6px;
+            cursor: pointer;
+            border-radius: 9999px;
+            background: rgba(30, 58, 138, 0.95);
+            border: 1px solid rgba(96, 165, 250, 0.5);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+        }
+        .floating-terminal-dock.minimized .dock-drag-handle,
+        .floating-terminal-dock.minimized .dock-btn,
+        .floating-terminal-dock.minimized .dock-minimize-btn {
+            display: none !important;
+        }
+        .floating-terminal-dock .dock-minimized-icon {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+        .floating-terminal-dock.minimized .dock-minimized-icon {
+            display: flex;
+        }
+
+        /* 🌟 Unique 10-Second Attention Animation for Unregistered Guests */
+        @keyframes dockAttractGlow {
+            0% {
+                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), 0 0 0 0 rgba(56, 189, 248, 0);
+                border-color: rgba(255, 255, 255, 0.16);
+                transform: scale(1);
+            }
+            20% {
+                box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8), 0 0 25px 6px rgba(56, 189, 248, 0.85), 0 0 45px 8px rgba(16, 185, 129, 0.5);
+                border-color: #38bdf8;
+                transform: scale(1.05);
+            }
+            45% {
+                box-shadow: 0 10px 32px rgba(0, 0, 0, 0.7), 0 0 20px 4px rgba(16, 185, 129, 0.75), 0 0 35px 6px rgba(56, 189, 248, 0.45);
+                border-color: #10b981;
+                transform: scale(1.02);
+            }
+            70% {
+                box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8), 0 0 24px 5px rgba(56, 189, 248, 0.8), 0 0 45px 8px rgba(139, 92, 246, 0.5);
+                border-color: #818cf8;
+                transform: scale(1.04);
+            }
+            100% {
+                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), 0 0 0 0 rgba(56, 189, 248, 0);
+                border-color: rgba(255, 255, 255, 0.16);
+                transform: scale(1);
+            }
+        }
+        .floating-terminal-dock.guest-attract-pulse {
+            animation: dockAttractGlow 2.2s cubic-bezier(0.25, 1, 0.5, 1) !important;
+        }
+        .floating-terminal-dock.guest-attract-pulse .copilot-btn {
+            filter: brightness(1.25);
+            box-shadow: 0 0 18px rgba(56, 189, 248, 0.8);
+        }
+
+        .dock-btn {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 15px;
+            border-radius: 9999px;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            white-space: nowrap;
+        }
+        .dock-btn.preflight-btn {
+            background: linear-gradient(135deg, #065f46 0%, #059669 100%);
+            color: #ffffff;
+            border: 1px solid rgba(167, 243, 208, 0.35);
+        }
+        .dock-btn.preflight-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 18px rgba(16, 185, 129, 0.5);
+            border-color: rgba(209, 250, 229, 0.9);
+        }
+        .dock-btn.copilot-btn {
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+            color: #ffffff;
+            border: 1px solid rgba(147, 197, 253, 0.35);
+        }
+        .dock-btn.copilot-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 18px rgba(37, 99, 235, 0.5);
+            border-color: rgba(191, 219, 254, 0.9);
+        }
+        .dock-btn.news-btn {
+            background: linear-gradient(135deg, #075985 0%, #0284c7 100%);
+            color: #ffffff;
+            border: 1px solid rgba(186, 230, 253, 0.35);
+        }
+        .dock-btn.news-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 18px rgba(14, 165, 233, 0.5);
+            border-color: rgba(224, 242, 254, 0.9);
+        }
+        .news-sentiment-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 11px;
+            border-radius: 9999px;
+            font-size: 11.5px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            background: rgba(15, 23, 42, 0.8);
+            color: #e2e8f0;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .news-sentiment-pill:hover {
+            border-color: rgba(56, 189, 248, 0.85);
+            background: rgba(30, 41, 59, 0.95);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 10px rgba(56, 189, 248, 0.25);
+        }
+        .news-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #94a3b8;
+            box-shadow: 0 0 5px #94a3b8;
+            transition: all 0.3s ease;
+        }
+        .news-dot.bullish {
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+        }
+        .news-dot.bearish {
+            background: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
+            animation: pulse-glow 1.5s infinite;
+        }
+        @media (max-width: 768px) {
+            .floating-terminal-dock {
+                bottom: 12px;
+                right: 12px;
+                padding: 3px 5px;
+                gap: 5px;
+            }
+            .dock-btn {
+                padding: 6px 11px;
+                font-size: 11px;
+                gap: 5px;
+            }
+        }
+        .copilot-pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00e676;
+            box-shadow: 0 0 8px #00e676;
+            animation: pulse-glow 2s infinite ease-in-out;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.25); }
+        }
+
+        .ai-copilot-panel {
+            position: fixed;
+            bottom: 74px;
+            right: 88px; /* Shifted left so right price scale and NIFTY index price axis remain 100% visible */
+            width: 440px;
+            min-width: 300px;
+            max-width: 95vw;
+            height: 610px;
+            min-height: 260px;
+            max-height: 95vh;
+            background: #131722;
+            border: 1px solid #2a2e39;
+            border-radius: 14px;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+            z-index: 1200;
+            overflow: hidden;
+            resize: both;
+            backdrop-filter: blur(12px);
+        }
+
+        .copilot-resize-grip {
+            position: absolute;
+            bottom: 1px;
+            right: 3px;
+            font-size: 11px;
+            color: #64748b;
+            cursor: se-resize;
+            user-select: none;
+            z-index: 100;
+            pointer-events: auto;
+            line-height: 1;
+            transition: color 0.15s;
+        }
+        .copilot-resize-grip:hover {
+            color: #60a5fa;
+        }
+        .ai-copilot-panel.collapsed {
+            display: none !important;
+        }
+
+        .copilot-header {
+            padding: 10px 14px;
+            background: #181d2a;
+            border-bottom: 1px solid #2a2e39;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: move;
+            user-select: none;
+        }
+        .copilot-title-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .copilot-title {
+            font-size: 13.5px;
+            font-weight: 800;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .copilot-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 4px;
+            background: rgba(37, 99, 235, 0.2);
+            color: #60a5fa;
+            border: 1px solid rgba(96, 165, 250, 0.3);
+        }
+        .copilot-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .copilot-btn-icon {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+            transition: all 0.15s;
+        }
+        .copilot-btn-icon:hover {
+            color: #ffffff;
+            background: #2a2e39;
+        }
+
+        /* Quick Suggestion Pills */
+        .copilot-pills-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: #11141d;
+            border-bottom: 1px solid #1f2430;
+            overflow-x: auto;
+            white-space: nowrap;
+            scrollbar-width: none;
+        }
+        .copilot-pills-bar::-webkit-scrollbar {
+            display: none;
+        }
+        .copilot-pill {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            background: #1c2230;
+            color: #94a3b8;
+            border: 1px solid #2d3748;
+            cursor: pointer;
+            transition: all 0.15s;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .copilot-pill:hover {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #3b82f6;
+            transform: translateY(-1px);
+        }
+
+        /* Message Thread */
+        .copilot-messages-container {
+            flex: 1;
+            padding: 14px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #0f121a;
+        }
+        .copilot-messages-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .copilot-messages-container::-webkit-scrollbar-thumb {
+            background: #2a2e39;
+            border-radius: 3px;
+        }
+
+        .copilot-msg {
+            display: flex;
+            flex-direction: column;
+            max-width: 90%;
+            font-size: 12px;
+            line-height: 1.55;
+            animation: msg-fade-in 0.2s ease-out;
+        }
+        @keyframes msg-fade-in {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .copilot-msg.user {
+            align-self: flex-end;
+        }
+        .copilot-msg.assistant {
+            align-self: flex-start;
+        }
+        .copilot-msg-bubble {
+            padding: 10px 13px;
+            border-radius: 12px;
+            word-wrap: break-word;
+        }
+        .copilot-msg.user .copilot-msg-bubble {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #ffffff;
+            border-bottom-right-radius: 3px;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+        }
+        .copilot-msg.assistant .copilot-msg-bubble {
+            background: #181d2a;
+            color: #e2e8f0;
+            border: 1px solid #273042;
+            border-bottom-left-radius: 3px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        .copilot-msg-meta {
+            font-size: 10px;
+            color: #64748b;
+            margin-top: 3px;
+            padding: 0 2px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .copilot-msg.user .copilot-msg-meta {
+            justify-content: flex-end;
+        }
+
+        .copilot-msg-bubble code {
+            background: rgba(0, 0, 0, 0.35);
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #93c5fd;
+        }
+        .copilot-msg-bubble pre {
+            background: #0d1117;
+            padding: 8px 10px;
+            border-radius: 6px;
+            overflow-x: auto;
+            border: 1px solid #21262d;
+            margin: 6px 0;
+        }
+        .copilot-msg-bubble pre code {
+            background: transparent;
+            padding: 0;
+        }
+        .copilot-disclaimer-pill {
+            margin-top: 8px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        /* Typing indicator */
+        .typing-bubble {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 10px 14px;
+            background: #181d2a;
+            border: 1px solid #273042;
+            border-radius: 12px;
+            border-bottom-left-radius: 3px;
+            width: fit-content;
+        }
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background: #60a5fa;
+            border-radius: 50%;
+            animation: bounce-typing 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce-typing {
+            0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Input Area */
+        .copilot-input-area {
+            padding: 10px 12px;
+            background: #131722;
+            border-top: 1px solid #2a2e39;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .copilot-input {
+            flex: 1;
+            background: #1a1e2c;
+            border: 1px solid #2a2e39;
+            border-radius: 8px;
+            padding: 9px 12px;
+            color: #ffffff;
+            font-size: 12.5px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .copilot-input:focus {
+            border-color: #3b82f6;
+            background: #1e2436;
+        }
+        .copilot-send-btn {
+            background: #2563eb;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            padding: 9px 14px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .copilot-send-btn:hover {
+            background: #1d4ed8;
+            transform: scale(1.03);
+        }
+                /* 🤖 Floating AI Candle / Signal Inspector Pill */
+        .ai-candle-pill {
+            position: absolute;
+            z-index: 1050;
+            display: none;
+            align-items: center;
+            gap: 7px;
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border: 1px solid #3b82f6;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.75), 0 0 14px rgba(59, 130, 246, 0.35);
+            border-radius: 20px;
+            padding: 5px 10px 5px 12px;
+            color: #ffffff;
+            font-size: 11.5px;
+            font-family: inherit;
+            cursor: pointer;
+            user-select: none;
+            pointer-events: auto;
+            transform: translate(-50%, -125%);
+            animation: aiPillBounce 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            backdrop-filter: blur(8px);
+            transition: all 0.15s ease;
+        }
+        .ai-candle-pill:hover {
+            border-color: #60a5fa;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85), 0 0 18px rgba(96, 165, 250, 0.5);
+            transform: translate(-50%, -128%) scale(1.03);
+        }
+        .ai-candle-pill-content {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .ai-pill-icon {
+            font-size: 13px;
+        }
+        #ai-pill-title {
+            font-weight: 700;
+            color: #60a5fa;
+        }
+        #ai-pill-meta {
+            color: #94a3b8;
+            font-size: 10.5px;
+            border-left: 1px solid #334155;
+            padding-left: 6px;
+        }
+        .ai-pill-arrow {
+            color: #38bdf8;
+            font-size: 10px;
+        }
+        .ai-pill-close {
+            background: transparent;
+            border: none;
+            color: #64748b;
+            font-size: 11px;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 2px;
+        }
+        .ai-pill-close:hover {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.15);
+        }
+        @keyframes aiPillBounce {
+            0% { opacity: 0; transform: translate(-50%, -100%) scale(0.85); }
+            100% { opacity: 1; transform: translate(-50%, -125%) scale(1); }
+        }
+
+        .copilot-send-btn:disabled {
+            background: #374151;
+            color: #6b7280;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Modal for AI Strategy Engine Key Settings */
+        .rag-key-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            z-index: 1500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .rag-key-modal-card {
+            background: #181d2a;
+            border: 1px solid #2a2e39;
+            border-radius: 14px;
+            padding: 22px;
+            width: 480px;
+            max-width: calc(100vw - 32px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85);
+        }
+
+
+        /* ========================================================
+           RESPONSIVE DESIGN ACROSS ALL DEVICES (MOBILE, TABLET, DESKTOP)
+           ======================================================== */
+
+        /* Global Admin Visitor Analytics Badge & Buttons */
+        #admin-analytics-badge {
+            position: relative;
+            display: none;
+            align-items: center;
+            gap: 4px;
+            margin-right: 6px;
+        }
+        #btn-admin-stats {
+            background: rgba(168, 85, 247, 0.15) !important;
+            border: 1px solid rgba(168, 85, 247, 0.5) !important;
+            color: #e9d5ff !important;
+            font-weight: 700 !important;
+            padding: 4px 10px !important;
+            border-radius: 6px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+        }
+        #btn-admin-stats:hover {
+            background: rgba(168, 85, 247, 0.28) !important;
+            border-color: #a855f7 !important;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(168, 85, 247, 0.35);
+        }
+        #btn-admin-download-csv:hover {
+            background: rgba(37, 99, 235, 0.35) !important;
+            border-color: #60a5fa !important;
+            transform: translateY(-1px);
+        }
+
+        /* Mobile Drawing Toolbar Toggle Button (Hidden on Desktop) */
+        .mobile-draw-toggle {
+            display: none;
+            position: absolute;
+            bottom: 20px;
+            left: 14px;
+            z-index: 100;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: #60a5fa;
+            border: 1px solid #3b82f6;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.75), 0 0 10px rgba(59, 130, 246, 0.3);
+            font-size: 19px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .mobile-draw-toggle:active {
+            transform: scale(0.92);
+        }
+
+        /* Pull-down bar indicator for Mobile Bottom Sheet Copilot */
+        .copilot-mobile-bar {
+            display: none;
+            width: 44px;
+            height: 5px;
+            background: #475569;
+            border-radius: 999px;
+            margin: 4px auto 8px auto;
+        }
+
+        .copilot-header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           TABLETS & MID-SIZE SCREENS (769px to 1024px)
+           Clean 2-Row Layout: Market State on Row 1, Controls on Row 2
+           Desktop (> 1024px) remains 100% UNTOUCHED!
+           ═══════════════════════════════════════════════════════════ */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            header {
+                height: auto;
+                min-height: auto;
+                padding: 0;
+                display: flex;
+                flex-direction: column;
+                overflow: visible;
+                background-color: var(--bg-panel);
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            .header-line {
+                padding: 0 10px;
+                gap: 8px;
+            }
+
+            .header-line-top {
+                height: 36px;
+            }
+
+            .header-line-bottom {
+                height: 38px;
+            }
+
+            .brand-badge {
+                font-size: 11px;
+                padding: 3px 8px;
+            }
+
+            .ltp-badge {
+                font-size: 12px;
+                padding: 3px 8px;
+                gap: 6px;
+            }
+            .ltp-price {
+                font-size: 13px;
+            }
+            .ltp-change-badge {
+                font-size: 11px;
+                padding: 1px 5px;
+            }
+            .nifty-breadth-badge {
+                font-size: 10.5px;
+                padding: 2px 6px;
+            }
+
+            .market-status-pill {
+                font-size: 10.5px;
+                padding: 3px 7px;
+            }
+
+            .candle-timer-pill {
+                font-size: 10.5px;
+                padding: 3px 7px;
+            }
+
+            .mtf-ribbon {
+                padding: 3px 8px;
+                gap: 6px;
+                font-size: 11px;
+            }
+            .mtf-ribbon .mtf-title {
+                display: none;
+            }
+
+            .dropdown-trigger-btn {
+                padding: 4px 8px;
+                font-size: 11.5px;
+            }
+
+            .btn-action {
+                padding: 4px 8px;
+                font-size: 11.5px;
+            }
+
+            .sub-bar {
+                height: 26px;
+                padding: 0 10px;
+                font-size: 10.5px;
+            }
+            .sub-bar div:last-child {
+                display: none; /* Hide lengthy axis tips to fit screen */
+            }
+
+            .workspace {
+                flex: 1;
+                min-height: 0;
+                height: auto;
+            }
+
+            .ai-copilot-panel {
+                width: 380px;
+                height: 540px;
+                right: 82px;
+                bottom: 68px;
+            }
+        }
+
