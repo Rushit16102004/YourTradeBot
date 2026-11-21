@@ -567,6 +567,22 @@
                 display: none !important;
             }
 
+            .copilot-pills-header {
+                padding: 4px 10px 2px 10px !important;
+                font-size: 9.5px !important;
+            }
+
+            .copilot-pills-bar {
+                max-height: 70px !important;
+                padding: 5px 8px !important;
+                gap: 4px 5px !important;
+            }
+
+            .copilot-pill {
+                font-size: 10px !important;
+                padding: 3px 7px !important;
+            }
+
             .copilot-messages-container {
                 padding: 10px 8px;
             }

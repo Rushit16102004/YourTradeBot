@@ -1303,43 +1303,40 @@
         </div>
 
         <!-- Quick Strategy Prompt Suggestion Pills -->
+        <div class="copilot-pills-header">
+            <span style="display: flex; align-items: center; gap: 6px;">
+                <span style="color: #38bdf8;">⚡</span> <b>1-Click AI Trade Queries</b>
+                <span style="color: #64748b; font-weight: 500; font-size: 10px; text-transform: none;">(Tap to test AI — No typing needed)</span>
+            </span>
+        </div>
         <div class="copilot-pills-bar">
-            <!-- ⚡ High-Impact Direct Queries (1-Click for Guest & Logged-in Traders) -->
-            <button class="copilot-pill" onclick="sendQuickPrompt('What is the next high-probability trade setup on NIFTY 50? Provide exact Entry price, Invalidation/Stop Loss, Target runway, and Risk-to-Reward ratio based on active institutional VWAP and S&R confluence.')" style="border-color: #3b82f6; color: #60a5fa; background: rgba(59, 130, 246, 0.15); font-weight: 700;">
-                🎯 Next Possible Trade Setup
+            <!-- ⚡ Core Trade Prediction Direct Queries -->
+            <button class="copilot-pill" onclick="sendQuickPrompt('What is the next high-probability trade setup on NIFTY 50? Provide exact Entry price, Invalidation/Stop Loss, Target runway, and Risk-to-Reward ratio based on active institutional VWAP and S&R confluence.')" style="border-color: rgba(96, 165, 250, 0.45); color: #93c5fd; background: rgba(59, 130, 246, 0.16);" title="Next Trade: Entry price, Stop Loss, Target & R:R">
+                🎯 Next Trade Setup
             </button>
-            <button class="copilot-pill" onclick="sendQuickPrompt('Analyze the current NIFTY 50 market condition: What is the trend structure, institutional VWAP ±2σ bias, volume confirmation, and key support/resistance boundaries right now?')" style="border-color: #10b981; color: #34d399; background: rgba(16, 185, 129, 0.15); font-weight: 700;">
-                📊 Current Market Condition
+            <button class="copilot-pill" onclick="sendQuickPrompt('Analyze the current NIFTY 50 market condition: What is the trend structure, institutional VWAP ±2σ bias, volume confirmation, and key support/resistance boundaries right now?')" style="border-color: rgba(52, 211, 153, 0.45); color: #6ee7b7; background: rgba(16, 185, 129, 0.16);" title="Market Condition: VWAP bias & structure">
+                📊 Market Condition
             </button>
-            <button class="copilot-pill" onclick="sendQuickPrompt('What is today\'s projected closing target and expected trading range for NIFTY 50? Highlight key institutional liquidity levels and likely closing consolidation zones.')" style="border-color: #f59e0b; color: #fbbf24; background: rgba(245, 158, 11, 0.15); font-weight: 700;">
-                🏁 Today's Expected Close Target
+            <button class="copilot-pill" onclick="sendQuickPrompt('What is today\'s projected closing target and expected trading range for NIFTY 50? Highlight key institutional liquidity levels and likely closing consolidation zones.')" style="border-color: rgba(251, 191, 36, 0.45); color: #fcd34d; background: rgba(245, 158, 11, 0.16);" title="Expected Close Target & day's range">
+                🏁 Close Target
             </button>
-            <button class="copilot-pill" onclick="openNewsModal()" style="border-color: #38bdf8; color: #38bdf8; background: rgba(56, 189, 248, 0.12); font-weight: 700;">
-                📰 News Sentiment
-            </button>
-            <button class="copilot-pill" onclick="openPreFlightModal()" style="border-color: #10b981; color: #10b981; background: rgba(16, 185, 129, 0.12); font-weight: 700;">
-                🚀 Pre-Flight (Go / No-Go)
-            </button>
-            <button class="copilot-pill" onclick="openTrapRadarModal()" style="border-color: #ef4444; color: #f87171; background: rgba(239, 68, 68, 0.12); font-weight: 700;">
-                🎯 Trap Radar
-            </button>
-            <button class="copilot-pill" onclick="sendQuickPrompt('What is my current trading psychology, discipline score, and coaching advice?')">
-                🧠 My Psychology
-            </button>
-            <button class="copilot-pill" onclick="sendQuickPrompt('Trade Doctor: Perform an instant clinical post-mortem on my last completed trade. Why did it win or lose?')">
-                🩺 Trade Doctor (Post-Mortem)
-            </button>
-            <button class="copilot-pill" onclick="sendQuickPrompt('Analyze my active on-chart drawings and trendlines against live VWAP and S&R levels.')">
-                🎨 My Chart Drawings
-            </button>
-            <button class="copilot-pill" onclick="sendQuickPrompt('What is the 9:15 - 9:45 AM ORB status, range, and trading playbook?')">
-                ⏱️ 9:15-9:45 AM ORB
-            </button>
-            <button class="copilot-pill" onclick="sendQuickPrompt('Explain the latest signal, trigger price, target runway, and risk parameters.')">
+            <button class="copilot-pill" onclick="sendQuickPrompt('Explain the latest NIFTY 50 signal, exact trigger price, target runway, invalidation stop, and risk parameters.')" style="border-color: rgba(192, 132, 252, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.16);" title="Latest Algorithmic Signal details">
                 🚀 Latest Signal
             </button>
-            <button class="copilot-pill" onclick="sendQuickPrompt('What are the active 1M + 2M S&R confluence levels right now?')">
+            <button class="copilot-pill" onclick="sendQuickPrompt('What are the active 1M + 2M institutional S&R confluence levels and key liquidity pivot zones for NIFTY 50 right now?')" style="border-color: rgba(45, 212, 191, 0.45); color: #5eead4; background: rgba(20, 184, 166, 0.16);" title="1M + 2M S&R Confluence Levels">
                 🏛️ S&R Confluence
+            </button>
+            <button class="copilot-pill" onclick="sendQuickPrompt('What is the 9:15 - 9:45 AM ORB (Opening Range Breakout) status, range high/low, and trading playbook for NIFTY 50 today?')" style="border-color: rgba(251, 113, 133, 0.45); color: #fda4af; background: rgba(244, 63, 94, 0.16);" title="9:15 - 9:45 AM Opening Range Breakout">
+                ⏱️ 9:15 AM ORB
+            </button>
+            <button class="copilot-pill" onclick="sendQuickPrompt('What is my current trading psychology, discipline score, emotional bias check, and coaching advice?')" style="border-color: rgba(129, 140, 248, 0.4); color: #a5b4fc; background: rgba(99, 102, 241, 0.14);" title="Trading Psychology & Coaching Score">
+                🧠 Psychology
+            </button>
+            <button class="copilot-pill" onclick="sendQuickPrompt('Trade Doctor: Perform an instant clinical post-mortem on my last completed trade. Why did it win or lose?')" style="border-color: rgba(56, 189, 248, 0.4); color: #7dd3fc; background: rgba(14, 165, 233, 0.14);" title="Trade Doctor: Clinical Post-Mortem">
+                🩺 Trade Doctor
+            </button>
+            <button class="copilot-pill" onclick="sendQuickPrompt('Analyze my active on-chart drawings and trendlines against live institutional VWAP and S&R levels.')" style="border-color: rgba(250, 204, 21, 0.4); color: #fde047; background: rgba(234, 179, 8, 0.14);" title="On-Chart Drawings & Trendlines Confluence">
+                🎨 Chart Drawings
             </button>
         </div>
 
