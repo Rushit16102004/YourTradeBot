@@ -1411,8 +1411,6 @@
         function toggleDropdown(dropdownId) {
             if (dropdownId === 'dropdown-indicators') {
                 if (!requireAuth('add and configure technical indicators (EMA, SMA, BB, Supertrend, RSI, MACD, Stoch RSI)', 'register')) return;
-            } else if (dropdownId === 'dropdown-sr') {
-                if (!requireAuth('access algorithmic Support & Resistance levels', 'register')) return;
             } else if (dropdownId === 'dropdown-patterns') {
                 if (!requireAuth('access Multi-Timeframe Chart Patterns & Breakout Detector', 'register')) return;
             }
@@ -1847,8 +1845,8 @@
             }
         }
 
-        // Auto Support & Resistance levels from rolling 2M, 4M, 1&2M, 1,2,3M, and All 4M datasets
-        let isSREnabled = false;
+        // Auto Support & Resistance levels from rolling 2M, 4M, 1&2M, 1,2,3M, and All 4M datasets (100% Free in Guest Mode)
+        let isSREnabled = true;
         let currentSRPeriod = 'all'; // '2m', '4m', '1_2m', '1_2_3m', 'all'
         let srLevelsData = { '2m': [], '4m': [], '1_2m': [], '1_2_3m': [], 'all': [], 'combined': [], '1m': [] };
 
@@ -11706,6 +11704,7 @@ function showIndicatorLineActionPill(ind, point) {
         // ========================================================
         let isCopilotOpen = false;
         let isCopilotBusy = false;
+        const GUEST_CHAT_LIMIT = 10;
 
         function getGuestChatCount() {
             return parseInt(localStorage.getItem('terminal_guest_chat_count') || '0', 10);
@@ -11726,21 +11725,21 @@ function showIndicatorLineActionPill(ind, point) {
                 inp.placeholder = "Ask about setups, VWAP ±2σ, S&R confluence...";
             } else {
                 const c = count !== null ? count : getGuestChatCount();
-                const rem = Math.max(0, 2 - c);
+                const rem = Math.max(0, GUEST_CHAT_LIMIT - c);
                 if (rem > 0) {
                     inp.placeholder = `Ask about setups... (${rem} free guest prompt${rem === 1 ? '' : 's'} available)`;
                 } else {
-                    inp.placeholder = `2/2 free chats used - Register for unlimited AI`;
+                    inp.placeholder = `${GUEST_CHAT_LIMIT}/${GUEST_CHAT_LIMIT} free chats used - Register for unlimited AI`;
                 }
             }
         }
 
         function toggleCopilot() {
             const token = localStorage.getItem('auth_token');
-            if (!token && getGuestChatCount() >= 2) {
+            if (!token && getGuestChatCount() >= GUEST_CHAT_LIMIT) {
                 const errBox = document.getElementById('auth-error-box');
                 if (errBox) {
-                    errBox.innerHTML = `🚀 <strong>Free Guest Prompts Completed (2/2)</strong><br>Create a Free Account to continue unlimited AI Strategy Copilot chats, Macro News Sentiment & Pre-Flight checks.`;
+                    errBox.innerHTML = `🚀 <strong>Free Guest Prompts Completed (${GUEST_CHAT_LIMIT}/${GUEST_CHAT_LIMIT})</strong><br>Create a Free Account to continue unlimited AI Strategy Copilot chats, Macro News Sentiment & Pre-Flight checks.`;
                     errBox.style.display = 'block';
                     errBox.style.background = 'rgba(56, 189, 248, 0.12)';
                     errBox.style.borderColor = 'rgba(56, 189, 248, 0.4)';
@@ -12233,10 +12232,10 @@ function showIndicatorLineActionPill(ind, point) {
             const token = localStorage.getItem('auth_token');
             if (!token) {
                 const count = getGuestChatCount();
-                if (count >= 2) {
+                if (count >= GUEST_CHAT_LIMIT) {
                     const errBox = document.getElementById('auth-error-box');
                     if (errBox) {
-                        errBox.innerHTML = `🚀 <strong>Free Guest Prompts Completed (2/2)</strong><br>You have used your 2 free AI questions. Create a Free Account to unlock unlimited AI Strategy Copilot, Breaking Macro News & Pre-Flight checks.`;
+                        errBox.innerHTML = `🚀 <strong>Free Guest Prompts Completed (${GUEST_CHAT_LIMIT}/${GUEST_CHAT_LIMIT})</strong><br>You have used your ${GUEST_CHAT_LIMIT} free AI questions. Create a Free Account to unlock unlimited AI Strategy Copilot, Breaking Macro News & Pre-Flight checks.`;
                         errBox.style.display = 'block';
                         errBox.style.background = 'rgba(56, 189, 248, 0.12)';
                         errBox.style.borderColor = 'rgba(56, 189, 248, 0.4)';
@@ -12250,8 +12249,8 @@ function showIndicatorLineActionPill(ind, point) {
                         guestNotice.className = 'copilot-msg assistant';
                         guestNotice.innerHTML = `
                             <div class="copilot-msg-bubble" style="border-left: 3px solid #38bdf8; background: rgba(56, 189, 248, 0.12); color: #e2e8f0;">
-                                🔒 <strong>Guest Limit Reached (2/2 Free Prompts Used):</strong><br>
-                                You have used your 2 free AI preview questions! To continue asking questions and receive real-time institutional setups, please <a href="javascript:void(0)" onclick="openAuthModal('register')" style="color: #38bdf8; font-weight: 700; text-decoration: underline;">Create a Free Account</a> (100% Free Forever).
+                                🔒 <strong>Guest Limit Reached (${GUEST_CHAT_LIMIT}/${GUEST_CHAT_LIMIT} Free Prompts Used):</strong><br>
+                                You have used your ${GUEST_CHAT_LIMIT} free AI preview questions! To continue asking questions and receive real-time institutional setups, please <a href="javascript:void(0)" onclick="openAuthModal('register')" style="color: #38bdf8; font-weight: 700; text-decoration: underline;">Create a Free Account</a> (100% Free Forever).
                             </div>
                         `;
                         messages.appendChild(guestNotice);
@@ -12410,14 +12409,14 @@ function showIndicatorLineActionPill(ind, point) {
                     // Show guest prompt status banner after streaming finishes
                     if (!token) {
                         const currentGuestCount = getGuestChatCount();
-                        const rem = Math.max(0, 2 - currentGuestCount);
+                        const rem = Math.max(0, GUEST_CHAT_LIMIT - currentGuestCount);
                         const guestPill = document.createElement('div');
                         if (rem > 0) {
                             guestPill.style.cssText = 'text-align: center; margin: 4px 0 8px 0; font-size: 11px; color: #38bdf8;';
-                            guestPill.innerHTML = `✨ <i>Free Guest Preview: ${rem} prompt remaining • <a href="javascript:void(0)" onclick="openAuthModal('register')" style="color: #10b981; font-weight: 700; text-decoration: underline;">Register Free</a> for unlimited chats</i>`;
+                            guestPill.innerHTML = `✨ <i>Free Guest Preview: ${rem} prompt${rem === 1 ? '' : 's'} remaining • <a href="javascript:void(0)" onclick="openAuthModal('register')" style="color: #10b981; font-weight: 700; text-decoration: underline;">Register Free</a> for unlimited chats</i>`;
                         } else {
                             guestPill.style.cssText = 'text-align: center; margin: 6px 0 10px 0; font-size: 11.5px; color: #f59e0b; background: rgba(245, 158, 11, 0.1); border: 1px dashed rgba(245, 158, 11, 0.35); border-radius: 8px; padding: 6px 10px;';
-                            guestPill.innerHTML = `🚀 <b>2 of 2 Free Chats Used!</b> Next prompt requires a free account: <a href="javascript:void(0)" onclick="openAuthModal('register')" style="color: #38bdf8; font-weight: 800; text-decoration: underline;">Create 100% Free Account Now</a>`;
+                            guestPill.innerHTML = `🚀 <b>${GUEST_CHAT_LIMIT} of ${GUEST_CHAT_LIMIT} Free Chats Used!</b> Next prompt requires a free account: <a href="javascript:void(0)" onclick="openAuthModal('register')" style="color: #38bdf8; font-weight: 800; text-decoration: underline;">Create 100% Free Account Now</a>`;
                         }
                         messages.appendChild(guestPill);
                         scrollCopilotToBottom();
@@ -14747,7 +14746,7 @@ function showIndicatorLineActionPill(ind, point) {
             isBandsEnabled = true;
             isSMAEnabled = false;
             isSignalsEnabled = false;
-            isSREnabled = false;
+            isSREnabled = true;
 
             if (indConfig) {
                 indConfig.ema9_enabled = false;
@@ -15062,10 +15061,10 @@ function showIndicatorLineActionPill(ind, point) {
 
         function openNewsModal() {
             const token = localStorage.getItem('auth_token');
-            if (!token && getGuestChatCount() >= 2) {
+            if (!token && getGuestChatCount() >= GUEST_CHAT_LIMIT) {
                 const errBox = document.getElementById('auth-error-box');
                 if (errBox) {
-                    errBox.innerHTML = `🔒 <strong>Account Required</strong><br>Your 2 free guest preview chats are completed. Please <strong>Create a Free Account</strong> to continue accessing Real-Time Macro News Sentiment.`;
+                    errBox.innerHTML = `🔒 <strong>Account Required</strong><br>Your ${GUEST_CHAT_LIMIT} free guest preview chats are completed. Please <strong>Create a Free Account</strong> to continue accessing Real-Time Macro News Sentiment.`;
                     errBox.style.display = 'block';
                     errBox.style.background = 'rgba(56, 189, 248, 0.12)';
                     errBox.style.borderColor = 'rgba(56, 189, 248, 0.4)';
@@ -15305,10 +15304,10 @@ function showIndicatorLineActionPill(ind, point) {
 
         function openPreFlightModal(dir = null) {
             const token = localStorage.getItem('auth_token');
-            if (!token && getGuestChatCount() >= 2) {
+            if (!token && getGuestChatCount() >= GUEST_CHAT_LIMIT) {
                 const errBox = document.getElementById('auth-error-box');
                 if (errBox) {
-                    errBox.innerHTML = `🔒 <strong>Account Required</strong><br>Your 2 free guest preview chats are completed. Please <strong>Create a Free Account</strong> to continue running 1-Click Institutional Pre-Flight Confluence checks.`;
+                    errBox.innerHTML = `🔒 <strong>Account Required</strong><br>Your ${GUEST_CHAT_LIMIT} free guest preview chats are completed. Please <strong>Create a Free Account</strong> to continue running 1-Click Institutional Pre-Flight Confluence checks.`;
                     errBox.style.display = 'block';
                     errBox.style.background = 'rgba(56, 189, 248, 0.12)';
                     errBox.style.borderColor = 'rgba(56, 189, 248, 0.4)';
