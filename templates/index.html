@@ -12782,7 +12782,10 @@ function showIndicatorLineActionPill(ind, point) {
                         <input id="login-identifier" type="text" autocomplete="username" required placeholder="e.g. trader1 or trader@email.com" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 10px 12px; border-radius: 8px; font-size: 13px; outline: none;">
                     </div>
                     <div style="margin-bottom: 18px;">
-                        <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 6px;">Password</label>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <label style="font-size: 12px; color: #94a3b8; font-weight: 600;">Password</label>
+                            <a href="javascript:void(0)" onclick="openForgotPasswordView()" style="color: #38bdf8; font-size: 11.5px; text-decoration: underline; font-weight: 600;">Forgot Password? 🔑</a>
+                        </div>
                         <input id="login-password" type="password" autocomplete="current-password" required placeholder="Enter your password" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 10px 12px; border-radius: 8px; font-size: 13px; outline: none;">
                     </div>
                     <button type="submit" id="btn-submit-login" style="width: 100%; padding: 12px; min-height: 44px; background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: #fff; border: 1px solid #60a5fa; font-weight: 700; border-radius: 8px; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(37,99,235,0.4);">
@@ -12898,6 +12901,44 @@ function showIndicatorLineActionPill(ind, point) {
                         <div style="font-size: 11px; color: #64748b; margin-top: 6px;">
                             Need help with account creation? Connect with provider
                         </div>
+                    </div>
+                </form>
+
+                <!-- Form: Forgot / Reset Password -->
+                <form id="form-auth-forgot" onsubmit="handleForgotPasswordSubmit(event)" style="display: none; padding-bottom: 10px;">
+                    <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 11.5px; color: #94a3b8; line-height: 1.4;">
+                        🔑 <b>Self-Service Password Reset:</b><br>
+                        Enter your Username or Email and your Registered Mobile Number to reset your password and log in immediately.
+                    </div>
+
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 5px;">Username or Email <span style="color: #ef4444;">*</span></label>
+                        <input id="reset-identifier" type="text" required placeholder="e.g. trader1 or trader@email.com" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none;">
+                    </div>
+
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 5px;">Registered Mobile Number <span style="color: #ef4444;">*</span></label>
+                        <input id="reset-phone" type="tel" required placeholder="e.g. 9876543210 (or with country code)" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none;">
+                    </div>
+
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 5px;">New Password <span style="color: #ef4444;">*</span></label>
+                        <input id="reset-new-password" type="password" required minlength="6" placeholder="Min 6 characters" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none;">
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 5px;">Confirm New Password <span style="color: #ef4444;">*</span></label>
+                        <input id="reset-confirm-password" type="password" required minlength="6" placeholder="Re-enter new password" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none;">
+                    </div>
+
+                    <button type="submit" id="btn-submit-reset" style="width: 100%; padding: 12px; min-height: 44px; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #fff; border: 1px solid #34d399; font-weight: 700; border-radius: 8px; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(16,185,129,0.3);">
+                        🚀 Reset Password & Log In
+                    </button>
+
+                    <div style="margin-top: 14px; text-align: center;">
+                        <a href="javascript:void(0)" onclick="switchAuthTab('login')" style="color: #38bdf8; font-size: 12px; font-weight: 600; text-decoration: underline;">
+                            ← Back to Login
+                        </a>
                     </div>
                 </form>
             </div>
@@ -14228,11 +14269,13 @@ function showIndicatorLineActionPill(ind, point) {
             const tabReg = document.getElementById('auth-tab-register');
             const formLogin = document.getElementById('form-auth-login');
             const formReg = document.getElementById('form-auth-register');
+            const formForgot = document.getElementById('form-auth-forgot');
             const privBox = document.getElementById('auth-privileges-box');
             const errBox = document.getElementById('auth-error-box');
             const modalBody = document.getElementById('auth-modal-body');
             const overlay = document.getElementById('auth-modal-overlay');
             if (errBox) errBox.style.display = 'none';
+            if (formForgot) formForgot.style.display = 'none';
 
             // Reset scroll to top on tab switch so user always sees the top of the form
             if (modalBody) modalBody.scrollTop = 0;
@@ -14250,6 +14293,91 @@ function showIndicatorLineActionPill(ind, point) {
                 if (formLogin) formLogin.style.display = 'block';
                 if (formReg) formReg.style.display = 'none';
                 if (privBox) privBox.style.display = 'none'; // Completely hidden on Login tab!
+            }
+        }
+
+        function openForgotPasswordView() {
+            const formLogin = document.getElementById('form-auth-login');
+            const formReg = document.getElementById('form-auth-register');
+            const formForgot = document.getElementById('form-auth-forgot');
+            const tabLogin = document.getElementById('auth-tab-login');
+            const tabReg = document.getElementById('auth-tab-register');
+            const privBox = document.getElementById('auth-privileges-box');
+            const errBox = document.getElementById('auth-error-box');
+            const modalBody = document.getElementById('auth-modal-body');
+            const overlay = document.getElementById('auth-modal-overlay');
+
+            if (errBox) errBox.style.display = 'none';
+            if (privBox) privBox.style.display = 'none';
+            if (formLogin) formLogin.style.display = 'none';
+            if (formReg) formReg.style.display = 'none';
+            if (formForgot) formForgot.style.display = 'block';
+
+            if (tabLogin) { tabLogin.style.color = '#64748b'; tabLogin.style.borderBottomColor = 'transparent'; }
+            if (tabReg) { tabReg.style.color = '#64748b'; tabReg.style.borderBottomColor = 'transparent'; }
+
+            if (modalBody) modalBody.scrollTop = 0;
+            if (overlay) overlay.scrollTop = 0;
+        }
+
+        async function handleForgotPasswordSubmit(event) {
+            event.preventDefault();
+            const identifier = document.getElementById('reset-identifier').value.trim();
+            const phone = document.getElementById('reset-phone').value.trim();
+            const newPass = document.getElementById('reset-new-password').value;
+            const confPass = document.getElementById('reset-confirm-password').value;
+            const errBox = document.getElementById('auth-error-box');
+            const btn = document.getElementById('btn-submit-reset');
+
+            if (!identifier || !phone || !newPass) return;
+            if (newPass.length < 6) {
+                if (errBox) {
+                    errBox.innerText = 'New password must be at least 6 characters.';
+                    errBox.style.display = 'block';
+                }
+                return;
+            }
+            if (newPass !== confPass) {
+                if (errBox) {
+                    errBox.innerText = 'Passwords do not match.';
+                    errBox.style.display = 'block';
+                }
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = 'Verifying & Resetting...';
+
+            try {
+                const res = await fetch('/api/auth/reset-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ identifier: identifier, phone: phone, new_password: newPass })
+                });
+                const data = await res.json();
+                if (res.ok && data.token) {
+                    localStorage.setItem('auth_token', data.token);
+                    currentUser = data.user;
+                    closeAuthModal();
+                    await checkAuthState();
+                    await loadDrawingsFromServer();
+                    await loadUserPreferencesFromServer();
+                    loadCopilotHistory(true);
+                    alert('🎉 Password successfully reset! You are now logged in.');
+                } else {
+                    if (errBox) {
+                        errBox.innerText = data.message || 'Could not reset password. Please check your username and registered phone.';
+                        errBox.style.display = 'block';
+                    }
+                }
+            } catch (e) {
+                if (errBox) {
+                    errBox.innerText = 'Network error during password reset. Please try again.';
+                    errBox.style.display = 'block';
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerText = '🚀 Reset Password & Log In';
             }
         }
 

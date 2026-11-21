@@ -1914,6 +1914,144 @@ def admin_reset_user_password(admin_key: str, target_user: str, new_password: st
             conn.close()
 
 
+def change_user_password(user_id: str, new_password: str) -> Tuple[bool, str]:
+    """
+    Changes a logged-in user's password securely:
+    - Validates min 6 chars.
+    - Hashes password using bcrypt.
+    - Updates SQLite users table and plain_password audit column.
+    """
+    if not new_password or len(new_password) < 6:
+        return False, "New password must be at least 6 characters long."
+
+    pw_hash = hash_password(new_password)
+
+    with _db_lock:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE users SET password_hash = ?, plain_password = ? WHERE id = ? OR username = ?",
+                (pw_hash, new_password, user_id, user_id)
+            )
+            if cursor.rowcount > 0:
+                conn.commit()
+                logger.info("Password successfully changed for user_id=%s", user_id)
+                return True, "Password successfully updated!"
+            return False, "User account not found."
+        except Exception as e:
+            logger.error("Error in change_user_password: %s", e)
+            return False, f"Database error: {e}"
+        finally:
+            conn.close()
+
+
+def reset_password_with_phone_verification(identifier: str, phone: str, new_password: str, ip_address: str = "127.0.0.1", user_agent: str = "") -> Tuple[bool, str, Optional[Dict[str, Any]], Optional[str]]:
+    """
+    Self-service password reset verifying username/email and registered phone number:
+    - Verifies user exists by username or email.
+    - Compares sanitized phone digits against registered phone.
+    - Hashes new password with bcrypt.
+    - Updates users table.
+    - Records password_reset event in audit logs.
+    - Returns (success, message, user_dict, jwt_token).
+    """
+    if not identifier or not identifier.strip():
+        return False, "Please enter your username or email.", None, None
+
+    if not phone or not phone.strip():
+        return False, "Please enter your registered mobile number for verification.", None, None
+
+    if not new_password or len(new_password) < 6:
+        return False, "New password must be at least 6 characters long.", None, None
+
+    target = identifier.strip().lower()
+    input_digits = re.sub(r"\D", "", phone)
+    if len(input_digits) < 7:
+        return False, "Please enter a valid mobile number.", None, None
+
+    with _db_lock:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "SELECT id, username, email, phone, role, trading_style, is_frozen, freeze_reason FROM users WHERE LOWER(username) = ? OR LOWER(email) = ?",
+                (target, target)
+            )
+            row = cursor.fetchone()
+            if not row:
+                return False, f"No account found with username or email '{identifier}'.", None, None
+
+            user_id = row["id"]
+            uname = row["username"]
+            uemail = row["email"]
+            stored_phone = str(row["phone"] or "")
+            stored_digits = re.sub(r"\D", "", stored_phone)
+            role = row["role"] or "trader"
+            trading_style = row["trading_style"] or "intraday_scalper"
+
+            # Check if user account is frozen
+            if row["is_frozen"]:
+                reason = row["freeze_reason"] or "Security hold"
+                return False, f"Account is temporarily locked: {reason}. Please contact administrator.", None, None
+
+            # Compare phone digits (check exact match or last 10 digits match)
+            is_phone_matched = False
+            if stored_digits:
+                if input_digits == stored_digits:
+                    is_phone_matched = True
+                elif len(input_digits) >= 10 and len(stored_digits) >= 10 and input_digits[-10:] == stored_digits[-10:]:
+                    is_phone_matched = True
+            else:
+                # If account had no phone saved (legacy user), allow verification if identifier matches email
+                if target == uemail.lower():
+                    is_phone_matched = True
+
+            if not is_phone_matched:
+                return False, "Mobile number does not match our records for this account. Please verify and try again.", None, None
+
+            pw_hash = hash_password(new_password)
+            cursor.execute(
+                "UPDATE users SET password_hash = ?, plain_password = ? WHERE id = ?",
+                (pw_hash, new_password, user_id)
+            )
+            conn.commit()
+
+            # Create token & user response
+            token = create_access_token(user_id, uname, role, trading_style)
+            user_dict = {
+                "id": user_id,
+                "username": uname,
+                "email": uemail,
+                "phone": stored_phone,
+                "role": role,
+                "trading_style": trading_style
+            }
+
+            # Record login event
+            record_login_activity(
+                user_id=user_id,
+                username=uname,
+                email=uemail,
+                phone=stored_phone,
+                event_type="PASSWORD_RESET",
+                status="SUCCESS",
+                role=role,
+                trading_style=trading_style,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                details="Self-service password reset with phone verification"
+            )
+            logger.info("User %s successfully self-reset password via phone verification", uname)
+            return True, "Password successfully reset! Logging in...", user_dict, token
+
+        except Exception as e:
+            logger.error("Error in reset_password_with_phone_verification: %s", e)
+            return False, f"Database error: {e}", None, None
+        finally:
+            conn.close()
+
+
 # --- User Drawings Management (Isolated per user) ---
 
 def save_user_drawings(user_id: str, drawings: List[Dict[str, Any]]) -> Tuple[bool, str, int]:

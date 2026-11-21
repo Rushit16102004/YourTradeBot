@@ -1086,6 +1086,46 @@ async def api_me(request: Request):
     })
 
 
+@app.post("/api/auth/change-password")
+async def api_auth_change_password(request: Request, payload: dict = Body(...)):
+    """Allows an authenticated trader to update their account password from settings."""
+    user = get_current_user_from_request(request)
+    if not user:
+        return JSONResponse(status_code=401, content={"status": "error", "detail": "Authentication required to change password."})
+
+    new_password = payload.get("new_password", "").strip()
+    if not new_password or len(new_password) < 6:
+        return JSONResponse(status_code=400, content={"status": "error", "detail": "Password must be at least 6 characters long."})
+
+    success, msg = user_db.change_user_password(user["sub"], new_password)
+    if success:
+        return JSONResponse(content={"status": "ok", "message": msg})
+    return JSONResponse(status_code=400, content={"status": "error", "detail": msg})
+
+
+@app.post("/api/auth/reset-password")
+async def api_auth_reset_password(request: Request, payload: dict = Body(...)):
+    """Self-service password reset verifying username/email and registered phone number."""
+    identifier = payload.get("identifier", "").strip()
+    phone = payload.get("phone", "").strip()
+    new_password = payload.get("new_password", "").strip()
+
+    client_ip = get_client_ip(request)
+    user_agent = request.headers.get("user-agent", "")
+
+    success, msg, user_dict, token = user_db.reset_password_with_phone_verification(
+        identifier=identifier,
+        phone=phone,
+        new_password=new_password,
+        ip_address=client_ip,
+        user_agent=user_agent
+    )
+
+    if success:
+        return JSONResponse(content={"status": "ok", "message": msg, "user": user_dict, "token": token})
+    return JSONResponse(status_code=400, content={"status": "error", "message": msg})
+
+
 @app.post("/api/admin/reset-password")
 async def api_admin_reset_password(payload: dict = Body(...)):
     """Admin endpoint: resets any user's password using the master secret key."""

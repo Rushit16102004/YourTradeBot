@@ -106,3 +106,52 @@ class TestInternationalPhoneSanitization:
         # Invalid short international number
         is_valid, _, _, _ = user_db.sanitize_phone_number("123", country_code="+1")
         assert not is_valid
+
+
+class TestPasswordChangeAndReset:
+    def test_change_and_reset_flow(self):
+        import time
+        ts = int(time.time())
+        uname = f"tuser_{ts}"
+        email = f"{uname}@mail.com"
+        phone = f"9{ts % 1000000000:09d}"
+        
+        ok, msg, u = user_db.register_user(
+            username=uname,
+            email=email,
+            password="OriginalPassword123!",
+            trading_style="intraday_scalper",
+            accepted_policy=True,
+            phone=phone,
+            country_code="+91"
+        )
+        assert ok, f"Registration failed: {msg}"
+        user_id = u["id"]
+
+        # Test change password
+        ch_ok, ch_msg = user_db.change_user_password(user_id, "ChangedPassword456!")
+        assert ch_ok, f"Change password failed: {ch_msg}"
+
+        # Verify old password fails, new succeeds
+        auth_old, _, _, _ = user_db.authenticate_user(uname, "OriginalPassword123!")
+        assert not auth_old, "Old password should fail after change"
+        auth_new, _, _, _ = user_db.authenticate_user(uname, "ChangedPassword456!")
+        assert auth_new, "New password should succeed after change"
+
+        # Test self-service reset with wrong phone
+        rst_fail, _, _, _ = user_db.reset_password_with_phone_verification(
+            uname, "9000000000", "FinalPassword789!", "127.0.0.1", "test"
+        )
+        assert not rst_fail, "Reset with wrong phone should fail"
+
+        # Test self-service reset with correct phone
+        rst_ok, rst_msg, rst_u, rst_tok = user_db.reset_password_with_phone_verification(
+            uname, phone, "FinalPassword789!", "127.0.0.1", "test"
+        )
+        assert rst_ok, f"Reset with correct phone failed: {rst_msg}"
+        assert rst_tok is not None
+
+        # Verify final password
+        auth_final, _, _, _ = user_db.authenticate_user(uname, "FinalPassword789!")
+        assert auth_final, "Final password should succeed after self-reset"
+
