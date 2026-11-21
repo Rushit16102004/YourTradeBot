@@ -118,7 +118,7 @@ def get_current_user_from_request(request: Request) -> Optional[dict]:
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from engine.background_engine import BackgroundTradingEngine
@@ -370,6 +370,43 @@ async def serve_index(request: Request):
             "Expires": "0",
         },
     )
+
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+async def serve_robots():
+    """Serves standard search engine crawler permissions allowing Google/Bing indexing."""
+    return PlainTextResponse(
+        "User-agent: *\nAllow: /\nSitemap: https://yourtradebot.duckdns.org/sitemap.xml\n"
+    )
+
+
+@app.get("/sitemap.xml")
+async def serve_sitemap():
+    """Serves XML sitemap for Google Search Console."""
+    sitemap_xml = """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://yourtradebot.duckdns.org/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>"""
+    return Response(content=sitemap_xml, media_type="application/xml")
+
+
+@app.get("/google3490d74ed506dc60.html")
+async def serve_google_verification():
+    """Serves Google Search Console HTML site verification file."""
+    verify_file = os.path.join(BASE_DIR, "google3490d74ed506dc60.html")
+    if os.path.exists(verify_file):
+        return FileResponse(verify_file, media_type="text/html")
+    return HTMLResponse(content="google-site-verification: google3490d74ed506dc60.html")
+
+
+@app.get("/google3490d74ed506dc60")
+async def serve_google_verification_no_ext():
+    """Fallback endpoint for Google verification without .html extension."""
+    return HTMLResponse(content="google-site-verification: google3490d74ed506dc60.html")
 
 
 # Ultra-High-Speed In-Memory Cache for /api/data
