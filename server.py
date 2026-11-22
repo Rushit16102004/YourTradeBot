@@ -346,7 +346,7 @@ async def add_security_headers(request: Request, call_next):
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
-@app.get("/", response_class=HTMLResponse)
+@app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def serve_index(request: Request):
     """Serves the pure lightweight HTML5/CSS3/JavaScript trading terminal with IP block check."""
     client_ip = get_client_ip(request)
@@ -372,22 +372,29 @@ async def serve_index(request: Request):
     )
 
 
-@app.get("/robots.txt", response_class=PlainTextResponse)
+@app.api_route("/robots.txt", methods=["GET", "HEAD"], response_class=PlainTextResponse)
 async def serve_robots():
     """Serves standard search engine crawler permissions allowing Google/Bing indexing."""
+    robots_file = os.path.join(BASE_DIR, "robots.txt")
+    if os.path.exists(robots_file):
+        return FileResponse(robots_file, media_type="text/plain; charset=utf-8")
     return PlainTextResponse(
-        "User-agent: *\nAllow: /\nSitemap: https://yourtradebot.duckdns.org/sitemap.xml\n"
+        "User-agent: *\nAllow: /\n\nSitemap: https://yourtradebot.duckdns.org/sitemap.xml\n"
     )
 
 
-@app.get("/sitemap.xml")
-@app.get("//sitemap.xml")
+@app.api_route("/sitemap.xml", methods=["GET", "HEAD"])
+@app.api_route("//sitemap.xml", methods=["GET", "HEAD"])
 async def serve_sitemap():
     """Serves XML sitemap for Google Search Console."""
+    sitemap_file = os.path.join(BASE_DIR, "sitemap.xml")
+    if os.path.exists(sitemap_file):
+        return FileResponse(sitemap_file, media_type="application/xml")
     sitemap_xml = """<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://yourtradebot.duckdns.org/</loc>
+    <lastmod>2026-11-22</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
@@ -395,7 +402,7 @@ async def serve_sitemap():
     return Response(content=sitemap_xml, media_type="application/xml")
 
 
-@app.get("/google3490d74ed506dc60.html")
+@app.api_route("/google3490d74ed506dc60.html", methods=["GET", "HEAD"])
 async def serve_google_verification():
     """Serves Google Search Console HTML site verification file."""
     verify_file = os.path.join(BASE_DIR, "google3490d74ed506dc60.html")
@@ -404,13 +411,13 @@ async def serve_google_verification():
     return HTMLResponse(content="google-site-verification: google3490d74ed506dc60.html")
 
 
-@app.get("/google3490d74ed506dc60")
+@app.api_route("/google3490d74ed506dc60", methods=["GET", "HEAD"])
 async def serve_google_verification_no_ext():
     """Fallback endpoint for Google verification without .html extension."""
     return HTMLResponse(content="google-site-verification: google3490d74ed506dc60.html")
 
 
-@app.get("/favicon.ico")
+@app.api_route("/favicon.ico", methods=["GET", "HEAD"])
 async def serve_favicon():
     """Serves official brand favicon.ico for browsers, Googlebot and Bingbot."""
     ico_path = os.path.join(STATIC_DIR, "images", "favicon.ico")
@@ -422,7 +429,7 @@ async def serve_favicon():
     return JSONResponse(status_code=404, content={"detail": "Favicon not found"})
 
 
-@app.get("/apple-touch-icon.png")
+@app.api_route("/apple-touch-icon.png", methods=["GET", "HEAD"])
 async def serve_apple_touch_icon():
     """Serves apple touch icon for iOS Safari and search crawlers."""
     png_path = os.path.join(STATIC_DIR, "images", "apple-touch-icon.png")
@@ -431,7 +438,7 @@ async def serve_apple_touch_icon():
     return JSONResponse(status_code=404, content={"detail": "Icon not found"})
 
 
-@app.get("/manifest.json")
+@app.api_route("/manifest.json", methods=["GET", "HEAD"])
 async def serve_manifest():
     """Serves PWA Web App Manifest for mobile and search engine brand recognition."""
     manifest = {
