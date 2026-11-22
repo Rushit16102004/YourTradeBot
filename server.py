@@ -381,6 +381,7 @@ async def serve_robots():
 
 
 @app.get("/sitemap.xml")
+@app.get("//sitemap.xml")
 async def serve_sitemap():
     """Serves XML sitemap for Google Search Console."""
     sitemap_xml = """<?xml version="1.0" encoding="UTF-8"?>
