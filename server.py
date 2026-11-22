@@ -409,6 +409,56 @@ async def serve_google_verification_no_ext():
     return HTMLResponse(content="google-site-verification: google3490d74ed506dc60.html")
 
 
+@app.get("/favicon.ico")
+async def serve_favicon():
+    """Serves official brand favicon.ico for browsers, Googlebot and Bingbot."""
+    ico_path = os.path.join(STATIC_DIR, "images", "favicon.ico")
+    if os.path.exists(ico_path):
+        return FileResponse(ico_path, media_type="image/x-icon")
+    root_ico = os.path.join(BASE_DIR, "favicon.ico")
+    if os.path.exists(root_ico):
+        return FileResponse(root_ico, media_type="image/x-icon")
+    return JSONResponse(status_code=404, content={"detail": "Favicon not found"})
+
+
+@app.get("/apple-touch-icon.png")
+async def serve_apple_touch_icon():
+    """Serves apple touch icon for iOS Safari and search crawlers."""
+    png_path = os.path.join(STATIC_DIR, "images", "apple-touch-icon.png")
+    if os.path.exists(png_path):
+        return FileResponse(png_path, media_type="image/png")
+    return JSONResponse(status_code=404, content={"detail": "Icon not found"})
+
+
+@app.get("/manifest.json")
+async def serve_manifest():
+    """Serves PWA Web App Manifest for mobile and search engine brand recognition."""
+    manifest = {
+        "name": "YourTradeBot — NIFTY 50 AI Trading Terminal",
+        "short_name": "YourTradeBot",
+        "description": "Institutional NIFTY 50 AI Trading Terminal & Strategy Copilot",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#0b0e14",
+        "theme_color": "#1e3a8a",
+        "icons": [
+            {
+                "src": "/static/images/favicon-192x192.png",
+                "sizes": "192x192",
+                "type": "image/png",
+                "purpose": "any maskable"
+            },
+            {
+                "src": "/static/images/favicon-512x512.png",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "any maskable"
+            }
+        ]
+    }
+    return JSONResponse(content=manifest)
+
+
 # Ultra-High-Speed In-Memory Cache for /api/data
 _market_data_cache: Dict[str, Any] = {}
 @app.get("/api/data")
