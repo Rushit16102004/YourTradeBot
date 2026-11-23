@@ -1144,6 +1144,14 @@
 
         <!-- Chart Viewport -->
         <div class="chart-viewport" id="chart-viewport" style="display: flex; flex-direction: column;">
+            <!-- 🏛️ Market Holiday & Weekend Notification Banner -->
+            <div id="market-holiday-banner" class="market-holiday-banner" style="display: none;">
+                <div class="market-holiday-banner-inner">
+                    <span class="mhb-icon">🏛️</span>
+                    <span class="mhb-msg"><b>Market Closed Today:</b> <span id="mhb-reason">Weekend</span> • Regular Live Trading Resumes on <b id="mhb-resume">Monday at 09:15 AM IST</b>.</span>
+                </div>
+            </div>
+
             <!-- Mobile Drawing Sidebar Toggle Button -->
             <button class="mobile-draw-toggle" id="mobile-draw-toggle" onclick="toggleMobileDrawingSidebar()" title="Toggle Drawings">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1410,9 +1418,19 @@
                 </button>
             </div>
 
-            <!-- Loading Overlay -->
+            <!-- Modern Institutional Loading Overlay -->
             <div id="loading-overlay">
-                <div class="spinner"></div> Loading 4-Month TradingView Candles...
+                <div class="institutional-loader-card">
+                    <div class="institutional-spinner">
+                        <div class="spinner-outer-ring"></div>
+                        <div class="spinner-inner-ring"></div>
+                        <div class="spinner-core-dot"></div>
+                    </div>
+                    <div class="loader-content">
+                        <div class="loader-primary-text">Syncing Market Data Feed...</div>
+                        <div class="loader-sub-text">Calibrating NIFTY 50 Ticks, Liquidity & Order Flow</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -2066,9 +2084,6 @@
             updateSRButtonUI();
 
             if (isSREnabled) {
-                if (currentTimeframe !== '5m') {
-                    switchTimeframe('5m');
-                }
                 await fetchSRLevels();
             } else {
                 scheduleRenderDrawings();
@@ -2124,7 +2139,7 @@
             const srDropBtn = document.getElementById('btn-sr-dropdown');
             const infoTip = document.getElementById('sr-dropdown-info');
 
-            if (chkSr) chkSr.checked = isSREnabled && currentTimeframe === '5m';
+            if (chkSr) chkSr.checked = isSREnabled;
             if (chkSt) chkSt.checked = isStructureEnabled;
 
             if (btn2m) btn2m.classList.toggle('active', currentSRPeriod === '2m');
@@ -2149,9 +2164,13 @@
                 '1m': '1M'
             };
             const periodLabel = periodLabelMap[currentSRPeriod] || 'All 4M';
+            const tfUpper = (currentTimeframe || '5m').toUpperCase();
+            const activeSRLabel = currentTimeframe === '5m' ? periodLabel : tfUpper;
 
             if (infoTip) {
-                if (currentSRPeriod === '2m') {
+                if (currentTimeframe !== '5m') {
+                    infoTip.innerHTML = `⏱️ <b>${tfUpper} S&R:</b> Multi-timeframe dynamic key levels calculated directly on ${tfUpper} candles.`;
+                } else if (currentSRPeriod === '2m') {
                     infoTip.innerHTML = '📊 <b>2 Month Intermediate:</b> 45-day institutional swing pivots and barrier levels.';
                 } else if (currentSRPeriod === '4m') {
                     infoTip.innerHTML = '🏛️ <b>4 Month Macro:</b> Long-term major supply/demand zones and multi-month flip barriers.';
@@ -2165,11 +2184,11 @@
             }
 
             if (srDropLabel) {
-                const srActive = isSREnabled && currentTimeframe === '5m';
+                const srActive = isSREnabled;
                 if (srActive && isStructureEnabled) {
-                    srDropLabel.innerHTML = `🛡️ S&R (${periodLabel}) • ⚡ BoS: <b>ON</b>`;
+                    srDropLabel.innerHTML = `🛡️ S&R (${activeSRLabel}) • ⚡ BoS: <b>ON</b>`;
                 } else if (srActive) {
-                    srDropLabel.innerHTML = `🛡️ S&R (${periodLabel}): <b>ON</b>`;
+                    srDropLabel.innerHTML = `🛡️ S&R (${activeSRLabel}): <b>ON</b>`;
                 } else if (isStructureEnabled) {
                     srDropLabel.innerHTML = `⚡ BoS/CHoCH (${currentStructureTimeframe.toUpperCase()}): <b>ON</b>`;
                 } else {
@@ -2177,47 +2196,46 @@
                 }
             }
             if (srDropBtn) {
-                srDropBtn.classList.toggle('active-sr-head', (isSREnabled && currentTimeframe === '5m') || isStructureEnabled);
+                srDropBtn.classList.toggle('active-sr-head', isSREnabled || isStructureEnabled);
             }
 
             if (btn) {
-                btn.classList.toggle('active-sr', isSREnabled && currentTimeframe === '5m');
+                btn.classList.toggle('active-sr', isSREnabled);
                 const suppCount = lastSRMeta ? (lastSRMeta.count_support ?? 4) : 4;
                 const resCount = lastSRMeta ? (lastSRMeta.count_resistance ?? 4) : 4;
-                if (currentTimeframe === '5m') {
-                    btn.innerHTML = isSREnabled ? `🛡️ S&R (${periodLabel} • Live 100c): <b>ON</b>` : `🛡️ S&R (${periodLabel} • 24H Live): OFF`;
-                    btn.title = `24H Live S&R: ${suppCount} Support, ${resCount} Resistance | Max 3 Flips (≥6x) | Max 8-10 Levels Total | Projected +100 candles ahead`;
-                    btn.style.opacity = '1';
-                } else {
-                    btn.innerHTML = `🛡️ S&R (${periodLabel} - 5m Only)`;
-                    btn.title = `S&R Levels designed for 5m timeframe`;
-                    btn.style.opacity = '0.55';
-                }
+                btn.innerHTML = isSREnabled ? `🛡️ S&R (${activeSRLabel} • Live): <b>ON</b>` : `🛡️ S&R (${activeSRLabel} • 24H Live): OFF`;
+                btn.title = `24H Live S&R (${activeSRLabel}): ${suppCount} Support, ${resCount} Resistance | Projected forward`;
+                btn.style.opacity = '1';
             }
 
             if (toolBtn) {
-                toolBtn.classList.toggle('active-sr', isSREnabled && currentTimeframe === '5m');
+                toolBtn.classList.toggle('active-sr', isSREnabled);
             }
         }
 
-        async function fetchSRLevels() {
+        async function fetchSRLevels(targetTimeframe) {
             try {
-                const res = await fetch(`/api/sr-levels?period=${currentSRPeriod}&future_candles=100`);
+                const tf = (targetTimeframe || currentTimeframe || '5m').toLowerCase();
+                const res = await fetch(`/api/sr-levels?timeframe=${encodeURIComponent(tf)}&period=${currentSRPeriod}&future_candles=100`);
                 if (res.ok) {
                     const data = await res.json();
                     if (data) {
                         lastSRMeta = data;
-                        if (Array.isArray(data.levels_2m)) srLevelsData['2m'] = data.levels_2m;
-                        if (Array.isArray(data.levels_4m)) srLevelsData['4m'] = data.levels_4m;
-                        if (Array.isArray(data.levels_1_2m)) srLevelsData['1_2m'] = data.levels_1_2m;
-                        if (Array.isArray(data.levels_1_2_3m)) srLevelsData['1_2_3m'] = data.levels_1_2_3m;
-                        if (Array.isArray(data.levels_all)) {
-                            srLevelsData['all'] = data.levels_all;
-                            srLevelsData['combined'] = data.levels_all;
-                        }
-                        if (Array.isArray(data.levels_1m)) srLevelsData['1m'] = data.levels_1m;
-                        if (Array.isArray(data.levels)) {
-                            srLevelsData[data.period || currentSRPeriod] = data.levels;
+                        if (tf !== '5m') {
+                            srLevelsData[tf] = Array.isArray(data.levels) ? data.levels : [];
+                        } else {
+                            if (Array.isArray(data.levels_2m)) srLevelsData['2m'] = data.levels_2m;
+                            if (Array.isArray(data.levels_4m)) srLevelsData['4m'] = data.levels_4m;
+                            if (Array.isArray(data.levels_1_2m)) srLevelsData['1_2m'] = data.levels_1_2m;
+                            if (Array.isArray(data.levels_1_2_3m)) srLevelsData['1_2_3m'] = data.levels_1_2_3m;
+                            if (Array.isArray(data.levels_all)) {
+                                srLevelsData['all'] = data.levels_all;
+                                srLevelsData['combined'] = data.levels_all;
+                            }
+                            if (Array.isArray(data.levels_1m)) srLevelsData['1m'] = data.levels_1m;
+                            if (Array.isArray(data.levels)) {
+                                srLevelsData[data.period || currentSRPeriod] = data.levels;
+                            }
                         }
                         updateSRButtonUI();
                     }
@@ -3506,8 +3524,8 @@
             // Update S&R toggle button state for active timeframe
             updateSRButtonUI();
             fetchMarketStructureData();
-            if (isSREnabled && tf === '5m' && (!srLevelsData['1m'].length || !srLevelsData['2m'].length)) {
-                fetchSRLevels();
+            if (isSREnabled) {
+                fetchSRLevels(tf);
             }
 
             // 1. Capture current visible time range so the chart view does not jump or change side
@@ -3764,7 +3782,7 @@
                     const ccEl = document.getElementById('candle-count');
                     if (ccEl) ccEl.innerText = activeCandles.length;
 
-                    if (isSREnabled && currentTimeframe === '5m') {
+                    if (isSREnabled) {
                         fetchSRLevels();
                     }
                 }
@@ -3884,7 +3902,7 @@
                 }
 
                 // Live 24H S&R dynamic update on new candle
-                if (isSREnabled && currentTimeframe === '5m') {
+                if (isSREnabled) {
                     fetchSRLevels();
                 }
                 fetchMarketStructureData();
@@ -3907,7 +3925,7 @@
                     lastRenderedCandlesCount = activeCandles.length;
                     renderAdvancedIndicators();
                     rebuildAllDynamicIndicatorSeries();
-                    if (isSREnabled && currentTimeframe === '5m') {
+                    if (isSREnabled) {
                         fetchSRLevels();
                     }
                     scheduleRenderDrawings();
@@ -9093,9 +9111,11 @@ function showIndicatorLineActionPill(ind, point) {
             const maxUsableWidth = Math.max(200, chartWidth - 65);
             const forwardX = Math.min(maxUsableWidth, Math.max(maxUsableWidth - 50, timeToX(forwardTime) || maxUsableWidth));
 
-            // 1. Support & Resistance Levels (5m Chart)
-            if (isSREnabled && currentTimeframe === '5m') {
-                const levels = srLevelsData[currentSRPeriod] || srLevelsData['all'] || srLevelsData['combined'] || srLevelsData['2m'] || srLevelsData['4m'] || [];
+            // 1. Support & Resistance Levels (All Timeframes: 5m, 15m, 1h, 1d)
+            if (isSREnabled) {
+                const levels = (currentTimeframe !== '5m')
+                    ? (srLevelsData[currentTimeframe] || [])
+                    : (srLevelsData[currentSRPeriod] || srLevelsData['all'] || srLevelsData['combined'] || srLevelsData['2m'] || srLevelsData['4m'] || []);
                 if (Array.isArray(levels) && levels.length > 0) {
                     levels.forEach(lvl => {
                 const bounces = parseInt(lvl.bounces) || 1;
@@ -9166,7 +9186,15 @@ function showIndicatorLineActionPill(ind, point) {
                     rect.setAttribute('y', rectY);
                     rect.setAttribute('width', rectW);
                     rect.setAttribute('height', rectH);
-                    const srCol = isLocal ? (currentThemeSettings.srBreakout || '#ffffff') : (isSupp ? (currentThemeSettings.srSupport || '#22c55e') : (currentThemeSettings.srResistance || '#ef4444'));
+                    const isSupp = lvl.is_support || (roleText && roleText.toLowerCase() === 'support');
+                    const isRes = (!lvl.is_support && lvl.is_support !== undefined) || (roleText && roleText.toLowerCase() === 'resistance');
+                    const isOther = isLocal || (roleText && (roleText.toLowerCase().includes('flip') || roleText.toLowerCase().includes('zone') || roleText.toLowerCase().includes('breakout')));
+                    let srCol = '#ffffff';
+                    if (!isOther && isSupp && roleText.toLowerCase() === 'support') {
+                        srCol = currentThemeSettings.srSupport || '#22c55e';
+                    } else if (!isOther && isRes && roleText.toLowerCase() === 'resistance') {
+                        srCol = currentThemeSettings.srResistance || '#ef4444';
+                    }
                     rect.setAttribute('fill', srCol);
                     rect.setAttribute('fill-opacity', fillOpacity);
                     rect.setAttribute('stroke', srCol);
@@ -9231,8 +9259,16 @@ function showIndicatorLineActionPill(ind, point) {
                     hitLine.style.pointerEvents = 'all';
                     g.appendChild(hitLine);
 
-                    // Visual Line: PURE WHITE with bounce opacity
-                    const srCol = isLocal ? (currentThemeSettings.srBreakout || '#ffffff') : (isSupp ? (currentThemeSettings.srSupport || '#22c55e') : (currentThemeSettings.srResistance || '#ef4444'));
+                    // Visual Line: Support = Green, Resistance = Red, other lines = White
+                    const isSuppLine = lvl.is_support || (roleText && roleText.toLowerCase() === 'support');
+                    const isResLine = (!lvl.is_support && lvl.is_support !== undefined) || (roleText && roleText.toLowerCase() === 'resistance');
+                    const isOtherLine = isLocal || (roleText && (roleText.toLowerCase().includes('flip') || roleText.toLowerCase().includes('breakout')));
+                    let srCol = '#ffffff';
+                    if (!isOtherLine && isSuppLine && roleText.toLowerCase() === 'support') {
+                        srCol = currentThemeSettings.srSupport || '#22c55e';
+                    } else if (!isOtherLine && isResLine && roleText.toLowerCase() === 'resistance') {
+                        srCol = currentThemeSettings.srResistance || '#ef4444';
+                    }
                     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                     line.setAttribute('x1', startX);
                     line.setAttribute('y1', y);
@@ -9277,6 +9313,8 @@ function showIndicatorLineActionPill(ind, point) {
                     overlay.appendChild(g);
                 }
             });
+                }
+            }
 
             // 📈 Multi-Timeframe BoS & CHoCH Market Structure Overlay (Identical to S&R lines)
             if (isStructureEnabled && latestMarketStructureData && Array.isArray(latestMarketStructureData.active_structures)) {
@@ -11909,6 +11947,72 @@ function showIndicatorLineActionPill(ind, point) {
             }
         }
 
+        const NSE_HOLIDAYS_MAP = {
+            // 2026 Official NSE Trading Holidays
+            '2026-01-26': 'Republic Day',
+            '2026-02-17': 'Mahashivratri',
+            '2026-03-03': 'Holi',
+            '2026-03-20': 'Id-Ul-Fitr (Ramzan Id)',
+            '2026-03-27': 'Ram Navami',
+            '2026-04-03': 'Good Friday',
+            '2026-04-14': 'Dr. Baba Saheb Ambedkar Jayanti',
+            '2026-05-01': 'Maharashtra Day',
+            '2026-05-27': 'Bakri Id / Eid ul-Adha',
+            '2026-06-26': 'Muharram',
+            '2026-08-15': 'Independence Day',
+            '2026-09-04': 'Janmashtami',
+            '2026-09-14': 'Milad-un-Nabi (Id-e-Milad)',
+            '2026-10-02': 'Mahatma Gandhi Jayanti',
+            '2026-10-20': 'Dussehra',
+            '2026-11-08': 'Diwali Laxmi Pujan (Muhurat Trading)',
+            '2026-11-10': 'Diwali Balipratipada',
+            '2026-11-24': 'Guru Nanak Jayanti',
+            '2026-12-25': 'Christmas',
+
+            // 2025 Historical Reference
+            '2025-01-26': 'Republic Day',
+            '2025-02-26': 'Mahashivratri',
+            '2025-03-14': 'Holi',
+            '2025-03-31': 'Id-Ul-Fitr',
+            '2025-04-10': 'Mahavir Jayanti',
+            '2025-04-14': 'Dr. Baba Saheb Ambedkar Jayanti',
+            '2025-04-18': 'Good Friday',
+            '2025-05-01': 'Maharashtra Day',
+            '2025-06-07': 'Bakri Id',
+            '2025-08-15': 'Independence Day',
+            '2025-08-27': 'Ganesh Chaturthi',
+            '2025-10-02': 'Mahatma Gandhi Jayanti',
+            '2025-10-21': 'Diwali Laxmi Pujan',
+            '2025-10-22': 'Diwali Balipratipada',
+            '2025-11-05': 'Guru Nanak Jayanti',
+            '2025-12-25': 'Christmas'
+        };
+
+        function calculateNextTradingDay(nowObj) {
+            const temp = new Date(nowObj.getTime());
+            for (let i = 1; i <= 10; i++) {
+                temp.setDate(temp.getDate() + 1);
+                const p = new Intl.DateTimeFormat('en-US', {
+                    timeZone: 'Asia/Kolkata',
+                    year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short'
+                }).formatToParts(temp);
+                let dow = '', y = '', m = '', d = '';
+                for (const pt of p) {
+                    if (pt.type === 'weekday') dow = pt.value;
+                    if (pt.type === 'year') y = pt.value;
+                    if (pt.type === 'month') m = pt.value;
+                    if (pt.type === 'day') d = pt.value;
+                }
+                const dk = `${y}-${m}-${d}`;
+                if (dow !== 'Sat' && dow !== 'Sun' && !NSE_HOLIDAYS_MAP[dk]) {
+                    const monthName = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'Asia/Kolkata' }).format(temp);
+                    const dayFull = dow === 'Mon' ? 'Monday' : (dow === 'Tue' ? 'Tuesday' : (dow === 'Wed' ? 'Wednesday' : (dow === 'Thu' ? 'Thursday' : 'Friday')));
+                    return `${dayFull}, ${parseInt(d, 10)} ${monthName}`;
+                }
+            }
+            return 'Next Trading Day';
+        }
+
         function getISTDetails() {
             const now = new Date();
             // Intl.DateTimeFormat delivers exact Indian Standard Time regardless of client OS timezone
@@ -11916,14 +12020,20 @@ function showIndicatorLineActionPill(ind, point) {
                 timeZone: 'Asia/Kolkata',
                 hour12: false,
                 weekday: 'short',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit'
             }).formatToParts(now);
 
-            let dayOfWeek = '', hour = 0, minute = 0, second = 0;
+            let dayOfWeek = '', year = '', month = '', day = '', hour = 0, minute = 0, second = 0;
             for (const p of parts) {
                 if (p.type === 'weekday') dayOfWeek = p.value;
+                if (p.type === 'year') year = p.value;
+                if (p.type === 'month') month = p.value;
+                if (p.type === 'day') day = p.value;
                 if (p.type === 'hour') hour = parseInt(p.value, 10);
                 if (p.type === 'minute') minute = parseInt(p.value, 10);
                 if (p.type === 'second') second = parseInt(p.value, 10);
@@ -11931,12 +12041,17 @@ function showIndicatorLineActionPill(ind, point) {
 
             if (hour === 24) hour = 0;
 
-            const totalSeconds = hour * 3600 + minute * 60 + second;
+            const dateKey = `${year}-${month}-${day}`;
+            const holidayName = NSE_HOLIDAYS_MAP[dateKey] || null;
+            const isHoliday = !!holidayName;
             const isWeekend = (dayOfWeek === 'Sat' || dayOfWeek === 'Sun');
+            const resumeText = calculateNextTradingDay(now);
+
+            const totalSeconds = hour * 3600 + minute * 60 + second;
             // Pre-Market: 09:00:00 to 09:14:59 IST (totalSeconds: 32400 to 33299)
-            const isPreMarket = !isWeekend && (totalSeconds >= 9 * 3600 && totalSeconds < 9 * 3600 + 15 * 60);
+            const isPreMarket = !isWeekend && !isHoliday && (totalSeconds >= 9 * 3600 && totalSeconds < 9 * 3600 + 15 * 60);
             // Live Market: 09:15:00 to 15:30:00 IST (totalSeconds: 33300 to 55800)
-            const isLiveMarket = !isWeekend && (totalSeconds >= 9 * 3600 + 15 * 60 && totalSeconds < 15 * 3600 + 30 * 60);
+            const isLiveMarket = !isWeekend && !isHoliday && (totalSeconds >= 9 * 3600 + 15 * 60 && totalSeconds < 15 * 3600 + 30 * 60);
             const isClosed = !isPreMarket && !isLiveMarket;
 
             const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
@@ -11948,6 +12063,9 @@ function showIndicatorLineActionPill(ind, point) {
                 second,
                 totalSeconds,
                 isWeekend,
+                isHoliday,
+                holidayName,
+                resumeText,
                 isPreMarket,
                 isLiveMarket,
                 isClosed,
@@ -11962,6 +12080,25 @@ function showIndicatorLineActionPill(ind, point) {
             const subClockEl = document.getElementById('sub-ist-clock');
             if (subClockEl) {
                 subClockEl.textContent = `${ist.timeStr} IST`;
+            }
+
+            // 1.1 🏛️ Market Holiday & Weekend Notification Banner
+            const holidayBanner = document.getElementById('market-holiday-banner');
+            const mhbReason = document.getElementById('mhb-reason');
+            const mhbResume = document.getElementById('mhb-resume');
+
+            if (holidayBanner && mhbReason && mhbResume) {
+                if (ist.isHoliday) {
+                    holidayBanner.style.display = 'flex';
+                    mhbReason.textContent = `NSE Official Holiday (${ist.holidayName})`;
+                    mhbResume.textContent = `${ist.resumeText} at 09:15 AM IST`;
+                } else if (ist.isWeekend) {
+                    holidayBanner.style.display = 'flex';
+                    mhbReason.textContent = `Weekend (${ist.dayOfWeek === 'Sat' ? 'Saturday' : 'Sunday'})`;
+                    mhbResume.textContent = `${ist.resumeText} at 09:15 AM IST`;
+                } else {
+                    holidayBanner.style.display = 'none';
+                }
             }
 
             // 2. 🟢 Market Session Status Pill
@@ -11994,8 +12131,16 @@ function showIndicatorLineActionPill(ind, point) {
                     }
                 } else {
                     statusPill.classList.add('market-status-closed');
-                    statusText.textContent = ist.isWeekend ? 'Market Closed (Weekend)' : 'Market Closed';
-                    statusPill.title = ist.isWeekend ? 'NSE Closed (Weekend)' : 'NSE Closed (Opens 09:15 AM IST)';
+                    if (ist.isHoliday) {
+                        statusText.textContent = `Market Closed (${ist.holidayName})`;
+                        statusPill.title = `NSE Closed today for ${ist.holidayName}. Regular live trading resumes ${ist.resumeText} at 09:15 AM IST.`;
+                    } else if (ist.isWeekend) {
+                        statusText.textContent = `Market Closed (${ist.dayOfWeek === 'Sat' ? 'Saturday' : 'Sunday'})`;
+                        statusPill.title = `NSE Closed for the weekend. Regular live trading resumes ${ist.resumeText} at 09:15 AM IST.`;
+                    } else {
+                        statusText.textContent = 'Market Closed';
+                        statusPill.title = `NSE Closed (Normal live trading resumes at 09:15 AM IST)`;
+                    }
                     if (subDotLive) {
                         subDotLive.style.background = '#ff5252';
                         subDotLive.style.boxShadow = 'none';
@@ -13732,8 +13877,8 @@ function showIndicatorLineActionPill(ind, point) {
                                     <div class="settings-item-sub">Institutional supply barriers & ceilings</div>
                                 </div>
                                 <div class="settings-color-input-wrap">
-                                    <input type="color" id="set-color-sr-res" class="settings-color-picker" onchange="onThemeColorChange('srResistance', this.value)" value="#ffffff">
-                                    <span id="hex-color-sr-res" class="settings-color-hex">#ffffff</span>
+                                    <input type="color" id="set-color-sr-res" class="settings-color-picker" onchange="onThemeColorChange('srResistance', this.value)" value="#ef4444">
+                                    <span id="hex-color-sr-res" class="settings-color-hex">#ef4444</span>
                                 </div>
                             </div>
                             <div class="settings-item-row">
@@ -13742,8 +13887,8 @@ function showIndicatorLineActionPill(ind, point) {
                                     <div class="settings-item-sub">Institutional demand zones & floors</div>
                                 </div>
                                 <div class="settings-color-input-wrap">
-                                    <input type="color" id="set-color-sr-supp" class="settings-color-picker" onchange="onThemeColorChange('srSupport', this.value)" value="#ffffff">
-                                    <span id="hex-color-sr-supp" class="settings-color-hex">#ffffff</span>
+                                    <input type="color" id="set-color-sr-supp" class="settings-color-picker" onchange="onThemeColorChange('srSupport', this.value)" value="#22c55e">
+                                    <span id="hex-color-sr-supp" class="settings-color-hex">#22c55e</span>
                                 </div>
                             </div>
                             <div class="settings-item-row">
@@ -13752,8 +13897,8 @@ function showIndicatorLineActionPill(ind, point) {
                                     <div class="settings-item-sub">Polarity change breakout markers</div>
                                 </div>
                                 <div class="settings-color-input-wrap">
-                                    <input type="color" id="set-color-sr-break" class="settings-color-picker" onchange="onThemeColorChange('srBreakout', this.value)">
-                                    <span id="hex-color-sr-break" class="settings-color-hex">#eab308</span>
+                                    <input type="color" id="set-color-sr-break" class="settings-color-picker" onchange="onThemeColorChange('srBreakout', this.value)" value="#ffffff">
+                                    <span id="hex-color-sr-break" class="settings-color-hex">#ffffff</span>
                                 </div>
                             </div>
                         </div>

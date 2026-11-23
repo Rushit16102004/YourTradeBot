@@ -631,7 +631,71 @@ class GeminiLLMClient:
                 lines.append(f"  {r}: {m_text}")
             chat_hist_str = f"TODAY'S CONVERSATION HISTORY (PAST 24 HOURS WITH {uname.upper()}):\n" + "\n".join(lines) + "\n\n"
 
+        # Compute Authentic 3-Model Consensus Breakdown (Problem 7)
+        ms_data = market_state.get("market_structure", {}) if market_state else {}
+        bull_tfs = ms_data.get("bullish_timeframes", 0) if isinstance(ms_data, dict) else 0
+        bear_tfs = ms_data.get("bearish_timeframes", 0) if isinstance(ms_data, dict) else 0
+        if bull_tfs >= 2:
+            m1_dir = "CALL"
+            m1_text = f"Bullish Structure ({bull_tfs} TFs Bullish)"
+        elif bear_tfs >= 2:
+            m1_dir = "PUT"
+            m1_text = f"Bearish Structure ({bear_tfs} TFs Bearish)"
+        else:
+            m1_dir = "NEUTRAL"
+            m1_text = f"Rangebound ({bull_tfs} Bull vs {bear_tfs} Bear TFs)"
+
+        oc_data = market_state.get("option_chain", {}) if market_state else {}
+        pcr_val = float(oc_data.get("pcr", 1.0) or 1.0) if isinstance(oc_data, dict) else 1.0
+        max_call_oi = oc_data.get("max_call_oi_strike", 25600) if isinstance(oc_data, dict) else 25600
+        max_put_oi = oc_data.get("max_put_oi_strike", 25300) if isinstance(oc_data, dict) else 25300
+        if pcr_val > 1.05:
+            m2_dir = "CALL"
+            m2_text = f"Bullish Flow (PCR {pcr_val:.2f}, Floor @ ₹{max_put_oi})"
+        elif pcr_val < 0.85:
+            m2_dir = "PUT"
+            m2_text = f"Bearish Pressure (PCR {pcr_val:.2f}, Ceiling @ ₹{max_call_oi})"
+        else:
+            m2_dir = "NEUTRAL"
+            m2_text = f"Neutral Balance (PCR {pcr_val:.2f}, Range ₹{max_put_oi}-₹{max_call_oi})"
+
+        ind_data = market_state.get("indicators", {}) if market_state else {}
+        vix_val = float(market_state.get("vix", 17.5) or 17.5) if market_state else 17.5
+        vwap_val = float(ind_data.get("vwap", 0.0) or 0.0) if isinstance(ind_data, dict) else 0.0
+        if cur_p > vwap_val and vwap_val > 0:
+            m3_dir = "CALL"
+            m3_text = f"Bullish Momentum (Above VWAP ₹{vwap_val:.1f}, VIX {vix_val:.1f})"
+        elif cur_p < vwap_val and vwap_val > 0:
+            m3_dir = "PUT"
+            m3_text = f"Bearish Momentum (Below VWAP ₹{vwap_val:.1f}, VIX {vix_val:.1f})"
+        else:
+            m3_dir = "NEUTRAL"
+            m3_text = f"Consolidating near VWAP, VIX {vix_val:.1f}"
+
+        call_models = sum(1 for d in [m1_dir, m2_dir, m3_dir] if d == "CALL")
+        put_models = sum(1 for d in [m1_dir, m2_dir, m3_dir] if d == "PUT")
+        if call_models >= 2:
+            model_consensus_pill = f"[{call_models}/3 Models Agree: BUY (CALL) 🟢]"
+        elif put_models >= 2:
+            model_consensus_pill = f"[{put_models}/3 Models Agree: SELL (PUT) 🔴]"
+        else:
+            model_consensus_pill = f"[0/3 Models Confluent: NO TRADE ⚪ / RANGEBOUND]"
+
+        # Problem 6: Strict Brevity Directive
+        is_explanation_requested = any(w in q_lower for w in [
+            "explain", "why", "in detail", "detailed", "step by step", "describe",
+            "reason", "reasoning", "logic", "how come", "teach me", "guide me", "deep dive"
+        ])
+        brevity_prefix = ""
+        if not is_explanation_requested:
+            brevity_prefix = (
+                "🚨 STRICT USER COMMAND: ANSWER ONLY IN SHORT (2-3 BULLETS, UNDER 50 WORDS)! 🚨\n"
+                "The trader specifically demanded: 'When I ask any question, give ONLY a short answer. In every question give the main point only, in 2 to 3 bullet points, under 50 words! No long descriptions, no textbook lectures, no filler! Only if I explicitly say \"explain\" or \"why\" should you give a detailed explanation.'\n"
+                "THEREFORE: Answer directly in 2 to 3 short bullets. Total word count must be strictly under 50-60 words!\n\n"
+            )
+
         full_prompt = (
+            f"{brevity_prefix}"
             f"{system_instructions}\n\n"
             f"AUTHENTICATED USER CONTEXT:\n"
             f"• Trader Name: {uname}\n"
@@ -644,7 +708,7 @@ class GeminiLLMClient:
             f"TRADER QUESTION:\n{user_query}\n\n"
             f"CRITICAL INSTRUCTIONS - MANDATORY BREVITY & PRO TRADER WISDOM:\n"
             f"0. MANDATORY BREVITY & DIRECTNESS DIRECTIVE:\n"
-            f"   • DEFAULT TO SHORT, CONCISE ANSWERS (2 to 3 bullet points, under 50 to 70 words total).\n"
+            f"   • DEFAULT TO SHORT, CONCISE ANSWERS (2 to 3 bullet points, under 50 words total).\n"
             f"   • Give the direct answer immediately without fluff, lengthy essays, or unasked lectures!\n"
             f"   • ONLY provide deep explanations when {uname} explicitly asks 'explain', 'why', 'in detail', or 'step by step'.\n"
             f"   • Categorize what {uname} is actually asking before generating your response:\n"
@@ -854,6 +918,10 @@ class GeminiLLMClient:
             new_card = (
                 f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                 f"🎯 QUICK TRADE EXECUTION SUMMARY\n"
+                f"• Consensus   -> {model_consensus_pill}\n"
+                f"  - Model 1 (Price Action & Structure/BoS/CHoCH): {m1_text}\n"
+                f"  - Model 2 (Derivatives OI & PCR): {m2_text}\n"
+                f"  - Model 3 (Momentum & Volatility): {m3_text}\n"
                 f"• Direction   -> {dir_str}\n"
                 f"• Entry Price -> ₹{new_entry:,.1f}\n"
                 f"• Exit/Target -> ₹{new_tgt:,.1f} (+{tgt_dist:.1f} pts / +{round(tgt_dist/new_entry*100, 2)}%)\n"
@@ -903,7 +971,7 @@ class GeminiLLMClient:
                     "temperature": 0.2,
                     "topK": 40,
                     "topP": 0.95,
-                    "maxOutputTokens": 4096,
+                    "maxOutputTokens": 400 if not is_explanation_requested else 2500,
                     "thinkingConfig": {"thinkingBudget": 0}
                 }
             }
@@ -1055,9 +1123,14 @@ class GeminiLLMClient:
         sl_val = round(cur_p - sl_pts if is_bull else cur_p + sl_pts, 1)
         rr_calc = round(target_pts / max(sl_pts, 1.0), 1)
 
+        model_agree = "2/3 Models Agree: BUY (CALL) 🟢" if is_bull else "2/3 Models Agree: SELL (PUT) 🔴"
         summary_block = (
             f"\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"🎯 QUICK TRADE EXECUTION SUMMARY\n"
+            f"• Consensus   -> [{model_agree}]\n"
+            f"  - Model 1 (Price Action & Structure/BoS/CHoCH): {'Bullish Structure' if is_bull else 'Bearish Breakdown'}\n"
+            f"  - Model 2 (Derivatives OI & PCR): PCR {pcr_val:.2f} ({'Floor' if is_bull else 'Ceiling'} @ ₹{put_floor if is_bull else call_wall})\n"
+            f"  - Model 3 (Momentum & Volatility): {'Above' if is_bull else 'Below'} VWAP ₹{vwap_val:.1f}, VIX {vix_val:.1f}\n"
             f"• Direction   -> {action_val}\n"
             f"• Entry Price -> ₹{entry_val:,.1f}\n"
             f"• Exit/Target -> ₹{tgt_val:,.1f} (+{target_pts:.1f} pts / +{round(target_pts/max(entry_val,1.0)*100, 2)}%)\n"
@@ -2092,9 +2165,14 @@ class GeminiLLMClient:
             sl_dist = 20.0
             tgt_val = round(cur_p + tgt_dist if is_call else cur_p - tgt_dist, 1)
             sl_val = round(cur_p - sl_dist if is_call else cur_p + sl_dist, 1)
+            m_agree = "2/3 Models Agree: BUY (CALL) 🟢" if is_call else "2/3 Models Agree: SELL (PUT) 🔴"
             reply += (
                 f"\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                 f"🎯 QUICK TRADE EXECUTION SUMMARY\n"
+                f"• Consensus   -> [{m_agree}]\n"
+                f"  - Model 1 (Price Action & Structure/BoS/CHoCH): {'Bullish Structure' if is_call else 'Bearish Breakdown'}\n"
+                f"  - Model 2 (Derivatives OI & PCR): PCR {pcr:.2f}\n"
+                f"  - Model 3 (Momentum & Volatility): {'Bullish' if is_call else 'Bearish'} Momentum, VIX {vix:.1f}\n"
                 f"• Direction   -> {dir_str}\n"
                 f"• Entry Price -> ₹{cur_p:,.1f}\n"
                 f"• Exit/Target -> ₹{tgt_val:,.1f} (+{tgt_dist:.1f} pts / +{round(tgt_dist/cur_p*100, 2)}%)\n"

@@ -32,7 +32,8 @@ DOMAIN_KEYWORDS = {
     "breakout", "reversal", "trap", "liquidity", "support", "resistance",
     "expiry", "vix", "preflight", "lot", "lots", "drawing", "angle", "pattern",
     "patterns", "confluence", "brain", "ratio", "floor", "ceiling", "call", "put",
-    "overbought", "oversold", "contrarian", "touches", "runway", "bounce"
+    "overbought", "oversold", "contrarian", "touches", "runway", "bounce",
+    "bos", "choch", "structure", "trend", "orderflow", "swing"
 }
 
 
@@ -338,6 +339,38 @@ class RAGDatabase:
             self.col_sr.upsert(ids=ids, documents=docs, metadatas=metas)
         except Exception as e:
             logger.error("Error indexing S&R levels in RAG: %s", e)
+
+    def add_market_structure(self, structures: List[Dict[str, Any]]):
+        """Indexes live Break of Structure (BoS) and Change of Character (CHoCH) levels into RAG storage."""
+        try:
+            if not structures:
+                return
+            ids = []
+            docs = []
+            metas = []
+            for st in structures:
+                sid = str(st.get("id", f"struct_{st.get('timeframe')}_{st.get('type')}_{int(st.get('broken_level', 0))}"))
+                st_type = st.get("type", "BOS")
+                direction = st.get("direction", "BULLISH")
+                lvl = float(st.get("broken_level", 0.0))
+                tf = str(st.get("timeframe", "5m")).upper()
+                desc = st.get("description", f"{tf} {st_type} {direction} at ₹{lvl:.1f}")
+
+                text = f"Market Structure Level: [{tf} {st_type}] {direction} at ₹{lvl:.2f}. Description: {desc}."
+                ids.append(f"struct_{sid}")
+                docs.append(text)
+                metas.append({
+                    "role": f"{tf} {st_type}",
+                    "type": st_type,
+                    "direction": direction,
+                    "price": lvl,
+                    "timeframe_tag": tf,
+                    "bounces": 1,
+                    "is_confluence": False,
+                })
+            self.col_sr.upsert(ids=ids, documents=docs, metadatas=metas)
+        except Exception as e:
+            logger.error("Error indexing Market Structure in RAG: %s", e)
 
     def add_user_drawing(self, drawing: Dict[str, Any], user_id: str = "default_user"):
         """Indexes user-drawn chart shapes with annotations, angles, and strict user_id isolation."""

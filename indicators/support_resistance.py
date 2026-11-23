@@ -1228,3 +1228,98 @@ def update_or_get_sr_levels(
         future_candles,
     )
     return new_cache
+
+
+def calculate_timeframe_sr(
+    df: pd.DataFrame,
+    timeframe: str = "5m",
+    current_price: Optional[float] = None,
+    max_support: int = 4,
+    max_resistance: int = 4,
+    max_rects: int = 3,
+) -> List[Dict[str, Any]]:
+    """
+    Computes Support & Resistance levels tailored specifically to each individual timeframe:
+    - 5m: Ultra-precise intraday levels (5-bar window, 5pt tolerance, min 3 bounces).
+    - 15m: Tactical swing barriers (4-bar window, 10pt tolerance, min 2 bounces).
+    - 1h: Strategic hourly supply/demand zones (3-bar window, 25pt tolerance, min 2 bounces).
+    - 1d: Macro daily structural pivots (2-bar window, 50pt tolerance, min 1-2 bounces).
+    
+    Default colors strictly enforced:
+    - Support: Green (#22c55e)
+    - Resistance: Red (#ef4444)
+    - Breakout / Flip / Neutral: White (#ffffff)
+    """
+    if df is None or df.empty:
+        return []
+
+    tf = str(timeframe).lower()
+    cur_p = current_price
+    if cur_p is None and not df.empty and "close" in df:
+        try:
+            cur_p = float(df["close"].iloc[-1])
+        except Exception:
+            cur_p = None
+
+    if tf in ("1d", "d", "daily"):
+        params = {
+            "swing_window": 2,
+            "line_tolerance": 50.0,
+            "line_max_spread": 100.0,
+            "line_min_bounces": 1,
+            "min_price_gap": 40.0,
+            "future_candles": 20,
+        }
+    elif tf in ("1h", "60m", "1hr", "hourly"):
+        params = {
+            "swing_window": 3,
+            "line_tolerance": 25.0,
+            "line_max_spread": 45.0,
+            "line_min_bounces": 2,
+            "min_price_gap": 40.0,
+            "future_candles": 35,
+        }
+    elif tf in ("15m", "15min"):
+        params = {
+            "swing_window": 4,
+            "line_tolerance": 10.0,
+            "line_max_spread": 20.0,
+            "line_min_bounces": 2,
+            "min_price_gap": 25.0,
+            "future_candles": 60,
+        }
+    else:  # default 5m
+        params = {
+            "swing_window": 5,
+            "line_tolerance": 5.0,
+            "line_max_spread": 10.0,
+            "line_min_bounces": 3,
+            "min_price_gap": 20.0,
+            "future_candles": 100,
+        }
+
+    levels = detect_support_resistance(
+        df,
+        current_price=cur_p,
+        max_support=max_support,
+        max_resistance=max_resistance,
+        max_rects=max_rects,
+        **params
+    )
+
+    # Standardize colors and tags: Support = Green, Resistance = Red, Other = White
+    for l in levels:
+        l["timeframe_tag"] = tf.upper()
+        is_supp = l.get("is_support", False)
+        role = l.get("role", "")
+        if "Flip" in role or "Breakout" in role:
+            l["color"] = "#ffffff"
+        elif is_supp or "Support" in role:
+            l["color"] = "#22c55e"
+        elif not is_supp or "Resistance" in role:
+            l["color"] = "#ef4444"
+        else:
+            l["color"] = "#ffffff"
+
+    return levels
+

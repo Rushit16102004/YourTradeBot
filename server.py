@@ -144,6 +144,7 @@ from RAG.rag_service import RAGService
 from indicators.support_resistance import (
     detect_support_resistance,
     calculate_sr_periods,
+    calculate_timeframe_sr,
     update_or_get_sr_levels,
     is_within_sr_update_window,
     load_sr_cache_from_disk,
@@ -951,6 +952,7 @@ async def trigger_manual_sync():
 
 @app.get("/api/sr-levels")
 async def get_support_resistance_levels(
+    timeframe: str = Query("5m", description="Candle timeframe: 5m, 15m, 1h, 1d"),
     period: str = Query("1m", description="S&R calculation period: 1m (last 20 days) or 2m (last 45 days)"),
     force: bool = Query(False, description="Force background recalculation"),
     limit: Optional[int] = Query(None, description="Limit for both support and resistance lines"),
@@ -963,12 +965,64 @@ async def get_support_resistance_levels(
 ):
     """
     Returns Support & Resistance levels 24H dynamically:
-    - 24H Live: Updates dynamically anytime code runs, and updates live with new candles.
+    - Multi-timeframe: Supports 5m, 15m, 1h, 1d calculated from each timeframe's own candles.
     - Forward Extension: Lines and zones extend through current candle + next 100 candles.
     - Strictly limited: <=4 Supports, <=4 Resistances, <=3 Rectangles (>=6x), <=4 Local, Total 8-10.
     """
     eff_supp = limit if limit is not None else max_support
     eff_res = limit if limit is not None else max_resistance
+    tf_clean = str(timeframe).lower()
+
+    # Timeframe-specific calculation for 15m, 1h, 1d
+    if tf_clean not in ("5m", "5min"):
+        snap = engine.get_snapshot(timeframe=tf_clean)
+        df_tf = snap.get("df", pd.DataFrame()) if isinstance(snap, dict) else pd.DataFrame()
+        if df_tf is None or df_tf.empty:
+            df_tf = engine.cache_mgr.get_candles(symbol="NIFTY 50", timeframe=tf_clean)
+        if df_tf is None or df_tf.empty:
+            base_5m = engine.latest_df_5m if not engine.latest_df_5m.empty else engine.cache_mgr.get_candles(symbol="NIFTY 50", timeframe="5m")
+            if base_5m is not None and not base_5m.empty:
+                df_tf = engine.cache_mgr.resample_timeframe(base_5m, tf_clean)
+
+        cur_p = engine.latest_price
+        if cur_p is None and df_tf is not None and not df_tf.empty and "close" in df_tf:
+            try:
+                cur_p = float(df_tf["close"].iloc[-1])
+            except Exception:
+                cur_p = None
+
+        tf_levels = calculate_timeframe_sr(
+            df_tf,
+            timeframe=tf_clean,
+            current_price=cur_p,
+            max_support=eff_supp,
+            max_resistance=eff_res,
+            max_rects=max_rects,
+        )
+        count_supp = sum(1 for l in tf_levels if "Support" in l.get("role", "") or l.get("is_support"))
+        count_res = sum(1 for l in tf_levels if "Resistance" in l.get("role", "") or not l.get("is_support"))
+
+        # Sync timeframe S&R into RAG database
+        try:
+            from RAG.rag_database import RAGDatabase
+            RAGDatabase.get_instance().add_sr_levels(tf_levels, period_tag=f"tf_{tf_clean}")
+        except Exception:
+            pass
+
+        return JSONResponse(
+            content={
+                "status": "ok",
+                "timeframe": tf_clean,
+                "period": "timeframe_specific",
+                "count": len(tf_levels),
+                "count_support": count_supp,
+                "count_resistance": count_res,
+                "future_candles": future_candles,
+                "mode": "timeframe_candles",
+                "in_update_window": True,
+                "levels": tf_levels,
+            }
+        )
 
     cur_df = engine.latest_df_5m
     if cur_df.empty:
@@ -3558,16 +3612,38 @@ async def get_market_structure_endpoint(
     """
     try:
         from indicators.market_structure import MarketStructureEngine
-        if timeframe:
+        from RAG.rag_database import RAGDatabase
+        if timeframe and str(timeframe).lower() != "all":
             tf_clean = str(timeframe).lower()
             snap = engine.get_snapshot(timeframe=tf_clean)
             df_tf = snap.get("df", pd.DataFrame()) if isinstance(snap, dict) else pd.DataFrame()
             if df_tf is None or df_tf.empty:
                 df_tf = engine.cache_mgr.get_candles(symbol="NIFTY 50", timeframe=tf_clean)
+            if df_tf is None or df_tf.empty:
+                base_5m = engine.latest_df_5m if not engine.latest_df_5m.empty else engine.cache_mgr.get_candles(symbol="NIFTY 50", timeframe="5m")
+                if base_5m is not None and not base_5m.empty:
+                    df_tf = engine.cache_mgr.resample_timeframe(base_5m, tf_clean)
             res = MarketStructureEngine.analyze_structure_timeframe(df_tf, timeframe=tf_clean)
+            # Sync active structure into RAG memory
+            try:
+                RAGDatabase.get_instance().add_market_structure(res.get("active_structures", []))
+            except Exception:
+                pass
             return JSONResponse(content={"status": "ok", "data": res})
         else:
             res = MarketStructureEngine.scan_all_timeframes(engine)
+            # Collect and flatten active structures across all timeframes
+            all_active = []
+            for tf_k, tf_v in res.get("timeframes", {}).items():
+                if isinstance(tf_v, dict) and "active_structures" in tf_v:
+                    all_active.extend(tf_v["active_structures"])
+            res["active_structures"] = all_active
+            res["data"] = {"active_structures": all_active}
+            # Sync all active structures into RAG memory
+            try:
+                RAGDatabase.get_instance().add_market_structure(all_active)
+            except Exception:
+                pass
             return JSONResponse(content=res)
     except Exception as e:
         logger.error("Error in /api/market-structure: %s", e)

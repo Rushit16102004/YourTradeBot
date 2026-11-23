@@ -563,8 +563,8 @@ class RAGService:
         if market_state is not None and "market_structure" not in market_state:
             try:
                 from indicators.market_structure import MarketStructureEngine
-                from engine.main_engine import MainEngine
-                eng = MainEngine.get_instance()
+                from engine.background_engine import BackgroundTradingEngine
+                eng = BackgroundTradingEngine.get_instance()
                 market_state["market_structure"] = MarketStructureEngine.scan_all_timeframes(eng)
             except Exception as e_ms:
                 logger.debug("Non-fatal note retrieving market structure: %s", e_ms)
