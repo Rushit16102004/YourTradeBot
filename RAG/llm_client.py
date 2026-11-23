@@ -1044,30 +1044,47 @@ class GeminiLLMClient:
         oc: Dict[str, Any],
         ps: Dict[str, Any],
         tw: Dict[str, Any],
-        forced_direction: Optional[str] = None
+        forced_direction: Optional[str] = None,
+        vix_val: float = 17.5,
+        is_explanation_requested: bool = False,
+        nearest_sup_obj: Optional[Dict[str, Any]] = None,
+        nearest_res_obj: Optional[Dict[str, Any]] = None
     ) -> str:
         """
-        Synthesizes a trade entry suggestion through the Multi-Agent Devil's Advocate Architecture:
-        - Agent 1: Alpha Scout (Opportunity Hunter)
-        - Agent 2: Devil's Advocate (Risk Manager)
-        - Master Synthesizer: Senior Prop Synthesizer (Chain-of-Thought)
+        Synthesizes a trade entry suggestion through the Multi-Agent Architecture.
+        - Problem 6: Returns strictly short bulleted summary (< 50 words) unless explanation requested.
+        - S&R / Pivot Anchored Stop Loss (no ATR or arbitrary fixed % stops).
         """
-        # Determine direction
         if forced_direction:
             is_bull = (forced_direction.upper() in ("BUY", "CALL"))
         else:
             is_bull = is_above_vwap
 
-        # Dynamic Stop Loss: SL = 1.2 * ATR
-        sl_calc = round(1.2 * atr_val, 1) if atr_val > 0 else 18.0
-        if is_lunch or abs(cur_p - vwap_val) < 25.0:
-            sl_pts = float(max(12.0, min(15.0, sl_calc)))
+        # Structural Stop Loss & Target calculation anchored to validated S&R / VWAP pivots
+        if is_bull:
+            sup_p = float(nearest_sup_obj.get("price", cur_p - 20.0)) if (nearest_sup_obj and isinstance(nearest_sup_obj, dict)) else (vwap_val - 10.0 if cur_p >= vwap_val else cur_p - 20.0)
+            sl_val = round(min(sup_p - 4.0, cur_p - 14.0), 1)
+            sl_pts = round(max(12.0, cur_p - sl_val), 1)
+            res_p = float(nearest_res_obj.get("price", upper_2)) if (nearest_res_obj and isinstance(nearest_res_obj, dict)) else upper_2
+            tgt_val = round(max(res_p - 3.0, cur_p + 35.0), 1)
+            target_pts = round(tgt_val - cur_p, 1)
         else:
-            sl_pts = float(max(14.0, min(25.0, sl_calc)))
+            res_p = float(nearest_res_obj.get("price", cur_p + 20.0)) if (nearest_res_obj and isinstance(nearest_res_obj, dict)) else (vwap_val + 10.0 if cur_p <= vwap_val else cur_p + 20.0)
+            sl_val = round(max(res_p + 4.0, cur_p + 15.0), 1)
+            sl_pts = round(max(12.0, sl_val - cur_p), 1)
+            sup_p = float(nearest_sup_obj.get("price", lower_2)) if (nearest_sup_obj and isinstance(nearest_sup_obj, dict)) else lower_2
+            tgt_val = round(min(sup_p + 3.0, cur_p - 35.0), 1)
+            target_pts = round(cur_p - tgt_val, 1)
 
-        target_pts = round(max(sl_pts * 2.0, 35.0), 1)
         lots = ps.get("recommended_lots", 1) if ps else 1
-        pcr_val = oc.get("pcr", 1.0) if oc else 1.0
+        try:
+            pcr_val = float(oc.get("pcr", 1.0) or 1.0) if oc else 1.0
+        except Exception:
+            pcr_val = 1.0
+        try:
+            vix_val = float(vix_val)
+        except Exception:
+            vix_val = 17.5
         call_wall = oc.get("max_call_oi_strike", "--") if oc else "--"
         put_floor = oc.get("max_put_oi_strike", "--") if oc else "--"
 
@@ -1084,14 +1101,14 @@ class GeminiLLMClient:
             )
             step1_struct = f"Healthy pullback retest holding above Session VWAP (₹{vwap_val:,.1f}) and validated S&R Support at {sup_str}."
             step2_momen = f"RVOL is {rvol_val:.2f}x with VWAP upward slope confirming institutional accumulation flow."
-            step3_mitig = f"Limit risk by using a dynamic Stop-Loss of {sl_pts:.1f} pts (SL = 1.2 × ATR) and strictly 1 Lot (65 qty) contract sizing."
+            step3_mitig = f"Limit risk by using a structural Stop-Loss of {sl_pts:.1f} pts anchored behind support and strictly 1 Lot (65 qty) contract sizing."
             step4_verdict = (
                 f"• **Suggested Setup & Bias:** **{setup_title}**\n\n"
                 f"• **High-Probability Entry Zone:**\n"
                 f"  1. **Primary Pullback Entry:** Enter Call on a 5m green candle close retesting Session VWAP (₹{vwap_val:,.1f}) or nearest Support at **{sup_str}**.\n"
                 f"  2. **Breakout Entry:** Enter on a confirmed 5m close ABOVE Resistance at **{res_str}** with expanding volume.\n\n"
-                f"• **Optimal Stop-Loss (Dynamic SL = 1.2 × ATR):** {sl_pts:.1f} pts below entry (Risk: ₹{int(sl_pts * 65):,} on 1 Lot).\n\n"
-                f"• **Target Runway:** Next major Resistance at **{res_str}** and Upper +2σ Band at **₹{upper_2:,.1f}** (+{target_pts:.1f} pts reward | R:R 1:{target_pts/sl_pts:.1f}).\n\n"
+                f"• **Optimal Stop-Loss (S&R Anchored):** {sl_pts:.1f} pts below entry (Risk: ₹{int(sl_pts * 65):,} on 1 Lot).\n\n"
+                f"• **Target Runway:** Next major Resistance at **{res_str}** and Upper +2σ Band at **₹{upper_2:,.1f}** (+{target_pts:.1f} pts reward | R:R 1:{target_pts/max(sl_pts,1.0):.1f}).\n\n"
                 f"• **Capital Rule:** Strictly 1 Lot = 65 Quantity on NIFTY."
             )
         else:
@@ -1106,14 +1123,14 @@ class GeminiLLMClient:
             )
             step1_struct = f"Relief bounce failing below Session VWAP (₹{vwap_val:,.1f}) with rejection at validated S&R Resistance at {res_str}."
             step2_momen = f"RVOL is {rvol_val:.2f}x with VWAP downward slope confirming institutional distribution flow."
-            step3_mitig = f"Limit risk by using a dynamic Stop-Loss of {sl_pts:.1f} pts (SL = 1.2 × ATR) and strictly 1 Lot (65 qty) contract sizing."
+            step3_mitig = f"Limit risk by using a structural Stop-Loss of {sl_pts:.1f} pts anchored above resistance and strictly 1 Lot (65 qty) contract sizing."
             step4_verdict = (
                 f"• **Suggested Setup & Bias:** **{setup_title}**\n\n"
                 f"• **High-Probability Entry Zone:**\n"
                 f"  1. **Relief Pullback Short:** Enter Put on a 5m upper rejection wick retesting Session VWAP (₹{vwap_val:,.1f}) or Resistance at **{res_str}**.\n"
                 f"  2. **Breakdown Entry:** Enter on a confirmed 5m close BELOW Support at **{sup_str}** with volume confirmation.\n\n"
-                f"• **Optimal Stop-Loss (Dynamic SL = 1.2 × ATR):** {sl_pts:.1f} pts above entry (Risk: ₹{int(sl_pts * 65):,} on 1 Lot).\n\n"
-                f"• **Target Runway:** Next major Support at **{sup_str}** and Lower -2σ Band at **₹{lower_2:,.1f}** (+{target_pts:.1f} pts reward | R:R 1:{target_pts/sl_pts:.1f}).\n\n"
+                f"• **Optimal Stop-Loss (S&R Anchored):** {sl_pts:.1f} pts above entry (Risk: ₹{int(sl_pts * 65):,} on 1 Lot).\n\n"
+                f"• **Target Runway:** Next major Support at **{sup_str}** and Lower -2σ Band at **₹{lower_2:,.1f}** (+{target_pts:.1f} pts reward | R:R 1:{target_pts/max(sl_pts,1.0):.1f}).\n\n"
                 f"• **Capital Rule:** Strictly 1 Lot = 65 Quantity on NIFTY."
             )
 
@@ -1139,6 +1156,15 @@ class GeminiLLMClient:
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         )
 
+        if not is_explanation_requested:
+            # Problem 6: Strict brevity under 50 words + Execution Card
+            return (
+                f"Hey {uname},\n\n"
+                f"• **Directional Verdict:** **{action_val}** based on live VWAP and S&R confluence.\n"
+                f"• **Setup:** {setup_title} with target runway to ₹{tgt_val:,.1f} and structural stop at ₹{sl_val:,.1f}."
+                f"{summary_block}"
+            )
+
         return (
             f"Hey {uname},\n\n"
             f"Here is my quantitative entry suggestion based on real-time S&R confluence (> 5 touches) and technical indicators synthesized via the Multi-Agent Architecture:\n\n"
@@ -1148,10 +1174,9 @@ class GeminiLLMClient:
             f"• {devils_trap}\n\n"
             f"⚖️ **Senior Prop Synthesizer (Chain-of-Thought):**\n"
             f"• **Step 1 (Structure):** {step1_struct}\n"
-            f"• **Step 2 (Momentum):** {step2_momen}\n"
+            f"• **Step 2 (Momentum & Volume):** {step2_momen}\n"
             f"• **Step 3 (Risk Mitigation):** {step3_mitig}\n"
-            f"• **Step 4 (Verdict):**\n"
-            f"{step4_verdict}"
+            f"• **Step 4 (Final Verdict):**\n{step4_verdict}\n"
             f"{summary_block}"
         )
 
@@ -1193,6 +1218,24 @@ class GeminiLLMClient:
         osc = tech.get("oscillators", {})
         vol_info = tech.get("volume", {})
         rev = tech.get("reversal", {})
+        oc = market_state.get("option_chain", {}) if market_state else {}
+        mr = market_state.get("market_regime", {}) if market_state else {}
+        ps = market_state.get("position_sizing", {}) if market_state else {}
+        tw = market_state.get("time_window", {}) if market_state else {}
+        try:
+            pcr = float(oc.get("pcr", 1.0) or 1.0)
+        except Exception:
+            pcr = 1.0
+        try:
+            vix = float(mr.get("vix") or 17.5)
+        except Exception:
+            vix = 17.5
+
+        # Problem 6: Strict Brevity Directive
+        is_explanation_requested = any(w in q_lower for w in [
+            "explain", "why", "in detail", "detailed", "step by step", "describe",
+            "reason", "reasoning", "logic", "how come", "teach me", "guide me", "deep dive"
+        ])
 
         # Detect explicit signal queries
         explicit_signal_terms = [
@@ -1992,7 +2035,11 @@ class GeminiLLMClient:
                     atr_val=atr_val,
                     oc=oc,
                     ps=ps,
-                    tw=tw
+                    tw=tw,
+                    vix_val=vix,
+                    is_explanation_requested=is_explanation_requested,
+                    nearest_sup_obj=nearest_sup,
+                    nearest_res_obj=nearest_res
                 )
 
         # 0.8 Dedicated quantitative trade entry suggestion created by Copilot from S&R (> 5x touches) and Indicators
@@ -2054,7 +2101,11 @@ class GeminiLLMClient:
                 atr_val=atr_val,
                 oc=oc,
                 ps=ps,
-                tw=tw
+                tw=tw,
+                vix_val=vix,
+                is_explanation_requested=is_explanation_requested,
+                nearest_sup_obj=nearest_sup,
+                nearest_res_obj=nearest_res
             )
 
         # 1. Direct answer for Support & Resistance queries (> 5 touches strictly)
@@ -2161,10 +2212,31 @@ class GeminiLLMClient:
         if is_explicit_entry_ask and ("CALL SETUP" in reply or "PUT SETUP" in reply or "MOMENTUM SCALP" in reply or "BREAKDOWN SCALP" in reply) and "QUICK TRADE EXECUTION SUMMARY" not in reply:
             is_call = "CALL" in reply or "BULLISH" in reply or "DIP" in reply
             dir_str = "BUY (CALL)" if is_call else "SELL (PUT)"
-            tgt_dist = 50.0
-            sl_dist = 20.0
-            tgt_val = round(cur_p + tgt_dist if is_call else cur_p - tgt_dist, 1)
-            sl_val = round(cur_p - sl_dist if is_call else cur_p + sl_dist, 1)
+            comb_sr = market_state.get("comb_sr_levels", []) if market_state else []
+            if is_call:
+                sups = [l for l in comb_sr if float(l.get("price", 0)) < cur_p]
+                near_s = max(sups, key=lambda x: float(x.get("price", 0))) if sups else None
+                sl_ref = float(near_s.get("price", cur_p - 20.0)) if near_s else (cur_p - 20.0)
+                sl_val = round(min(sl_ref - 4.0, cur_p - 14.0), 1)
+                sl_dist = round(cur_p - sl_val, 1)
+                resses = [l for l in comb_sr if float(l.get("price", 0)) > cur_p]
+                near_r = min(resses, key=lambda x: float(x.get("price", 0))) if resses else None
+                tgt_ref = float(near_r.get("price", cur_p + 45.0)) if near_r else (cur_p + 45.0)
+                tgt_val = round(max(tgt_ref - 3.0, cur_p + 30.0), 1)
+                tgt_dist = round(tgt_val - cur_p, 1)
+            else:
+                resses = [l for l in comb_sr if float(l.get("price", 0)) > cur_p]
+                near_r = min(resses, key=lambda x: float(x.get("price", 0))) if resses else None
+                sl_ref = float(near_r.get("price", cur_p + 20.0)) if near_r else (cur_p + 20.0)
+                sl_val = round(max(sl_ref + 4.0, cur_p + 14.0), 1)
+                sl_dist = round(sl_val - cur_p, 1)
+                sups = [l for l in comb_sr if float(l.get("price", 0)) < cur_p]
+                near_s = max(sups, key=lambda x: float(x.get("price", 0))) if sups else None
+                tgt_ref = float(near_s.get("price", cur_p - 45.0)) if near_s else (cur_p - 45.0)
+                tgt_val = round(min(tgt_ref + 3.0, cur_p - 30.0), 1)
+                tgt_dist = round(cur_p - tgt_val, 1)
+
+            rr_ratio = round(tgt_dist / max(sl_dist, 1.0), 1)
             m_agree = "2/3 Models Agree: BUY (CALL) 🟢" if is_call else "2/3 Models Agree: SELL (PUT) 🔴"
             reply += (
                 f"\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -2177,7 +2249,7 @@ class GeminiLLMClient:
                 f"• Entry Price -> ₹{cur_p:,.1f}\n"
                 f"• Exit/Target -> ₹{tgt_val:,.1f} (+{tgt_dist:.1f} pts / +{round(tgt_dist/cur_p*100, 2)}%)\n"
                 f"• Stop Loss   -> ₹{sl_val:,.1f} (-{sl_dist:.1f} pts / -{round(sl_dist/cur_p*100, 2)}%)\n"
-                f"• Risk:Reward -> 1 : 2.5\n"
+                f"• Risk:Reward -> 1 : {rr_ratio}\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             )
 
