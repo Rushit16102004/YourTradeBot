@@ -559,6 +559,16 @@ class RAGService:
             except Exception as e_ns:
                 logger.debug("Non-fatal note retrieving news sentiment: %s", e_ns)
 
+        # Ingest real-time Multi-Timeframe Market Structure (BoS, CHoCH, Swings)
+        if market_state is not None and "market_structure" not in market_state:
+            try:
+                from indicators.market_structure import MarketStructureEngine
+                from engine.main_engine import MainEngine
+                eng = MainEngine.get_instance()
+                market_state["market_structure"] = MarketStructureEngine.scan_all_timeframes(eng)
+            except Exception as e_ms:
+                logger.debug("Non-fatal note retrieving market structure: %s", e_ms)
+
         # Generate response
         result = self.llm.generate(
             user_query=query,

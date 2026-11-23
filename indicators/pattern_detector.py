@@ -485,17 +485,35 @@ class PatternDetector:
                         # Slanted Neckline calculation (Line connecting t1 and t2)
                         bar_delta = max(1, t2["bar_idx"] - t1["bar_idx"])
                         slope = (t2["price"] - t1["price"]) / bar_delta
-                        proj_bars = cur_bar - t2["bar_idx"]
-                        neckline_cur = round(t2["price"] + (slope * proj_bars), 1)
 
-                        is_broken = cur_price < neckline_cur
-                        status = "CONFIRMED_BREAKOUT" if is_broken else "TESTING_NECKLINE"
+                        # Scan for authentic breakout bar: Candle body close below neckline + below trough t2
+                        breakout_bar = None
+                        for b_idx in range(t2["bar_idx"] + 1, len(df)):
+                            b_neck = t2["price"] + slope * (b_idx - t2["bar_idx"])
+                            if df["close"].iloc[b_idx] < b_neck and df["close"].iloc[b_idx] < t2["price"]:
+                                breakout_bar = b_idx
+                                break
 
-                        entry = round(neckline_cur, 1)
-                        target = round(neckline_cur - (head_height * 0.90), 1)
-                        # Structural invalidation: right shoulder pullback or max 38% head depth buffer
-                        sl_dist = max(20.0, min(abs(rs["price"] - entry) + 10.0, round(head_height * 0.38, 1)))
-                        stop = round(entry + sl_dist, 1)
+                        if breakout_bar is not None:
+                            status = "CONFIRMED_BREAKOUT"
+                            b_time = _to_unix_sec(df.index[breakout_bar])
+                            neck_at_break = round(t2["price"] + (slope * (breakout_bar - t2["bar_idx"])), 1)
+                            entry = neck_at_break
+                            target = round(entry - (head_height * 0.90), 1)
+                            # Structural invalidation: right shoulder pullback or max 38% head depth buffer
+                            sl_dist = max(20.0, min(abs(rs["price"] - entry) + 10.0, round(head_height * 0.38, 1)))
+                            stop = round(entry + sl_dist, 1)
+                            box_time = b_time
+                        else:
+                            status = "TESTING_NECKLINE"
+                            proj_bars = cur_bar - t2["bar_idx"]
+                            neckline_cur = round(t2["price"] + (slope * proj_bars), 1)
+                            entry = neckline_cur
+                            target = round(neckline_cur - (head_height * 0.90), 1)
+                            sl_dist = max(20.0, min(abs(rs["price"] - entry) + 10.0, round(head_height * 0.38, 1)))
+                            stop = round(entry + sl_dist, 1)
+                            box_time = rs["time"]
+
                         rr = round(abs(entry - target) / max(1.0, abs(stop - entry)), 1)
                         span_str = self._format_span(ls["time_raw"], rs["time_raw"])
 
@@ -503,10 +521,10 @@ class PatternDetector:
                         ext_price = round(t2["price"] + (slope * 20), 1)
 
                         drawing_shapes = [
-                            {"id": f"hns_{start}_ls_head", "type": "line", "time1": ls["time"], "price1": ls["price"], "time2": head["time"], "price2": head["price"], "color": "#f87171", "width": "2", "remark": "H&S Left Shoulder -> Head"},
-                            {"id": f"hns_{start}_head_rs", "type": "line", "time1": head["time"], "price1": head["price"], "time2": rs["time"], "price2": rs["price"], "color": "#f87171", "width": "2", "remark": "H&S Head -> Right Shoulder"},
-                            {"id": f"hns_{start}_neckline", "type": "line", "time1": t1["time"], "price1": t1["price"], "time2": ext_time, "price2": ext_price, "color": "#ef4444", "width": "3", "remark": f"Slanted Neckline ({slope:+.1f} pts/bar)"},
-                            {"id": f"hns_{start}_box", "type": "target_sl", "entry": entry, "target": target, "stop": stop, "timeStart": rs["time"], "timeEnd": rs["time"] + self._get_future_time_span(timeframe, 25), "color": "#ef4444", "remark": "AI Head & Shoulders"}
+                            {"id": f"hns_{ls['bar_idx']}_ls_head", "type": "line", "time1": ls["time"], "price1": ls["price"], "time2": head["time"], "price2": head["price"], "color": "#f87171", "width": "2", "remark": "H&S Left Shoulder -> Head"},
+                            {"id": f"hns_{ls['bar_idx']}_head_rs", "type": "line", "time1": head["time"], "price1": head["price"], "time2": rs["time"], "price2": rs["price"], "color": "#f87171", "width": "2", "remark": "H&S Head -> Right Shoulder"},
+                            {"id": f"hns_{ls['bar_idx']}_neckline", "type": "line", "time1": t1["time"], "price1": t1["price"], "time2": ext_time, "price2": ext_price, "color": "#ef4444", "width": "3", "remark": f"Slanted Neckline ({slope:+.1f} pts/bar)"},
+                            {"id": f"hns_{ls['bar_idx']}_box", "type": "target_sl", "entry": entry, "target": target, "stop": stop, "timeStart": box_time, "timeEnd": box_time + self._get_future_time_span(timeframe, 25), "color": "#ef4444", "direction": "SELL (PUT)", "remark": "AI Head & Shoulders"}
                         ]
 
                         patterns.append({
@@ -548,17 +566,34 @@ class PatternDetector:
                     if head_depth >= 30.0 and (shoulder_diff / head_depth) < 0.45:
                         bar_delta = max(1, p2["bar_idx"] - p1["bar_idx"])
                         slope = (p2["price"] - p1["price"]) / bar_delta
-                        proj_bars = cur_bar - p2["bar_idx"]
-                        neckline_cur = round(p2["price"] + (slope * proj_bars), 1)
 
-                        is_broken = cur_price > neckline_cur
-                        status = "CONFIRMED_BREAKOUT" if is_broken else "TESTING_NECKLINE"
+                        # Scan for authentic breakout bar: Candle body close above neckline + above peak p2
+                        breakout_bar = None
+                        for b_idx in range(p2["bar_idx"] + 1, len(df)):
+                            b_neck = p2["price"] + slope * (b_idx - p2["bar_idx"])
+                            if df["close"].iloc[b_idx] > b_neck and df["close"].iloc[b_idx] > p2["price"]:
+                                breakout_bar = b_idx
+                                break
 
-                        entry = round(neckline_cur, 1)
-                        target = round(neckline_cur + (head_depth * 0.90), 1)
-                        # Structural invalidation: right shoulder pullback or max 38% head depth buffer
-                        sl_dist = max(20.0, min(abs(entry - rs["price"]) + 10.0, round(head_depth * 0.38, 1)))
-                        stop = round(entry - sl_dist, 1)
+                        if breakout_bar is not None:
+                            status = "CONFIRMED_BREAKOUT"
+                            b_time = _to_unix_sec(df.index[breakout_bar])
+                            neck_at_break = round(p2["price"] + (slope * (breakout_bar - p2["bar_idx"])), 1)
+                            entry = neck_at_break
+                            target = round(entry + (head_depth * 0.90), 1)
+                            sl_dist = max(20.0, min(abs(entry - rs["price"]) + 10.0, round(head_depth * 0.38, 1)))
+                            stop = round(entry - sl_dist, 1)
+                            box_time = b_time
+                        else:
+                            status = "TESTING_NECKLINE"
+                            proj_bars = cur_bar - p2["bar_idx"]
+                            neckline_cur = round(p2["price"] + (slope * proj_bars), 1)
+                            entry = neckline_cur
+                            target = round(neckline_cur + (head_depth * 0.90), 1)
+                            sl_dist = max(20.0, min(abs(entry - rs["price"]) + 10.0, round(head_depth * 0.38, 1)))
+                            stop = round(entry - sl_dist, 1)
+                            box_time = rs["time"]
+
                         rr = round(abs(target - entry) / max(1.0, abs(entry - stop)), 1)
                         span_str = self._format_span(ls["time_raw"], rs["time_raw"])
 
@@ -566,10 +601,10 @@ class PatternDetector:
                         ext_price = round(p2["price"] + (slope * 20), 1)
 
                         drawing_shapes = [
-                            {"id": f"inv_hns_{start}_ls_head", "type": "line", "time1": ls["time"], "price1": ls["price"], "time2": head["time"], "price2": head["price"], "color": "#4ade80", "width": "2", "remark": "Inv H&S Left Shoulder -> Head"},
-                            {"id": f"inv_hns_{start}_head_rs", "type": "line", "time1": head["time"], "price1": head["price"], "time2": rs["time"], "price2": rs["price"], "color": "#4ade80", "width": "2", "remark": "Inv H&S Head -> Right Shoulder"},
-                            {"id": f"inv_hns_{start}_neckline", "type": "line", "time1": p1["time"], "price1": p1["price"], "time2": ext_time, "price2": ext_price, "color": "#22c55e", "width": "3", "remark": f"Slanted Neckline ({slope:+.1f} pts/bar)"},
-                            {"id": f"inv_hns_{start}_box", "type": "target_sl", "entry": entry, "target": target, "stop": stop, "timeStart": rs["time"], "timeEnd": rs["time"] + self._get_future_time_span(timeframe, 25), "color": "#22c55e", "remark": "AI Inverse H&S"}
+                            {"id": f"inv_hns_{ls['bar_idx']}_ls_head", "type": "line", "time1": ls["time"], "price1": ls["price"], "time2": head["time"], "price2": head["price"], "color": "#4ade80", "width": "2", "remark": "Inv H&S Left Shoulder -> Head"},
+                            {"id": f"inv_hns_{ls['bar_idx']}_head_rs", "type": "line", "time1": head["time"], "price1": head["price"], "time2": rs["time"], "price2": rs["price"], "color": "#4ade80", "width": "2", "remark": "Inv H&S Head -> Right Shoulder"},
+                            {"id": f"inv_hns_{ls['bar_idx']}_neckline", "type": "line", "time1": p1["time"], "price1": p1["price"], "time2": ext_time, "price2": ext_price, "color": "#22c55e", "width": "3", "remark": f"Slanted Neckline ({slope:+.1f} pts/bar)"},
+                            {"id": f"inv_hns_{ls['bar_idx']}_box", "type": "target_sl", "entry": entry, "target": target, "stop": stop, "timeStart": box_time, "timeEnd": box_time + self._get_future_time_span(timeframe, 25), "color": "#22c55e", "direction": "BUY (CALL)", "remark": "AI Inverse H&S"}
                         ]
 
                         patterns.append({
@@ -600,6 +635,7 @@ class PatternDetector:
 
     # =========================================================================
     # 3. SLANTED TRENDLINE BREAKOUTS (TRIANGLES, WEDGES & CHANNELS)
+    # 3-Touch Rigorous Geometry + Structural Pivot Breakout Confirmation
     # =========================================================================
     def _detect_triangles_and_wedges(
         self,
@@ -609,87 +645,148 @@ class PatternDetector:
         timeframe: str
     ) -> List[Dict[str, Any]]:
         patterns = []
-        recent_highs = [s for s in swings if s["type"] == "H"][-5:]
-        recent_lows = [s for s in swings if s["type"] == "L"][-5:]
+        recent_highs = [s for s in swings if s["type"] == "H"]
+        recent_lows = [s for s in swings if s["type"] == "L"]
 
-        if len(recent_highs) < 2 or len(recent_lows) < 2:
+        if len(recent_highs) < 3 or len(recent_lows) < 3:
             return patterns
-
-        h1, h2 = recent_highs[-2], recent_highs[-1]
-        l1, l2 = recent_lows[-2], recent_lows[-1]
 
         cur_bar = len(df) - 1
-        h_bars = max(1, h2["bar_idx"] - h1["bar_idx"])
-        l_bars = max(1, l2["bar_idx"] - l1["bar_idx"])
+        max_search = min(8, len(recent_highs))
 
-        slope_high = (h2["price"] - h1["price"]) / h_bars
-        slope_low = (l2["price"] - l1["price"]) / l_bars
+        for h_end in range(len(recent_highs) - 1, len(recent_highs) - max_search + 1, -1):
+            h1 = recent_highs[h_end - 2]
+            h2 = recent_highs[h_end - 1]
+            h3 = recent_highs[h_end]
 
-        # Extrapolate to current candle
-        res_cur = round(h2["price"] + slope_high * (cur_bar - h2["bar_idx"]), 1)
-        sup_cur = round(l2["price"] + slope_low * (cur_bar - l2["bar_idx"]), 1)
+            # Matching lows that fall within the same span
+            low_cands = [l for l in recent_lows if l["bar_idx"] >= h1["bar_idx"] - 10 and l["bar_idx"] <= h3["bar_idx"] + 15]
+            if len(low_cands) < 3:
+                continue
 
-        base_height = abs(h1["price"] - l1["price"])
-        if base_height < 30.0:
-            return patterns
+            l1 = low_cands[0]
+            l2 = low_cands[1]
+            l3 = low_cands[-1]
 
-        pat_name = None
-        direction = None
-        is_buy = False
+            pattern_start_bar = min(h1["bar_idx"], l1["bar_idx"])
+            pattern_end_bar = max(h3["bar_idx"], l3["bar_idx"])
+            span_bars = pattern_end_bar - pattern_start_bar
+            if span_bars < 20:
+                continue
 
-        if abs(slope_high) < 0.20 and slope_low > 0.20:
-            pat_name = "Ascending Triangle Breakout"
-            direction = "BUY (CALL)"
-            is_buy = True
-        elif abs(slope_low) < 0.20 and slope_high < -0.20:
-            pat_name = "Descending Triangle Breakdown"
-            direction = "SELL (PUT)"
+            # Check 3-touch linearity on Highs: line h1 -> h3
+            h_span = max(1, h3["bar_idx"] - h1["bar_idx"])
+            slope_high = (h3["price"] - h1["price"]) / h_span
+            h2_expected = h1["price"] + slope_high * (h2["bar_idx"] - h1["bar_idx"])
+            if abs(h2["price"] - h2_expected) > 12.0:
+                continue
+
+            # Check 3-touch linearity on Lows: line l1 -> l3
+            l_span = max(1, l3["bar_idx"] - l1["bar_idx"])
+            slope_low = (l3["price"] - l1["price"]) / l_span
+            l2_expected = l1["price"] + slope_low * (l2["bar_idx"] - l1["bar_idx"])
+            if abs(l2["price"] - l2_expected) > 12.0:
+                continue
+
+            base_height = abs(h1["price"] - l1["price"])
+            if base_height < 35.0:
+                continue
+
+            pat_name = None
+            direction = None
             is_buy = False
-        elif slope_high < -0.12 and slope_low > 0.12:
-            pat_name = "Symmetrical Triangle"
-            is_buy = cur_price >= res_cur
-            direction = "BUY (CALL)" if is_buy else "SELL (PUT)"
-        elif slope_high < -0.25 and slope_low < -0.08 and (slope_high < slope_low):
-            pat_name = "Falling Wedge (Bullish Reversal)"
-            direction = "BUY (CALL)"
-            is_buy = True
-        elif slope_high > 0.08 and slope_low > 0.25 and (slope_low > slope_high):
-            pat_name = "Rising Wedge (Bearish Reversal)"
-            direction = "SELL (PUT)"
-            is_buy = False
 
-        if pat_name:
-            if is_buy:
-                is_broken = cur_price > res_cur
-                entry = round(res_cur, 1)
-                target = round(res_cur + (base_height * 0.85), 1)
-                # Invalidation: If price drops back 35% of pattern height, breakout has failed
-                sl_dist = max(20.0, round(base_height * 0.35, 1))
-                stop = round(entry - sl_dist, 1)
+            if abs(slope_high) < 0.15 and slope_low > 0.15:
+                pat_name = "Ascending Triangle Breakout"
+                direction = "BUY (CALL)"
+                is_buy = True
+            elif abs(slope_low) < 0.15 and slope_high < -0.15:
+                pat_name = "Descending Triangle Breakdown"
+                direction = "SELL (PUT)"
+                is_buy = False
+            elif slope_high < -0.10 and slope_low > 0.10:
+                pat_name = "Symmetrical Triangle"
+            elif slope_high < -0.20 and slope_low < -0.05 and (slope_high < slope_low):
+                pat_name = "Falling Wedge (Bullish Reversal)"
+                direction = "BUY (CALL)"
+                is_buy = True
+            elif slope_high > 0.05 and slope_low > 0.20 and (slope_low > slope_high):
+                pat_name = "Rising Wedge (Bearish Reversal)"
+                direction = "SELL (PUT)"
+                is_buy = False
             else:
-                is_broken = cur_price < sup_cur
-                entry = round(sup_cur, 1)
-                target = round(sup_cur - (base_height * 0.85), 1)
-                # Invalidation: If price rallies back 35% of pattern height, breakdown has failed
-                sl_dist = max(20.0, round(base_height * 0.35, 1))
-                stop = round(entry + sl_dist, 1)
+                continue
 
-            status = "CONFIRMED_BREAKOUT" if is_broken else "TESTING_TRIGGER"
+            breakout_bar = None
+            breakout_dir = None
+
+            for b_idx in range(pattern_end_bar + 1, len(df)):
+                c_close = df["close"].iloc[b_idx]
+                res_at_b = h3["price"] + slope_high * (b_idx - h3["bar_idx"])
+                sup_at_b = l3["price"] + slope_low * (b_idx - l3["bar_idx"])
+
+                if (direction is None or is_buy) and c_close > res_at_b and c_close > h3["price"]:
+                    breakout_bar = b_idx
+                    breakout_dir = "BUY (CALL)"
+                    is_buy = True
+                    break
+                elif (direction is None or not is_buy) and c_close < sup_at_b and c_close < l3["price"]:
+                    breakout_bar = b_idx
+                    breakout_dir = "SELL (PUT)"
+                    is_buy = False
+                    break
+
+            if direction is None and breakout_dir is not None:
+                direction = breakout_dir
+            elif direction is None:
+                direction = "BUY (CALL)" if cur_price >= (h3["price"] + l3["price"]) / 2 else "SELL (PUT)"
+                is_buy = (direction == "BUY (CALL)")
+
+            if breakout_bar is not None:
+                status = "CONFIRMED_BREAKOUT"
+                b_time = _to_unix_sec(df.index[breakout_bar])
+                if is_buy:
+                    res_at_break = round(h3["price"] + slope_high * (breakout_bar - h3["bar_idx"]), 1)
+                    entry = res_at_break
+                    target = round(entry + (base_height * 0.85), 1)
+                    stop = round(min(l3["price"], entry - max(20.0, base_height * 0.35)), 1)
+                else:
+                    sup_at_break = round(l3["price"] + slope_low * (breakout_bar - l3["bar_idx"]), 1)
+                    entry = sup_at_break
+                    target = round(entry - (base_height * 0.85), 1)
+                    stop = round(max(h3["price"], entry + max(20.0, base_height * 0.35)), 1)
+                box_time = b_time
+            else:
+                status = "TESTING_TRIGGER"
+                res_cur = round(h3["price"] + slope_high * (cur_bar - h3["bar_idx"]), 1)
+                sup_cur = round(l3["price"] + slope_low * (cur_bar - l3["bar_idx"]), 1)
+                if is_buy:
+                    entry = res_cur
+                    target = round(entry + (base_height * 0.85), 1)
+                    stop = round(min(l3["price"], entry - max(20.0, base_height * 0.35)), 1)
+                else:
+                    entry = sup_cur
+                    target = round(entry - (base_height * 0.85), 1)
+                    stop = round(max(h3["price"], entry + max(20.0, base_height * 0.35)), 1)
+                box_time = _to_unix_sec(df.index[pattern_end_bar])
+
             rr_val = round(abs(target - entry) / max(1.0, abs(stop - entry)), 1)
-            span_str = self._format_span(min(h1["time_raw"], l1["time_raw"]), max(h2["time_raw"], l2["time_raw"]))
+            span_str = self._format_span(df.index[pattern_start_bar], df.index[pattern_end_bar])
 
-            ext_time = _to_unix_sec(df.index[min(len(df) - 1, max(h2["bar_idx"], l2["bar_idx"]) + 20)])
-            ext_res = round(h2["price"] + slope_high * 20, 1)
-            ext_sup = round(l2["price"] + slope_low * 20, 1)
+            ext_bars = min(len(df) - 1, pattern_end_bar + 25)
+            ext_time = _to_unix_sec(df.index[ext_bars])
+            ext_res = round(h3["price"] + slope_high * (ext_bars - h3["bar_idx"]), 1)
+            ext_sup = round(l3["price"] + slope_low * (ext_bars - l3["bar_idx"]), 1)
 
+            pat_uid = f"pat_tri_{h1['bar_idx']}_{l1['bar_idx']}"
             drawing_shapes = [
-                {"id": f"tri_res_{cur_bar}", "type": "line", "time1": h1["time"], "price1": h1["price"], "time2": ext_time, "price2": ext_res, "color": "#ef4444" if not is_buy else "#f59e0b", "width": "2", "remark": f"Slanted Resistance ({slope_high:+.1f} pts/bar)"},
-                {"id": f"tri_sup_{cur_bar}", "type": "line", "time1": l1["time"], "price1": l1["price"], "time2": ext_time, "price2": ext_sup, "color": "#22c55e" if is_buy else "#38bdf8", "width": "2", "remark": f"Slanted Support ({slope_low:+.1f} pts/bar)"},
-                {"id": f"tri_box_{cur_bar}", "type": "target_sl", "entry": entry, "target": target, "stop": stop, "timeStart": max(h2["time"], l2["time"]), "timeEnd": max(h2["time"], l2["time"]) + self._get_future_time_span(timeframe, 20), "color": "#22c55e" if is_buy else "#ef4444", "remark": f"AI {pat_name}"}
+                {"id": f"tri_{h1['bar_idx']}_res", "type": "line", "time1": h1["time"], "price1": h1["price"], "time2": ext_time, "price2": ext_res, "color": "#ef4444" if not is_buy else "#f59e0b", "width": "2", "remark": f"Slanted Resistance ({slope_high:+.1f} pts/bar)"},
+                {"id": f"tri_{l1['bar_idx']}_sup", "type": "line", "time1": l1["time"], "price1": l1["price"], "time2": ext_time, "price2": ext_sup, "color": "#22c55e" if is_buy else "#38bdf8", "width": "2", "remark": f"Slanted Support ({slope_low:+.1f} pts/bar)"},
+                {"id": f"tri_{h1['bar_idx']}_box", "type": "target_sl", "entry": entry, "target": target, "stop": stop, "timeStart": box_time, "timeEnd": box_time + self._get_future_time_span(timeframe, 20), "color": "#22c55e" if is_buy else "#ef4444", "direction": direction, "remark": f"AI {pat_name}"}
             ]
 
             patterns.append({
-                "id": f"pat_triangle_{cur_bar}",
+                "id": pat_uid,
                 "name": pat_name,
                 "type": "triangle",
                 "direction": direction,
@@ -700,15 +797,18 @@ class PatternDetector:
                 "stop_loss": stop,
                 "risk_reward": f"1 : {rr_val}",
                 "span_str": span_str,
-                "end_bar_idx": max(h2["bar_idx"], l2["bar_idx"]),
+                "end_bar_idx": pattern_end_bar,
                 "points": [
                     {"label": "Resistance High 1", "time": h1["time"], "price": h1["price"]},
                     {"label": "Resistance High 2", "time": h2["time"], "price": h2["price"]},
+                    {"label": "Resistance High 3", "time": h3["time"], "price": h3["price"]},
                     {"label": "Support Low 1", "time": l1["time"], "price": l1["price"]},
                     {"label": "Support Low 2", "time": l2["time"], "price": l2["price"]},
+                    {"label": "Support Low 3", "time": l3["time"], "price": l3["price"]},
                 ],
                 "drawing_shapes": drawing_shapes
             })
+            break
 
         return patterns
 
@@ -739,25 +839,40 @@ class PatternDetector:
                 valley_depth = min(s1["price"], s3["price"]) - s2["price"]
                 if valley_depth >= 30.0 and (top_diff / valley_depth) < 0.25:
                     neckline = s2["price"]
-                    is_broken = cur_price < neckline
-                    status = "CONFIRMED_BREAKOUT" if is_broken else "TESTING_NECKLINE"
 
-                    entry = round(neckline, 1)
-                    target = round(neckline - (valley_depth * 0.85), 1)
-                    # Structural invalidation: price rallying 35% back above neckline invalidates breakdown
-                    sl_dist = max(20.0, round(valley_depth * 0.35, 1))
-                    stop = round(entry + sl_dist, 1)
+                    breakout_bar = None
+                    for b_idx in range(s3["bar_idx"] + 1, len(df)):
+                        if df["close"].iloc[b_idx] < neckline:
+                            breakout_bar = b_idx
+                            break
+
+                    if breakout_bar is not None:
+                        status = "CONFIRMED_BREAKOUT"
+                        b_time = _to_unix_sec(df.index[breakout_bar])
+                        entry = round(neckline, 1)
+                        target = round(neckline - (valley_depth * 0.85), 1)
+                        sl_dist = max(20.0, min(abs(max(s1["price"], s3["price"]) - entry) + 5.0, round(valley_depth * 0.35, 1)))
+                        stop = round(entry + sl_dist, 1)
+                        box_time = b_time
+                    else:
+                        status = "TESTING_NECKLINE"
+                        entry = round(neckline, 1)
+                        target = round(neckline - (valley_depth * 0.85), 1)
+                        sl_dist = max(20.0, round(valley_depth * 0.35, 1))
+                        stop = round(entry + sl_dist, 1)
+                        box_time = s3["time"]
+
                     rr = round(abs(entry - target) / max(1.0, abs(stop - entry)), 1)
                     span_str = self._format_span(s1["time_raw"], s3["time_raw"])
 
                     drawing_shapes = [
-                        {"id": f"dt_{i}_line", "type": "line", "time1": s1["time"], "price1": s1["price"], "time2": s3["time"], "price2": s3["price"], "color": "#ef4444", "width": "2", "remark": "Double Top Resistance"},
-                        {"id": f"dt_{i}_neck", "type": "line", "time1": s2["time"], "price1": s2["price"], "time2": s3["time"] + self._get_future_time_span(timeframe, 15), "price2": s2["price"], "color": "#f87171", "width": "2", "remark": f"Neckline (₹{neckline})"},
-                        {"id": f"dt_{i}_box", "type": "target_sl", "entry": entry, "target": target, "stop": stop, "timeStart": s3["time"], "timeEnd": s3["time"] + self._get_future_time_span(timeframe, 20), "color": "#ef4444", "remark": "AI Double Top Breakdown"}
+                        {"id": f"dt_{s1['bar_idx']}_line", "type": "line", "time1": s1["time"], "price1": s1["price"], "time2": s3["time"], "price2": s3["price"], "color": "#ef4444", "width": "2", "remark": "Double Top Resistance"},
+                        {"id": f"dt_{s1['bar_idx']}_neck", "type": "line", "time1": s2["time"], "price1": s2["price"], "time2": s3["time"] + self._get_future_time_span(timeframe, 15), "price2": s2["price"], "color": "#f87171", "width": "2", "remark": f"Neckline (₹{neckline})"},
+                        {"id": f"dt_{s1['bar_idx']}_box", "type": "target_sl", "entry": entry, "target": target, "stop": stop, "timeStart": box_time, "timeEnd": box_time + self._get_future_time_span(timeframe, 20), "color": "#ef4444", "direction": "SELL (PUT)", "remark": "AI Double Top Breakdown"}
                     ]
 
                     patterns.append({
-                        "id": f"pat_dt_{s3['bar_idx']}",
+                        "id": f"pat_dt_{s1['bar_idx']}",
                         "name": "Double Top (M-Pattern Breakdown)",
                         "type": "double_top_bottom",
                         "direction": "SELL (PUT)",
@@ -783,25 +898,40 @@ class PatternDetector:
                 peak_height = s2["price"] - max(s1["price"], s3["price"])
                 if peak_height >= 30.0 and (bottom_diff / peak_height) < 0.25:
                     neckline = s2["price"]
-                    is_broken = cur_price > neckline
-                    status = "CONFIRMED_BREAKOUT" if is_broken else "TESTING_NECKLINE"
 
-                    entry = round(neckline, 1)
-                    target = round(neckline + (peak_height * 0.85), 1)
-                    # Structural invalidation: price dropping 35% back below neckline invalidates breakout
-                    sl_dist = max(20.0, round(peak_height * 0.35, 1))
-                    stop = round(entry - sl_dist, 1)
+                    breakout_bar = None
+                    for b_idx in range(s3["bar_idx"] + 1, len(df)):
+                        if df["close"].iloc[b_idx] > neckline:
+                            breakout_bar = b_idx
+                            break
+
+                    if breakout_bar is not None:
+                        status = "CONFIRMED_BREAKOUT"
+                        b_time = _to_unix_sec(df.index[breakout_bar])
+                        entry = round(neckline, 1)
+                        target = round(neckline + (peak_height * 0.85), 1)
+                        sl_dist = max(20.0, min(abs(entry - min(s1["price"], s3["price"])) + 5.0, round(peak_height * 0.35, 1)))
+                        stop = round(entry - sl_dist, 1)
+                        box_time = b_time
+                    else:
+                        status = "TESTING_NECKLINE"
+                        entry = round(neckline, 1)
+                        target = round(neckline + (peak_height * 0.85), 1)
+                        sl_dist = max(20.0, round(peak_height * 0.35, 1))
+                        stop = round(entry - sl_dist, 1)
+                        box_time = s3["time"]
+
                     rr = round(abs(target - entry) / max(1.0, abs(entry - stop)), 1)
                     span_str = self._format_span(s1["time_raw"], s3["time_raw"])
 
                     drawing_shapes = [
-                        {"id": f"db_{i}_line", "type": "line", "time1": s1["time"], "price1": s1["price"], "time2": s3["time"], "price2": s3["price"], "color": "#22c55e", "width": "2", "remark": "Double Bottom Support"},
-                        {"id": f"db_{i}_neck", "type": "line", "time1": s2["time"], "price1": s2["price"], "time2": s3["time"] + self._get_future_time_span(timeframe, 15), "price2": s2["price"], "color": "#4ade80", "width": "2", "remark": f"Neckline (₹{neckline})"},
-                        {"id": f"db_{i}_box", "type": "target_sl", "entry": entry, "target": target, "stop": stop, "timeStart": s3["time"], "timeEnd": s3["time"] + self._get_future_time_span(timeframe, 20), "color": "#22c55e", "remark": "AI Double Bottom Breakout"}
+                        {"id": f"db_{s1['bar_idx']}_line", "type": "line", "time1": s1["time"], "price1": s1["price"], "time2": s3["time"], "price2": s3["price"], "color": "#22c55e", "width": "2", "remark": "Double Bottom Support"},
+                        {"id": f"db_{s1['bar_idx']}_neck", "type": "line", "time1": s2["time"], "price1": s2["price"], "time2": s3["time"] + self._get_future_time_span(timeframe, 15), "price2": s2["price"], "color": "#4ade80", "width": "2", "remark": f"Neckline (₹{neckline})"},
+                        {"id": f"db_{s1['bar_idx']}_box", "type": "target_sl", "entry": entry, "target": target, "stop": stop, "timeStart": box_time, "timeEnd": box_time + self._get_future_time_span(timeframe, 20), "color": "#22c55e", "direction": "BUY (CALL)", "remark": "AI Double Bottom Breakout"}
                     ]
 
                     patterns.append({
-                        "id": f"pat_db_{s3['bar_idx']}",
+                        "id": f"pat_db_{s1['bar_idx']}",
                         "name": "Double Bottom (W-Pattern Breakout)",
                         "type": "double_top_bottom",
                         "direction": "BUY (CALL)",

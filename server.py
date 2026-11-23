@@ -1221,6 +1221,16 @@ async def api_auth_reset_password(request: Request, payload: dict = Body(...)):
     phone = payload.get("phone", "").strip()
     new_password = payload.get("new_password", "").strip()
 
+    # Security Lock: Block public self-service reset for Admin accounts
+    if identifier.lower() in ("admin", "administrator"):
+        return JSONResponse(
+            status_code=403,
+            content={
+                "status": "error",
+                "message": "Security Alert: Admin portal passwords cannot be reset via public self-service. Admin credentials require Master Admin Key verification."
+            }
+        )
+
     client_ip = get_client_ip(request)
     user_agent = request.headers.get("user-agent", "")
 
@@ -2430,6 +2440,9 @@ async def rag_chat(request: Request, payload: dict = Body(...)):
                     min_sr_dist = dist_val
                     nearest_sr = lvl
 
+        from indicators.market_structure import MarketStructureEngine
+        market_structure_data = MarketStructureEngine.scan_all_timeframes(engine)
+
         if nearest_sr and min_sr_dist <= 25.0:
             role = str(nearest_sr.get("role", "")).upper()
             if "SUPPORT" in role:
@@ -2438,12 +2451,21 @@ async def rag_chat(request: Request, payload: dict = Body(...)):
             elif "RESISTANCE" in role:
                 e2_state = "PUT"
                 e2_reason = f"Testing {nearest_sr.get('role')} at ₹{float(nearest_sr.get('avg_price', 0)):.1f}"
-        elif vwap_diff >= 15.0:
+        elif market_structure_data.get("overall_structure") == "STRONG BULLISH ALIGNMENT":
             e2_state = "CALL"
-            e2_reason = f"Trending +{vwap_diff:.1f} pts above Session VWAP"
-        elif vwap_diff <= -15.0:
+            e2_reason = "Multi-timeframe Bullish Structure Alignment (Higher Highs & BoS)"
+        elif market_structure_data.get("overall_structure") == "STRONG BEARISH ALIGNMENT":
+            e2_state = "PUT"
+            e2_reason = "Multi-timeframe Bearish Structure Alignment (Lower Lows & BoS)"
+        elif vwap_diff >= 35.0:
+            e2_state = "CALL"
+            e2_reason = f"Extended +{vwap_diff:.1f} pts above Session VWAP"
+        elif vwap_diff <= -35.0:
             e2_state = "PUT"
             e2_reason = f"Trading {vwap_diff:.1f} pts below Session VWAP"
+        else:
+            e2_state = "NEUTRAL"
+            e2_reason = "Equilibrium consolidation"
 
         three_engine_decision = inst_engine.evaluate_three_engines(
             engine_2_state=e2_state,
@@ -2454,6 +2476,7 @@ async def rag_chat(request: Request, payload: dict = Body(...)):
         market_state = {
             "three_engine_decision": three_engine_decision,
             "institutional_matrix": inst_engine.get_latest_matrix(),
+            "market_structure": market_structure_data,
             "trap_radar": trap_radar,
             "patterns": patterns_eval,
             "all_tf_patterns": all_tf_patterns,
@@ -3505,6 +3528,35 @@ async def refresh_news_sentiment_endpoint(request: Request):
     from RAG.news_sentiment_engine import NewsSentimentEngine
     summary = NewsSentimentEngine.get_instance().fetch_latest_news(force=True)
     return JSONResponse(content={"status": "ok", "news": summary})
+
+
+@app.get("/api/market-structure")
+async def get_market_structure_endpoint(
+    request: Request,
+    timeframe: Optional[str] = Query(None, description="Optional single timeframe: 5m, 15m, 1h, 1d")
+):
+    """
+    Returns authentic Institutional Market Structure:
+    - Multi-timeframe Break of Structure (BoS)
+    - Change of Character (CHoCH)
+    - Key swing high/low levels and trend alignment
+    """
+    try:
+        from indicators.market_structure import MarketStructureEngine
+        if timeframe:
+            tf_clean = str(timeframe).lower()
+            snap = engine.get_snapshot(timeframe=tf_clean)
+            df_tf = snap.get("df", pd.DataFrame()) if isinstance(snap, dict) else pd.DataFrame()
+            if df_tf is None or df_tf.empty:
+                df_tf = engine.cache_mgr.get_candles(symbol="NIFTY 50", timeframe=tf_clean)
+            res = MarketStructureEngine.analyze_structure_timeframe(df_tf, timeframe=tf_clean)
+            return JSONResponse(content={"status": "ok", "data": res})
+        else:
+            res = MarketStructureEngine.scan_all_timeframes(engine)
+            return JSONResponse(content=res)
+    except Exception as e:
+        logger.error("Error in /api/market-structure: %s", e)
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 
 @app.get("/health")

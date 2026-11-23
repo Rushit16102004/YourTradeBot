@@ -1983,6 +1983,8 @@ def reset_password_with_phone_verification(identifier: str, phone: str, new_pass
                 return False, f"No account found with username or email '{identifier}'.", None, None
 
             user_id = row["id"]
+            if row["role"] == "admin" or str(row["username"]).lower() == "admin":
+                return False, "Security Notice: Administrator accounts cannot be reset via public self-service. Admin credentials require Master Admin Key verification.", None, None
             uname = row["username"]
             uemail = row["email"]
             stored_phone = str(row["phone"] or "")

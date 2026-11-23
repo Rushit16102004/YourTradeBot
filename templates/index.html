@@ -1381,11 +1381,15 @@
 
     
     <!-- 🚀 & 🤖 Floating Terminal Action Dock (Neat, Draggable, Never Blocks Time Scale) -->
-    <div class="floating-terminal-dock" id="floating-terminal-dock">
+    <div class="floating-terminal-dock minimized" id="floating-terminal-dock">
         <span class="dock-drag-handle" id="dock-drag-handle" title="Drag to move dock anywhere on screen">⠿</span>
         <button class="dock-btn news-btn" id="news-trigger-btn" onclick="openNewsModal()" title="Real-Time Macro News & Market Direction Engine">
             <span style="font-size: 13px;">📰</span>
             <span>News</span>
+        </button>
+        <button class="dock-btn traps-btn" id="traps-trigger-btn" onclick="openTrapRadarModal()" title="Institutional Smart Money & Trap Radar" style="background: rgba(239, 68, 68, 0.16); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171;">
+            <span style="font-size: 13px;">🪤</span>
+            <span>Traps</span>
         </button>
         <button class="dock-btn preflight-btn" id="preflight-trigger-btn" onclick="openPreFlightModal()" title="1-Click Pre-Trade Go / No-Go Engine">
             <span style="font-size: 13px;">🚀</span>
@@ -1398,7 +1402,7 @@
         <button class="dock-minimize-btn" onclick="toggleDockMinimize(event)" title="Minimize dock to tiny badge">−</button>
         <div class="dock-minimized-icon" onclick="toggleDockMinimize(event)" title="Click to Expand Dock">
             <span class="copilot-pulse-dot"></span>
-            <span>🤖 AI Tools ▾</span>
+            <span>⚡ AI Tools & Traps ▾</span>
         </div>
     </div>
 
@@ -2001,6 +2005,23 @@
         let isSREnabled = true;
         let currentSRPeriod = 'all'; // '2m', '4m', '1_2m', '1_2_3m', 'all'
         let srLevelsData = { '2m': [], '4m': [], '1_2m': [], '1_2_3m': [], 'all': [], 'combined': [], '1m': [] };
+        let latestMarketStructureData = null;
+
+        async function fetchMarketStructureData() {
+            try {
+                const tf = (typeof currentTimeframe !== 'undefined' ? currentTimeframe : '5m').toLowerCase();
+                const res = await fetch(`/api/market-structure?timeframe=${encodeURIComponent(tf)}`);
+                if (res.ok) {
+                    const json = await res.json();
+                    if (json && json.status === 'ok') {
+                        latestMarketStructureData = json.data;
+                        if (typeof scheduleRenderDrawings === 'function') scheduleRenderDrawings();
+                    }
+                }
+            } catch (e) {
+                console.debug("Market structure fetch note:", e);
+            }
+        }
 
         async function toggleSRLevels() {
             isSREnabled = !isSREnabled;
@@ -2157,8 +2178,8 @@
             wickUp: '#089981',
             wickDown: '#f23645',
             candleBorderVisible: false,
-            srResistance: '#ffffff',
-            srSupport: '#ffffff',
+            srResistance: '#ef4444',
+            srSupport: '#22c55e',
             srBreakout: '#ffffff',
             vwapColor: '#3b82f6',
             bandsColor: '#fbbf24',
@@ -2176,9 +2197,10 @@
                 const saved = localStorage.getItem('terminal_theme_settings');
                 if (saved) {
                     currentThemeSettings = Object.assign({}, DEFAULT_THEME_SETTINGS, JSON.parse(saved));
-                    // Default R&S color is white (#ffffff); upgrade old cached red/green presets
-                    if (currentThemeSettings.srResistance === '#ef4444') currentThemeSettings.srResistance = '#ffffff';
-                    if (currentThemeSettings.srSupport === '#22c55e') currentThemeSettings.srSupport = '#ffffff';
+                    // Ensure Support = Green (#22c55e), Resistance = Red (#ef4444), Others = White (#ffffff) by default
+                    if (!currentThemeSettings.srResistance || currentThemeSettings.srResistance === '#ffffff') currentThemeSettings.srResistance = '#ef4444';
+                    if (!currentThemeSettings.srSupport || currentThemeSettings.srSupport === '#ffffff') currentThemeSettings.srSupport = '#22c55e';
+                    if (!currentThemeSettings.srBreakout) currentThemeSettings.srBreakout = '#ffffff';
                 }
             } catch (e) {
                 console.debug("Theme settings load note:", e);
@@ -3416,6 +3438,7 @@
 
             // Update S&R toggle button state for active timeframe
             updateSRButtonUI();
+            fetchMarketStructureData();
             if (isSREnabled && tf === '5m' && (!srLevelsData['1m'].length || !srLevelsData['2m'].length)) {
                 fetchSRLevels();
             }
@@ -3774,6 +3797,7 @@
                 if (isSREnabled && currentTimeframe === '5m') {
                     fetchSRLevels();
                 }
+                fetchMarketStructureData();
 
                 requestAnimationFrame(() => {
                     scheduleRenderDrawings();
@@ -8669,6 +8693,11 @@ function showIndicatorLineActionPill(ind, point) {
                     recordCurrentDrawingUndoState();
                 }
 
+                // Remove existing shapes for this pattern to prevent duplicate ghost boxes stacking
+                if (typeof drawings !== 'undefined') {
+                    drawings = drawings.filter(s => !(s.isAutoPattern && s.patternId === pat.id));
+                }
+
                 const shapeIds = [];
                 pat.drawing_shapes.forEach(shape => {
                     const uniqueId = shape.id + '_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
@@ -9020,7 +9049,7 @@ function showIndicatorLineActionPill(ind, point) {
                     rect.setAttribute('y', rectY);
                     rect.setAttribute('width', rectW);
                     rect.setAttribute('height', rectH);
-                    const srCol = isSupp ? (currentThemeSettings.srSupport || '#ffffff') : (currentThemeSettings.srResistance || '#ffffff');
+                    const srCol = isLocal ? (currentThemeSettings.srBreakout || '#ffffff') : (isSupp ? (currentThemeSettings.srSupport || '#22c55e') : (currentThemeSettings.srResistance || '#ef4444'));
                     rect.setAttribute('fill', srCol);
                     rect.setAttribute('fill-opacity', fillOpacity);
                     rect.setAttribute('stroke', srCol);
@@ -9086,7 +9115,7 @@ function showIndicatorLineActionPill(ind, point) {
                     g.appendChild(hitLine);
 
                     // Visual Line: PURE WHITE with bounce opacity
-                    const srCol = isSupp ? (currentThemeSettings.srSupport || '#ffffff') : (currentThemeSettings.srResistance || '#ffffff');
+                    const srCol = isLocal ? (currentThemeSettings.srBreakout || '#ffffff') : (isSupp ? (currentThemeSettings.srSupport || '#22c55e') : (currentThemeSettings.srResistance || '#ef4444'));
                     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                     line.setAttribute('x1', startX);
                     line.setAttribute('y1', y);
@@ -9131,6 +9160,49 @@ function showIndicatorLineActionPill(ind, point) {
                     overlay.appendChild(g);
                 }
             });
+
+            // 📈 Multi-Timeframe BoS & CHoCH Market Structure Overlay
+            if (latestMarketStructureData && Array.isArray(latestMarketStructureData.active_structures)) {
+                latestMarketStructureData.active_structures.forEach(st => {
+                    const lvl = parseFloat(st.broken_level);
+                    if (!lvl) return;
+                    const y = priceToY(lvl);
+                    if (y == null) return;
+
+                    const isBull = st.direction === 'BULLISH';
+                    const isChoch = st.type === 'CHOCH';
+                    const col = isChoch ? (isBull ? '#38bdf8' : '#f59e0b') : (isBull ? '#22c55e' : '#ef4444');
+                    const labelText = st.label || `[${st.type}]`;
+
+                    const endX = forwardX;
+                    const startX = Math.max(0, endX - 350);
+
+                    const gSt = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    gSt.setAttribute('class', 'structure-overlay-group');
+
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', startX); line.setAttribute('y1', y);
+                    line.setAttribute('x2', endX); line.setAttribute('y2', y);
+                    line.setAttribute('stroke', col);
+                    line.setAttribute('stroke-width', '1.5');
+                    line.setAttribute('stroke-dasharray', isChoch ? '6,3' : '3,3');
+                    line.setAttribute('stroke-opacity', '0.85');
+                    line.style.pointerEvents = 'none';
+                    gSt.appendChild(line);
+
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', endX - 85);
+                    text.setAttribute('y', y - 4);
+                    text.setAttribute('fill', col);
+                    text.setAttribute('font-size', '10.5');
+                    text.setAttribute('font-weight', '800');
+                    text.style.pointerEvents = 'none';
+                    text.textContent = labelText;
+                    gSt.appendChild(text);
+
+                    overlay.appendChild(gSt);
+                });
+            }
         }
 
                 // ========================================================
@@ -9554,6 +9626,8 @@ function showIndicatorLineActionPill(ind, point) {
 
             const rx = Math.min(x1, x2);
             const width = Math.max(20, Math.abs(x2 - x1));
+            const isShort = (d.target < d.entry) || (d.direction && /sell|put|short/i.test(d.direction)) || (d.remark && /sell|put|short/i.test(d.remark));
+
             const targetDiff = Math.abs(d.target - d.entry);
             const stopDiff = Math.abs(d.entry - d.stop);
             const rrRatio = stopDiff > 0 ? (targetDiff / stopDiff).toFixed(2) : '0.00';
@@ -9561,9 +9635,9 @@ function showIndicatorLineActionPill(ind, point) {
             const stopPct = d.entry ? ((stopDiff / d.entry) * 100).toFixed(2) : '0.00';
 
             const tgtY = Math.min(yTarget, yEntry);
-            const tgtH = Math.abs(yEntry - yTarget);
+            const tgtH = Math.max(1, Math.abs(yEntry - yTarget));
             const stpY = Math.min(yEntry, yStop);
-            const stpH = Math.abs(yStop - yEntry);
+            const stpH = Math.max(1, Math.abs(yStop - yEntry));
 
             const rectTgt = g.querySelector('[data-role="rectTgt"]');
             if (rectTgt) { rectTgt.setAttribute('x', rx); rectTgt.setAttribute('y', tgtY); rectTgt.setAttribute('width', width); rectTgt.setAttribute('height', tgtH); }
@@ -9585,7 +9659,7 @@ function showIndicatorLineActionPill(ind, point) {
             if (hitEntry) { hitEntry.setAttribute('x1', rx); hitEntry.setAttribute('y1', yEntry); hitEntry.setAttribute('x2', rx + width); hitEntry.setAttribute('y2', yEntry); }
 
             const boxTop = Math.min(yTarget, yStop);
-            const badgeW = Math.min(195, Math.max(120, width - 16));
+            const badgeW = Math.min(220, Math.max(140, width - 16));
             const badgeH = 19;
             const badgeX = rx + 8;
             const badgeY = boxTop + 4;
@@ -9596,13 +9670,30 @@ function showIndicatorLineActionPill(ind, point) {
             if (badgeText) {
                 badgeText.setAttribute('x', badgeX + badgeW / 2);
                 badgeText.setAttribute('y', badgeY + 13.5);
-                badgeText.textContent = `Tgt +${targetPct}% | Stop -${stopPct}% | R:R 1 : ${rrRatio}`;
+                badgeText.textContent = `${isShort ? 'SHORT' : 'LONG'} | Tgt +${targetPct}% | Stop -${stopPct}% | 1:${rrRatio}`;
             }
 
+            const yTopEdge = Math.min(yTarget, yStop);
+            const yBottomEdge = Math.max(yTarget, yStop);
+            const topColor = isShort ? '#ff5252' : '#00e676';
+            const bottomColor = isShort ? '#00e676' : '#ff5252';
+
             const hTop = g.querySelector('[data-handle="top"]');
-            if (hTop) { hTop.querySelectorAll('circle').forEach(c => { c.setAttribute('cx', rx + width / 2); c.setAttribute('cy', yTarget); }); }
+            if (hTop) {
+                hTop.querySelectorAll('circle').forEach(c => {
+                    c.setAttribute('cx', rx + width / 2);
+                    c.setAttribute('cy', yTopEdge);
+                    c.setAttribute('fill', topColor);
+                });
+            }
             const hBottom = g.querySelector('[data-handle="bottom"]');
-            if (hBottom) { hBottom.querySelectorAll('circle').forEach(c => { c.setAttribute('cx', rx + width / 2); c.setAttribute('cy', yStop); }); }
+            if (hBottom) {
+                hBottom.querySelectorAll('circle').forEach(c => {
+                    c.setAttribute('cx', rx + width / 2);
+                    c.setAttribute('cy', yBottomEdge);
+                    c.setAttribute('fill', bottomColor);
+                });
+            }
             const hRight = g.querySelector('[data-handle="right"]');
             if (hRight) { hRight.querySelectorAll('circle').forEach(c => { c.setAttribute('cx', rx + width); c.setAttribute('cy', yEntry); }); }
             const hLeft = g.querySelector('[data-handle="left"]');
@@ -10668,20 +10759,25 @@ function showIndicatorLineActionPill(ind, point) {
             const width = Math.max(60, Math.abs(x2 - x1));
             const isSel = d.id === selectedShapeId;
 
+            // Strict Long vs Short Trade Identification
+            const isShort = (d.target < d.entry) || (d.direction && /sell|put|short/i.test(d.direction)) || (d.remark && /sell|put|short/i.test(d.remark));
+
             // Real-Time Risk / Reward Calculations
             const targetDiff = Math.abs(d.target - d.entry);
             const stopDiff = Math.abs(d.entry - d.stop);
             const rrRatio = stopDiff > 0 ? (targetDiff / stopDiff).toFixed(2) : '0.00';
-            const targetPct = ((targetDiff / d.entry) * 100).toFixed(2);
-            const stopPct = ((stopDiff / d.entry) * 100).toFixed(2);
+            const targetPct = d.entry ? ((targetDiff / d.entry) * 100).toFixed(2) : '0.00';
+            const stopPct = d.entry ? ((stopDiff / d.entry) * 100).toFixed(2) : '0.00';
 
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             g.id = 'shape_g_' + d.id;
             g.style.pointerEvents = 'none'; // Container allows pass-through to chart canvas!
 
             // 1. Target Box Fill (Green) - Pass-through to candle canvas!
+            // In Long: Target is ABOVE entry (yTarget < yEntry in SVG). Box is from yTarget down to yEntry.
+            // In Short: Target is BELOW entry (yTarget > yEntry in SVG). Box is from yEntry down to yTarget.
             const tgtY = Math.min(yTarget, yEntry);
-            const tgtH = Math.abs(yEntry - yTarget);
+            const tgtH = Math.max(1, Math.abs(yEntry - yTarget));
             const rectTgt = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             rectTgt.setAttribute('x', rx); rectTgt.setAttribute('y', tgtY);
             rectTgt.setAttribute('width', width); rectTgt.setAttribute('height', tgtH);
@@ -10719,8 +10815,10 @@ function showIndicatorLineActionPill(ind, point) {
             g.appendChild(hitTgt);
 
             // 2. Stop Loss Box Fill (Red) - Pass-through to candle canvas!
+            // In Long: Stop is BELOW entry (yStop > yEntry in SVG). Box is from yEntry down to yStop.
+            // In Short: Stop is ABOVE entry (yStop < yEntry in SVG). Box is from yStop down to yEntry.
             const stpY = Math.min(yEntry, yStop);
-            const stpH = Math.abs(yStop - yEntry);
+            const stpH = Math.max(1, Math.abs(yStop - yEntry));
             const rectStp = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             rectStp.setAttribute('x', rx); rectStp.setAttribute('y', stpY);
             rectStp.setAttribute('width', width); rectStp.setAttribute('height', stpH);
@@ -10784,7 +10882,7 @@ function showIndicatorLineActionPill(ind, point) {
 
             // 4. Compact Risk / Reward Ratio Badge (Positioned at top edge away from entry candles)
             const boxTop = Math.min(yTarget, yStop);
-            const badgeW = Math.min(195, Math.max(120, width - 16));
+            const badgeW = Math.min(220, Math.max(140, width - 16));
             const badgeH = 19;
             const badgeX = rx + 8;
             const badgeY = boxTop + 4;
@@ -10812,15 +10910,21 @@ function showIndicatorLineActionPill(ind, point) {
             badgeText.setAttribute('text-anchor', 'middle');
             badgeText.setAttribute('data-role', 'badgeText');
             badgeText.style.pointerEvents = 'none';
-            badgeText.textContent = `Tgt +${targetPct}% | Stop -${stopPct}% | R:R 1 : ${rrRatio}`;
+            badgeText.textContent = `${isShort ? 'SHORT' : 'LONG'} | Tgt +${targetPct}% | Stop -${stopPct}% | 1:${rrRatio}`;
             g.appendChild(badgeText);
 
             // 5. Draggable Handles: UP, DOWN, LEFT, RIGHT!
-            // Top (Target Price Resize)
-            const hTop = createHandle(rx + width / 2, yTarget, '#00e676', 'ns-resize', (nx, ny) => {
+            // Top Edge Handle: For Long = Target (Green), For Short = Stop (Red)
+            const yTopEdge = Math.min(yTarget, yStop);
+            const yBottomEdge = Math.max(yTarget, yStop);
+            const topColor = isShort ? '#ff5252' : '#00e676';
+            const bottomColor = isShort ? '#00e676' : '#ff5252';
+
+            const hTop = createHandle(rx + width / 2, yTopEdge, topColor, 'ns-resize', (nx, ny) => {
                 const np = yToPrice(ny);
                 if (np != null) {
-                    d.target = np;
+                    if (isShort) d.stop = np;
+                    else d.target = np;
                     updateTargetSLDOM(d, g);
                     return true;
                 }
@@ -10828,11 +10932,12 @@ function showIndicatorLineActionPill(ind, point) {
             hTop.setAttribute('data-handle', 'top');
             g.appendChild(hTop);
 
-            // Bottom (Stop Loss Price Resize)
-            const hBottom = createHandle(rx + width / 2, yStop, '#ff5252', 'ns-resize', (nx, ny) => {
+            // Bottom Edge Handle: For Long = Stop (Red), For Short = Target (Green)
+            const hBottom = createHandle(rx + width / 2, yBottomEdge, bottomColor, 'ns-resize', (nx, ny) => {
                 const np = yToPrice(ny);
                 if (np != null) {
-                    d.stop = np;
+                    if (isShort) d.target = np;
+                    else d.stop = np;
                     updateTargetSLDOM(d, g);
                     return true;
                 }
@@ -16104,8 +16209,11 @@ function showIndicatorLineActionPill(ind, point) {
                 if (!dock || !handle) return;
 
                 try {
-                    if (localStorage.getItem('dock_minimized') === 'true') {
+                    // Default minimized across all displays unless user explicitly expanded it
+                    if (localStorage.getItem('dock_minimized') !== 'false') {
                         dock.classList.add('minimized');
+                    } else {
+                        dock.classList.remove('minimized');
                     }
                 } catch (e) {}
 

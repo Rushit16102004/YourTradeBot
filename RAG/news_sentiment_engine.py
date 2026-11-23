@@ -122,18 +122,22 @@ SESSION_STORE_FILE = Path(__file__).resolve().parent.parent / "temp_storage" / "
 
 
 def is_indian_market_relevant(title: str) -> bool:
-    """Verifies that the headline directly concerns Indian financial markets, commodities, or key macro drivers."""
+    """
+    Verifies that the headline directly concerns NIFTY 50, RBI Policy, Crude Oil,
+    FII/DII flow, or top heavyweights. Filters out Sensex / BankNifty-only noise.
+    """
     t = title.lower()
     indian_market_patterns = [
-        r"\bnifty\b", r"\bsensex\b", r"\bsebi\b", r"\brbi\b", r"\bd-street\b",
-        r"\bdalal street\b", r"\bstock markets?\b", r"\bindian markets?\b",
-        r"\bequities\b", r"\bindian equity\b", r"\bcrude oil\b", r"\bbrent\b",
-        r"\breliance\b", r"\bhdfc\b", r"\bicici\b", r"\btcs\b", r"\binfosys\b",
-        r"\bsbi\b", r"\bgst collection\b", r"\brepo rate\b", r"\bmonetary policy\b",
-        r"\binflation\b", r"\bf&o\b", r"\bbank nifty\b", r"\bfii\b", r"\bdii\b",
-        r"\bshaktikanta\b", r"\bfederal reserve\b", r"\bfomc\b", r"\bwar\b", r"\bmissiles?\b",
-        r"\bceasefire\b", r"\bmilitary\b", r"\bgift nifty\b"
+        r"\bnifty\b", r"\bnifty 50\b", r"\brbi\b", r"\bsebi\b",
+        r"\bcrude oil\b", r"\bbrent\b", r"\breliance\b", r"\bhdfc\b",
+        r"\bicici\b", r"\btcs\b", r"\binfosys\b", r"\bfii\b", r"\bdii\b",
+        r"\brepo rate\b", r"\bmonetary policy\b", r"\binflation\b",
+        r"\bgift nifty\b"
     ]
+    # Filter out pure Bank Nifty or Sensex articles if Nifty 50 is not mentioned
+    if ("bank nifty" in t or "banknifty" in t or "sensex" in t) and not any(p in t for p in ["nifty", "rbi", "fii", "dii", "crude"]):
+        return False
+
     return any(re.search(p, t) for p in indian_market_patterns)
 
 
@@ -575,10 +579,10 @@ class NewsSentimentEngine:
         # Dynamic query duration matching the active session length
         query_hours = max(24, min(120, int(hours_in_session) + 2))
         query_url = (
-            f"https://news.google.com/rss/search?q=(NIFTY+OR+Sensex+OR+RBI+OR+SEBI+OR+\"stock+market\"+OR+\"crude+oil\")+when:{query_hours}h&hl=en-IN&gl=IN&ceid=IN:en"
+            f"https://news.google.com/rss/search?q=(\"NIFTY+50\"+OR+NIFTY+OR+\"RBI+Repo\"+OR+\"Crude+Oil\"+OR+\"FII+DII\"+OR+\"HDFC+Bank\"+OR+\"Reliance\")+when:{query_hours}h&hl=en-IN&gl=IN&ceid=IN:en"
         )
         backup_url = (
-            f"https://news.google.com/rss/search?q=(NIFTY+OR+Sensex+OR+RBI+OR+SEBI+OR+\"Indian+economy\")+when:{query_hours}h&hl=en-IN&gl=IN&ceid=IN:en"
+            f"https://news.google.com/rss/search?q=(\"NIFTY+50\"+OR+NIFTY+OR+\"RBI+policy\"+OR+\"FII+flow\"+OR+\"crude\")+when:{query_hours}h&hl=en-IN&gl=IN&ceid=IN:en"
         )
 
         headlines_raw: List[Dict[str, str]] = []
@@ -823,10 +827,45 @@ class NewsSentimentEngine:
     # -------------------------------------------------------------
     # Public Accessors
     # -------------------------------------------------------------
-    def get_sentiment_summary(self) -> Dict[str, Any]:
-        """Returns the latest cached sentiment summary instantly (zero blocking latency)."""
+    def get_sentiment_summary(self, price_change_pct: Optional[float] = None) -> Dict[str, Any]:
+        """
+        Returns the latest cached sentiment summary instantly (zero blocking latency)
+        with real-time Macro Divergence Detection against NIFTY spot price action.
+        """
         with self._cache_lock:
-            return dict(self._cached_summary)
+            summary = dict(self._cached_summary)
+
+        # Macro Divergence Detection (Natural alert, never artificial capping)
+        pct = price_change_pct
+        if pct is None:
+            try:
+                from engine.main_engine import MainEngine
+                eng = MainEngine.get_instance()
+                if eng and getattr(eng, "latest_price", None) and getattr(eng, "prev_close", None):
+                    pct = ((float(eng.latest_price) - float(eng.prev_close)) / float(eng.prev_close)) * 100
+            except Exception:
+                pct = None
+
+        if pct is not None:
+            score = float(summary.get("sentiment_score", 0.0))
+            if score >= 0.25 and pct <= -0.30:
+                summary["macro_divergence"] = {
+                    "detected": True,
+                    "type": "BULL_TRAP_RISK",
+                    "warning": f"⚠️ Macro Divergence (Bull Trap Risk): News sentiment is Bullish ({score:+.2f}), but NIFTY is down ({pct:.2f}%). Exercise caution on long entries."
+                }
+                summary["market_direction"] = "⚠️ MACRO DIVERGENCE (BULL TRAP RISK)"
+            elif score <= -0.25 and pct >= 0.30:
+                summary["macro_divergence"] = {
+                    "detected": True,
+                    "type": "BEAR_TRAP_RISK",
+                    "warning": f"⚠️ Macro Divergence (Bear Trap / Short Squeeze Risk): News sentiment is Bearish ({score:+.2f}), but NIFTY is surging (+{pct:.2f}%). Avoid aggressive shorting."
+                }
+                summary["market_direction"] = "⚠️ MACRO DIVERGENCE (BEAR TRAP RISK)"
+            else:
+                summary["macro_divergence"] = {"detected": False}
+
+        return summary
 
     def get_top_catalyst(self) -> Optional[Dict[str, Any]]:
         with self._cache_lock:

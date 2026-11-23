@@ -489,12 +489,30 @@ class GeminiLLMClient:
                     f"[Futures Basis: {basis_pts:+.1f} pts ({basis_stat}) | FII Long: {fii_pct:.1f}% | Max Call OI: ₹{e3.get('max_call_oi', '--')}, Max Put OI: ₹{e3.get('max_put_oi', '--')}]\n\n"
                 )
 
+            # Multi-Timeframe Market Structure (BoS, CHoCH, Swings)
+            ms_data = market_state.get("market_structure", {})
+            ms_str = ""
+            if ms_data:
+                overall_ms = ms_data.get("overall_structure", "Rangebound")
+                exec_sum = ms_data.get("executive_summary", "")
+                tfs_detail = []
+                for tf_k, tf_v in ms_data.get("timeframes", {}).items():
+                    last_ev = tf_v.get("last_event")
+                    ev_txt = f"{last_ev.get('type')} {last_ev.get('direction')} @ ₹{last_ev.get('broken_level')}" if last_ev else "Consolidating"
+                    tfs_detail.append(f"{tf_k.upper()}: Trend={tf_v.get('trend')}, Last Event={ev_txt}")
+                ms_str = (
+                    f"MULTI-TIMEFRAME MARKET STRUCTURE (BoS & CHoCH):\n"
+                    f"• Alignment: {overall_ms} (Bullish TFs: {ms_data.get('bullish_timeframes', 0)}, Bearish TFs: {ms_data.get('bearish_timeframes', 0)})\n"
+                    f"• Timeframe Breakdown: " + " | ".join(tfs_detail) + "\n\n"
+                )
+
             market_context_str = (
                 f"CURRENT REAL-TIME MARKET STATE:\n"
                 f"- Symbol: NIFTY 50 (NSE 5m)\n"
                 f"- Current LTP: ₹{market_state.get('price', '--')}\n"
                 f"- MTF Confluence Ribbon: {market_state.get('mtf_confluence', 'Mixed')}\n\n"
                 f"{three_engine_str}"
+                f"{ms_str}"
                 f"{news_str}"
                 f"{tw_str}"
                 f"{oc_str}"
@@ -624,8 +642,11 @@ class GeminiLLMClient:
             f"RETRIEVED VECTOR DATABASE KNOWLEDGE & RECENT SETUPS:\n"
             f"{context_str}\n\n"
             f"TRADER QUESTION:\n{user_query}\n\n"
-            f"CRITICAL INSTRUCTIONS - INTENT OBSERVATION & REAL HUMAN SENIOR TRADER VOICE:\n"
-            f"0. MANDATORY INTENT OBSERVATION (REVIEW QUESTION BEFORE ANSWERING):\n"
+            f"CRITICAL INSTRUCTIONS - MANDATORY BREVITY & PRO TRADER WISDOM:\n"
+            f"0. MANDATORY BREVITY & DIRECTNESS DIRECTIVE:\n"
+            f"   • DEFAULT TO SHORT, CONCISE ANSWERS (2 to 3 bullet points, under 50 to 70 words total).\n"
+            f"   • Give the direct answer immediately without fluff, lengthy essays, or unasked lectures!\n"
+            f"   • ONLY provide deep explanations when {uname} explicitly asks 'explain', 'why', 'in detail', or 'step by step'.\n"
             f"   • Categorize what {uname} is actually asking before generating your response:\n"
             f"     a) [ACTIONABLE TRADE SETUP REQUEST] (e.g. 'give me full detail like sl entry', 'give me trade setup', 'give me nest trade', 'give me next trade', 'where to enter', 'give direction sl entry and also target', 'give setup', 'give trade', 'what trade can i take', 'should i buy call or put?'):\n"
             f"        -> THE TRADER WANTS A FRESH ACTIONABLE TRADE SETUP RIGHT NOW!\n"
@@ -635,29 +656,36 @@ class GeminiLLMClient:
             f"        -> FORWARD-LOOKING TARGET & SL BOUNDS (NO BACKWARD TARGETS):\n"
             f"           - For BUY (CALL): Target MUST be strictly ABOVE Current Spot (Target > ₹{cur_p:,.1f} + 30 to 60 pts). Stop-Loss MUST be below Entry (15 to 25 pts).\n"
             f"           - For SELL (PUT): Target MUST be strictly BELOW Current Spot (Target < ₹{cur_p:,.1f} - 30 to 60 pts). Stop-Loss MUST be above Entry (15 to 25 pts).\n"
+            f"           - Stop Loss Placement (Natural Structural Anchor): NEVER use fixed % or ATR! Anchor Stop-Loss logically behind nearest validated Support / Swing Low (for Longs) or Resistance / Swing High (for Shorts) or heavy OI wall.\n"
             f"           - NEVER set a Target below Current Spot for a CALL, and NEVER set a Target above Current Spot for a PUT!\n"
-            f"        -> ALWAYS CONCLUDE WITH THE STANDARDIZED EXECUTION CARD:\n"
+            f"        -> ALWAYS CONCLUDE WITH THE STANDARDIZED EXECUTION CARD (WITH 3-MODEL CONSENSUS):\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"🎯 QUICK TRADE EXECUTION SUMMARY\n"
+            f"• Consensus   -> [2/3 Models Agree: BUY (CALL) 🟢 / SELL (PUT) 🔴]\n"
+            f"  - Model 1 (Price Action & BoS/CHoCH): [Bullish/Bearish Structure]\n"
+            f"  - Model 2 (OI Walls & Heavyweights): [Call/Put OI Wall Defense]\n"
+            f"  - Model 3 (Momentum & Volatility): [Trend Momentum / Consolidation]\n"
             f"• Direction   -> [BUY (CALL) / SELL (PUT)]\n"
             f"• Entry Price -> ₹[Exact Price near Current Spot]\n"
             f"• Exit/Target -> ₹[Exact Price strictly ahead of Spot] (+[Pts] pts / +[%]%)\n"
-            f"• Stop Loss   -> ₹[Exact Price] (-[Pts] pts / -[%]%)\n"
+            f"• Stop Loss   -> ₹[Exact Price anchored behind Swing Low / S&R] (-[Pts] pts / -[%]%)\n"
             f"• Risk:Reward -> 1 : [Ratio]\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
             f"     b) [LOGIC / 'HOW' / 'WHY' QUESTION] (e.g. 'how to decide target', 'why this target', 'target logic', 'why this sl', 'sl logic', 'how did you calculate?'):\n"
-            f"        -> EXPLAIN the exact institutional reasoning of the active trade levels discussed earlier in chat (Confluence Wall defense, 5m ATR runway, 1:2.5+ R:R math).\n"
+            f"        -> EXPLAIN the exact institutional reasoning of the active trade levels discussed earlier in chat (Confluence Wall defense, Fibonacci Golden Pocket 0.5-0.618, 1:2.5+ R:R math).\n"
             f"        -> ABSOLUTE RULE: NEVER output the 🎯 QUICK TRADE EXECUTION SUMMARY card! Do NOT give a new trade setup! Answer in a direct, natural mentor voice.\n"
             f"     c) [EXPLICIT ON-CHART DRAWING INSPECTION] (e.g. 'check my drawing', 'is my line valid?', 'check my drawn box'):\n"
             f"        -> ONLY evaluate an on-chart drawing when {uname} specifically asks about their drawing (using words like 'my line', 'my drawing', 'my box').\n"
             f"        -> Never let old drawings prevent you from generating a new trade setup when {uname} asks for a trade, entry, or setup!\n"
             f"     d) [CONCEPTUAL / EDUCATIONAL] (e.g. 'what is PCR?', 'explain VWAP'):\n"
-            f"        -> Explain the concept in clear trader terms. NO trade summary card.\n"
+            f"        -> Explain the concept in clear trader terms (under 50-70 words). NO trade summary card.\n"
             f"     e) [TRADE MANAGEMENT / FOLLOW-UP] (e.g. 'should I exit now?', 'trail sl', 'is this trade working?'):\n"
             f"        -> Advise on active trade management (trailing SL, partial profit). NO new trade setup card.\n"
             f"1. REAL HUMAN SENIOR PROP TRADER VOICE & NATURAL CONVERSATION:\n"
             f"   • Speak like a real, experienced human senior prop desk trader / trading mentor sitting right next to {uname} at the desk.\n"
             f"   • Talk naturally, conversationally, concisely, and with sharp trading desk wisdom.\n"
+            f"   • DECOUPLE VWAP DEPENDENCY: Do NOT base every decision solely on VWAP. Synthesize 4 distinct pillars: 1) Market Structure (BoS, CHoCH, HH/HL/LH/LL), 2) S&R Key Horizontal Levels, 3) OI Walls (Max Call/Put OI, PCR), 4) Volatility & Fibonacci Golden Pocket (0.5-0.618). VWAP is an intraday benchmark, NOT an absolute veto.\n"
+            f"   • CHOP VS. TREND INTELLIGENCE: In volatile/choppy range markets, advise patience or fading range extremes; in strong trends, advise riding momentum on pullbacks to structural pivots.\n"
             f"   • ABSOLUTELY FORBIDDEN ROBOTIC PATTERNS: NEVER use robotic customer-service or chatbot openings like:\n"
             f"     - 'Regarding your question...'\n"
             f"     - 'Hello admin! Regarding your question \"how to decide target\", here is the institutional framework...'\n"
