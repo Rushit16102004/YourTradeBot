@@ -116,6 +116,22 @@ def get_current_user_from_request(request: Request) -> Optional[dict]:
             return payload
     return None
 
+
+def is_admin_request(request: Request) -> bool:
+    """Checks whether the request is made by an authorized Admin via JWT token or Master Key."""
+    u = get_current_user_from_request(request)
+    if u and u.get("role") == "admin":
+        return True
+    token = request.query_params.get("token") or ""
+    if token:
+        u_token = user_db.decode_access_token(token)
+        if u_token and u_token.get("role") == "admin":
+            return True
+    admin_key = (request.query_params.get("admin_key") or request.query_params.get("key") or "").strip()
+    if admin_key and admin_key == getattr(user_db, "ADMIN_MASTER_KEY", "Rushit@Admin2026MasterKey"):
+        return True
+    return False
+
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
@@ -3389,7 +3405,16 @@ async def get_active_patterns_endpoint(
     Head & Shoulders (slanted neckline), Triangles/Wedges (angled trendlines),
     Harmonic Butterfly/Gartley/Bat (Fibonacci ratios), and Double Tops/Bottoms.
     Supports all timeframes: 5m, 15m, 1h, 1d with multi-day swing detection.
+    NOTE: Currently restricted to Admin Dashboard testing while under maintenance.
     """
+    if not is_admin_request(request):
+        return JSONResponse(content={
+            "status": "maintenance",
+            "is_maintenance": True,
+            "message": "Pattern detection engine is currently under maintenance / development process. Temporarily available in Admin Dashboard only.",
+            "patterns": None
+        })
+
     tf_clean = str(timeframe or "5m").lower()
     snapshot = engine.get_snapshot(timeframe=tf_clean)
     df_tf = snapshot.get("df", engine.latest_df_5m) if isinstance(snapshot, dict) else engine.latest_df_5m
@@ -3439,7 +3464,18 @@ async def get_all_timeframe_patterns_endpoint(request: Request):
     across ALL 4 timeframes: 5m, 15m, 1h, and 1d.
     Includes breakout states, cross-timeframe drawing shapes, and alerts.
     Strictly zero forced patterns: reports natural consolidation if absent.
+    NOTE: Currently restricted to Admin Dashboard testing while under maintenance.
     """
+    if not is_admin_request(request):
+        return JSONResponse(content={
+            "status": "maintenance",
+            "is_maintenance": True,
+            "message": "Pattern detection engine is currently under maintenance / development process. Temporarily available in Admin Dashboard only.",
+            "total_active_patterns": 0,
+            "breakout_count": 0,
+            "timeframes": {}
+        })
+
     try:
         from indicators.pattern_detector import get_pattern_detector
         detector = get_pattern_detector()
