@@ -44,6 +44,7 @@ class CandleCacheManager:
         self._memory_cache: Dict[Tuple[str, str], pd.DataFrame] = {}
         self._cache_lock = threading.Lock()
         self._last_tick_time: Optional[datetime] = None
+        self._session_close_price: Optional[float] = None
 
     def _csv_path(self, symbol: str, timeframe: str) -> str:
         clean_sym = symbol.replace(" ", "_").replace("^", "").lower()
@@ -89,6 +90,11 @@ class CandleCacheManager:
                 else:
                     df_csv.index = df_csv.index.tz_convert(IST)
 
+                # Filter out erratic settlement / post-market candles strictly after 15:10 IST
+                if timeframe.lower() not in ("1d", "d"):
+                    valid_mask = ~((df_csv.index.hour > 15) | ((df_csv.index.hour == 15) & (df_csv.index.minute > 10)))
+                    df_csv = df_csv.loc[valid_mask]
+
                 # Store in RAM cache for subsequent instant access
                 with self._cache_lock:
                     self._memory_cache[key] = df_csv.copy()
@@ -116,6 +122,11 @@ class CandleCacheManager:
             df_clean.index = df_clean.index.tz_localize(IST)
         else:
             df_clean.index = df_clean.index.tz_convert(IST)
+
+        # Filter out erratic settlement / post-market candles strictly after 15:10 IST
+        if timeframe.lower() not in ("1d", "d"):
+            valid_mask = ~((df_clean.index.hour > 15) | ((df_clean.index.hour == 15) & (df_clean.index.minute > 10)))
+            df_clean = df_clean.loc[valid_mask]
 
         # 1st Priority: Instant Update to In-Memory RAM Cache
         with self._cache_lock:
@@ -149,6 +160,11 @@ class CandleCacheManager:
 
         self._last_tick_time = tick_time
         key_5m = (symbol, "5m")
+
+        # After 15:10 IST, do not form/append erratic candles; only record official close price
+        if tick_time.hour > 15 or (tick_time.hour == 15 and tick_time.minute > 10):
+            self._session_close_price = price
+            return
 
         with self._cache_lock:
             if key_5m in self._memory_cache:
@@ -188,6 +204,9 @@ class CandleCacheManager:
 
     def get_last_tick_time(self) -> Optional[datetime]:
         return self._last_tick_time
+
+    def get_session_close_price(self) -> Optional[float]:
+        return self._session_close_price
 
     def resample_timeframe(self, df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
         """

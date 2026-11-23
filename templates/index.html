@@ -756,6 +756,44 @@
                     <div class="sr-info-tip" id="sr-dropdown-info">
                         👑 <b>All Month (1,2,3,4) Confluence:</b> Maximum multi-month institutional barrier confluence across all 4 months.
                     </div>
+
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-header">Smart Money Structure (BoS & CHoCH)</div>
+
+                    <div class="dropdown-toggle-row" onclick="toggleStructureLevels()">
+                        <div class="ind-info">
+                            <span class="ind-color-dot" style="background: #38bdf8; color: #38bdf8;"></span>
+                            <div>
+                                <div class="ind-name">BoS & CHoCH Structure Lines</div>
+                                <div class="ind-sub">Break of Structure & Character Reversals</div>
+                            </div>
+                        </div>
+                        <label class="modern-switch-wrap" onclick="event.stopPropagation()">
+                            <input type="checkbox" id="chk-structure-master" checked onchange="toggleStructureLevels()">
+                            <span class="modern-switch-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="sr-period-selector-grid" style="margin-top: 8px;">
+                        <button class="sr-dropdown-period-btn active" id="btn-st-tf-all" onclick="setStructureTimeframeFilter('all')" title="Display structures from all active timeframes">
+                            ALL <span class="sr-sub-txt">All TFs</span>
+                        </button>
+                        <button class="sr-dropdown-period-btn" id="btn-st-tf-5m" onclick="setStructureTimeframeFilter('5m')" title="Display 5-minute structural breaks">
+                            5M <span class="sr-sub-txt">5 Min</span>
+                        </button>
+                        <button class="sr-dropdown-period-btn" id="btn-st-tf-15m" onclick="setStructureTimeframeFilter('15m')" title="Display 15-minute structural breaks">
+                            15M <span class="sr-sub-txt">15 Min</span>
+                        </button>
+                        <button class="sr-dropdown-period-btn" id="btn-st-tf-1h" onclick="setStructureTimeframeFilter('1h')" title="Display 1-hour structural breaks">
+                            1H <span class="sr-sub-txt">1 Hour</span>
+                        </button>
+                        <button class="sr-dropdown-period-btn" id="btn-st-tf-1d" onclick="setStructureTimeframeFilter('1d')" title="Display daily macro structural breaks" style="grid-column: span 2;">
+                            1D Daily <span class="sr-sub-txt">Macro Daily Structure</span>
+                        </button>
+                    </div>
+                    <div class="sr-info-tip" style="margin-top: 6px;">
+                        ⚡ <b>Smart Money Concepts:</b> Horizontal projection lines with Break of Structure (BoS) and Change of Character (CHoCH) tags.
+                    </div>
                 </div>
             </div>
 
@@ -2053,6 +2091,23 @@
             setTimeout(() => { closeAllDropdowns(); }, 120);
         }
 
+        let isStructureEnabled = true;
+        let currentStructureTimeframe = 'all';
+
+        function toggleStructureLevels() {
+            isStructureEnabled = !isStructureEnabled;
+            updateSRButtonUI();
+            scheduleRenderDrawings();
+            saveCurrentUserPreferences();
+        }
+
+        function setStructureTimeframeFilter(tf) {
+            currentStructureTimeframe = tf;
+            updateSRButtonUI();
+            scheduleRenderDrawings();
+            saveCurrentUserPreferences();
+        }
+
         let lastSRMeta = null;
 
         function updateSRButtonUI() {
@@ -2064,17 +2119,24 @@
             const btn1_2_3m = document.getElementById('btn-sr-period-1-2-3m');
             const btnAll = document.getElementById('btn-sr-period-all');
             const chkSr = document.getElementById('chk-sr-master');
+            const chkSt = document.getElementById('chk-structure-master');
             const srDropLabel = document.getElementById('sr-dropdown-label');
             const srDropBtn = document.getElementById('btn-sr-dropdown');
             const infoTip = document.getElementById('sr-dropdown-info');
 
             if (chkSr) chkSr.checked = isSREnabled && currentTimeframe === '5m';
+            if (chkSt) chkSt.checked = isStructureEnabled;
 
             if (btn2m) btn2m.classList.toggle('active', currentSRPeriod === '2m');
             if (btn4m) btn4m.classList.toggle('active', currentSRPeriod === '4m');
             if (btn1_2m) btn1_2m.classList.toggle('active', currentSRPeriod === '1_2m' || currentSRPeriod === '1m+2m');
             if (btn1_2_3m) btn1_2_3m.classList.toggle('active', currentSRPeriod === '1_2_3m');
             if (btnAll) btnAll.classList.toggle('active', currentSRPeriod === 'all' || currentSRPeriod === 'combined');
+
+            ['all', '5m', '15m', '1h', '1d'].forEach(tf => {
+                const b = document.getElementById(`btn-st-tf-${tf}`);
+                if (b) b.classList.toggle('active', currentStructureTimeframe === tf);
+            });
 
             const periodLabelMap = {
                 '2m': '2M',
@@ -2103,14 +2165,19 @@
             }
 
             if (srDropLabel) {
-                if (currentTimeframe === '5m') {
-                    srDropLabel.innerHTML = isSREnabled ? `🛡️ S&R (${periodLabel}): <b>ON</b>` : `🛡️ S&R: OFF`;
+                const srActive = isSREnabled && currentTimeframe === '5m';
+                if (srActive && isStructureEnabled) {
+                    srDropLabel.innerHTML = `🛡️ S&R (${periodLabel}) • ⚡ BoS: <b>ON</b>`;
+                } else if (srActive) {
+                    srDropLabel.innerHTML = `🛡️ S&R (${periodLabel}): <b>ON</b>`;
+                } else if (isStructureEnabled) {
+                    srDropLabel.innerHTML = `⚡ BoS/CHoCH (${currentStructureTimeframe.toUpperCase()}): <b>ON</b>`;
                 } else {
-                    srDropLabel.innerHTML = `🛡️ S&R (${periodLabel} • 5m Only)`;
+                    srDropLabel.innerHTML = `🛡️ S&R / BoS: <b>OFF</b>`;
                 }
             }
             if (srDropBtn) {
-                srDropBtn.classList.toggle('active-sr-head', isSREnabled && currentTimeframe === '5m');
+                srDropBtn.classList.toggle('active-sr-head', (isSREnabled && currentTimeframe === '5m') || isStructureEnabled);
             }
 
             if (btn) {
@@ -3566,6 +3633,16 @@
                 // 1. Update Header UI (LTP, positive/negative colors, +/-% pts, breadth, badge)
                 updateUI(data);
 
+                // Stop mutating/forming candles past 15:10 IST for intraday sessions
+                if (currentTimeframe !== '1d' && live.time) {
+                    const istDate = new Date((live.time + 19800) * 1000);
+                    const istHour = istDate.getUTCHours();
+                    const istMin = istDate.getUTCMinutes();
+                    if (istHour > 15 || (istHour === 15 && istMin > 10)) {
+                        return;
+                    }
+                }
+
                 // 2. Incremental Candle Update into Lightweight Chart
                 const live = data.candle;
                 const lastIdx = activeCandles.length - 1;
@@ -3723,6 +3800,15 @@
 
             candles.forEach(c => {
                 if (!c.time) return;
+                // For intraday charts (5m, 15m, 1h), filter out any candles starting strictly after 15:10 IST to prevent erratic settlement bars
+                if (currentTimeframe !== '1d') {
+                    const istDate = new Date((c.time + 19800) * 1000);
+                    const istHour = istDate.getUTCHours();
+                    const istMin = istDate.getUTCMinutes();
+                    if (istHour > 15 || (istHour === 15 && istMin > 10)) {
+                        return;
+                    }
+                }
                 cMap.set(c.time, {
                     time: c.time,
                     open: c.open,
@@ -3792,6 +3878,10 @@
 
                 // BUY & SELL Markers (Rendered strictly AFTER candleSeries.setData to ensure visibility!)
                 renderSignalMarkers(data.signals || []);
+
+                if (data.market_close_price) {
+                    updateMarketClosePriceLine(data.market_close_price);
+                }
 
                 // Live 24H S&R dynamic update on new candle
                 if (isSREnabled && currentTimeframe === '5m') {
@@ -6853,6 +6943,28 @@ function showIndicatorLineActionPill(ind, point) {
             }
         }
 
+        // 15:30 Market Close Price Line Helper on Lightweight Chart
+        let _marketClosePriceLine = null;
+        function updateMarketClosePriceLine(price) {
+            if (!candleSeries || !price || price <= 0) return;
+            try {
+                if (_marketClosePriceLine) {
+                    candleSeries.removePriceLine(_marketClosePriceLine);
+                    _marketClosePriceLine = null;
+                }
+                _marketClosePriceLine = candleSeries.createPriceLine({
+                    price: Number(price),
+                    color: '#06b6d4',
+                    lineWidth: 2,
+                    lineStyle: 2, // Dashed
+                    axisLabelVisible: true,
+                    title: `📌 15:30 CLOSE: ₹${Number(price).toFixed(2)}`,
+                });
+            } catch (e) {
+                console.debug('Market close price line note:', e);
+            }
+        }
+
         // Update Top Metrics UI
         function updateUI(data) {
             if (!data) return;
@@ -6929,6 +7041,10 @@ function showIndicatorLineActionPill(ind, point) {
                         _preMarketPriceLine = null;
                     }
                 }
+            }
+
+            if (data.market_close_price) {
+                updateMarketClosePriceLine(data.market_close_price);
             }
 
             // Market Breadth (Constituents Up vs Down - Strictly 50 Stocks & 100%)
@@ -8967,10 +9083,7 @@ function showIndicatorLineActionPill(ind, point) {
         }
 
         function renderSRLevels(overlay) {
-            if (!isSREnabled || currentTimeframe !== '5m') return;
-            const levels = srLevelsData[currentSRPeriod] || srLevelsData['all'] || srLevelsData['combined'] || srLevelsData['2m'] || srLevelsData['4m'] || [];
-            if (!Array.isArray(levels) || levels.length === 0) return;
-
+            if (!overlay) return;
             const chartContainer = document.getElementById('chart-container');
             const chartWidth = Math.max(800, chartContainer ? chartContainer.clientWidth : 1200);
             const lastCandle = (activeCandles && activeCandles.length > 0) ? activeCandles[activeCandles.length - 1] : null;
@@ -8980,7 +9093,11 @@ function showIndicatorLineActionPill(ind, point) {
             const maxUsableWidth = Math.max(200, chartWidth - 65);
             const forwardX = Math.min(maxUsableWidth, Math.max(maxUsableWidth - 50, timeToX(forwardTime) || maxUsableWidth));
 
-            levels.forEach(lvl => {
+            // 1. Support & Resistance Levels (5m Chart)
+            if (isSREnabled && currentTimeframe === '5m') {
+                const levels = srLevelsData[currentSRPeriod] || srLevelsData['all'] || srLevelsData['combined'] || srLevelsData['2m'] || srLevelsData['4m'] || [];
+                if (Array.isArray(levels) && levels.length > 0) {
+                    levels.forEach(lvl => {
                 const bounces = parseInt(lvl.bounces) || 1;
                 const isLocal = lvl.is_local || (lvl.role && lvl.role.toLowerCase().includes('local'));
 
@@ -9161,9 +9278,12 @@ function showIndicatorLineActionPill(ind, point) {
                 }
             });
 
-            // 📈 Multi-Timeframe BoS & CHoCH Market Structure Overlay
-            if (latestMarketStructureData && Array.isArray(latestMarketStructureData.active_structures)) {
+            // 📈 Multi-Timeframe BoS & CHoCH Market Structure Overlay (Identical to S&R lines)
+            if (isStructureEnabled && latestMarketStructureData && Array.isArray(latestMarketStructureData.active_structures)) {
                 latestMarketStructureData.active_structures.forEach(st => {
+                    if (currentStructureTimeframe !== 'all' && st.timeframe && st.timeframe.toLowerCase() !== currentStructureTimeframe.toLowerCase()) {
+                        return;
+                    }
                     const lvl = parseFloat(st.broken_level);
                     if (!lvl) return;
                     const y = priceToY(lvl);
@@ -9172,33 +9292,106 @@ function showIndicatorLineActionPill(ind, point) {
                     const isBull = st.direction === 'BULLISH';
                     const isChoch = st.type === 'CHOCH';
                     const col = isChoch ? (isBull ? '#38bdf8' : '#f59e0b') : (isBull ? '#22c55e' : '#ef4444');
-                    const labelText = st.label || `[${st.type}]`;
+                    const tfText = (st.timeframe || '5m').toUpperCase();
+                    const typeText = st.type || 'BOS';
+                    const labelText = `[${tfText} ${typeText}] ₹${lvl.toFixed(1)}`;
 
+                    let startX = 0;
+                    if (st.breakout_timestamp) {
+                        const bTime = typeof st.breakout_timestamp === 'number' ? st.breakout_timestamp : (new Date(st.breakout_timestamp).getTime() / 1000);
+                        const sx = timeToX(bTime);
+                        if (sx != null && sx > 0) startX = Math.max(0, sx);
+                    } else if (st.pivot_timestamp) {
+                        const pTime = typeof st.pivot_timestamp === 'number' ? st.pivot_timestamp : (new Date(st.pivot_timestamp).getTime() / 1000);
+                        const sx = timeToX(pTime);
+                        if (sx != null && sx > 0) startX = Math.max(0, sx);
+                    }
                     const endX = forwardX;
-                    const startX = Math.max(0, endX - 350);
 
                     const gSt = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                     gSt.setAttribute('class', 'structure-overlay-group');
+                    gSt.style.cursor = 'pointer';
 
+                    // Hit Area for reliable hovering
+                    const hitLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    hitLine.setAttribute('x1', startX);
+                    hitLine.setAttribute('y1', y);
+                    hitLine.setAttribute('x2', endX);
+                    hitLine.setAttribute('y2', y);
+                    hitLine.setAttribute('stroke', 'transparent');
+                    hitLine.setAttribute('stroke-width', '18');
+                    hitLine.style.pointerEvents = 'all';
+                    gSt.appendChild(hitLine);
+
+                    // Visual Horizontal Line: same style as S&R with clear dash
                     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                    line.setAttribute('x1', startX); line.setAttribute('y1', y);
-                    line.setAttribute('x2', endX); line.setAttribute('y2', y);
+                    line.setAttribute('x1', startX);
+                    line.setAttribute('y1', y);
+                    line.setAttribute('x2', endX);
+                    line.setAttribute('y2', y);
                     line.setAttribute('stroke', col);
-                    line.setAttribute('stroke-width', '1.5');
-                    line.setAttribute('stroke-dasharray', isChoch ? '6,3' : '3,3');
-                    line.setAttribute('stroke-opacity', '0.85');
-                    line.style.pointerEvents = 'none';
+                    line.setAttribute('stroke-opacity', '0.88');
+                    line.setAttribute('stroke-width', '1.8');
+                    line.setAttribute('stroke-dasharray', isChoch ? '7,4' : '4,3');
+                    line.style.pointerEvents = 'all';
                     gSt.appendChild(line);
 
+                    // Badge pill container on the right end
+                    const badgeW = 125;
+                    const badgeH = 20;
+                    const badgeX = Math.max(0, endX - badgeW - 6);
+                    const badgeY = y - (badgeH / 2);
+
+                    const pillBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    pillBg.setAttribute('x', badgeX);
+                    pillBg.setAttribute('y', badgeY);
+                    pillBg.setAttribute('width', badgeW);
+                    pillBg.setAttribute('height', badgeH);
+                    pillBg.setAttribute('rx', '4');
+                    pillBg.setAttribute('fill', 'rgba(15, 23, 42, 0.92)');
+                    pillBg.setAttribute('stroke', col);
+                    pillBg.setAttribute('stroke-width', '1.2');
+                    pillBg.style.pointerEvents = 'all';
+                    gSt.appendChild(pillBg);
+
                     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    text.setAttribute('x', endX - 85);
-                    text.setAttribute('y', y - 4);
+                    text.setAttribute('x', badgeX + (badgeW / 2));
+                    text.setAttribute('y', y + 4);
+                    text.setAttribute('text-anchor', 'middle');
                     text.setAttribute('fill', col);
                     text.setAttribute('font-size', '10.5');
                     text.setAttribute('font-weight', '800');
                     text.style.pointerEvents = 'none';
                     text.textContent = labelText;
                     gSt.appendChild(text);
+
+                    // Cursor-tracking Structure info tooltip
+                    const structTooltipText = `${isChoch ? '🔄' : '⚡'} [${tfText} ${typeText}] ${isBull ? 'Bullish' : 'Bearish'} ${isChoch ? 'Change of Character (Reversal)' : 'Break of Structure (Continuation)'}: ₹${lvl.toFixed(1)}`;
+                    gSt.addEventListener('mouseenter', (e) => {
+                        if (getCandleUnderCursor(e.clientX, e.clientY)) { hideSRTooltip(); return; }
+                        showSRTooltip(e.clientX, e.clientY, structTooltipText);
+                    });
+                    gSt.addEventListener('mousemove', (e) => {
+                        if (getCandleUnderCursor(e.clientX, e.clientY)) { hideSRTooltip(); return; }
+                        moveSRTooltip(e.clientX, e.clientY);
+                    });
+                    gSt.addEventListener('mouseleave', () => { hideSRTooltip(); });
+
+                    // Pass mousedown and touchstart directly to chart canvas
+                    const passStructureToCanvas = (e) => {
+                        hideSRTooltip();
+                        gSt.style.pointerEvents = 'none';
+                        const px = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+                        const py = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
+                        const under = document.elementFromPoint(px, py);
+                        gSt.style.pointerEvents = '';
+                        if (under && under.tagName === 'CANVAS') {
+                            if (e.type === 'mousedown') under.dispatchEvent(new MouseEvent('mousedown', e));
+                            else if (e.type === 'touchstart') under.dispatchEvent(new TouchEvent('touchstart', e));
+                        }
+                    };
+                    gSt.addEventListener('mousedown', passStructureToCanvas);
+                    gSt.addEventListener('touchstart', passStructureToCanvas, { passive: true });
 
                     overlay.appendChild(gSt);
                 });

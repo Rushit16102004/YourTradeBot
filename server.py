@@ -544,7 +544,13 @@ async def get_market_data(
             for idx in index_vals
         ]
 
+        is_intraday = timeframe.lower() not in ("1d", "d")
         for i in range(n):
+            idx_dt = pd.to_datetime(index_vals[i])
+            # Filter out any candles strictly after 15:10 IST to prevent erratic post-market/settlement bars
+            if is_intraday and (idx_dt.hour > 15 or (idx_dt.hour == 15 and idx_dt.minute > 10)):
+                continue
+
             m_val = means[i]
             z_val = zs[i]
             s_val = slopes[i]
@@ -628,6 +634,7 @@ async def get_market_data(
             "total": 50,
         }),
         "candles": candles,
+        "market_close_price": round(cur_price, 2),
         "state": state_dict,
         "signals": signals,
         "sr_alert": snapshot.get("sr_alert"),
@@ -674,37 +681,43 @@ async def get_live_candle(
     tick_dir = snapshot.get("tick_direction", 0)
 
     live_candle = None
-    # In pre-market, do not mutate yesterday's closed candle on the chart
+    # In pre-market or after 15:10, do not mutate/form erratic candles on the chart
     if not df.empty and not is_pre_market:
         last_row = df.iloc[-1]
         last_idx = df.index[-1]
-        ts_sec = int(last_idx.timestamp()) if hasattr(last_idx, "timestamp") else int(pd.to_datetime(last_idx).timestamp())
-        ts_str = last_idx.strftime("%Y-%m-%d %H:%M:%S") if hasattr(last_idx, "strftime") else str(last_idx)
+        last_dt = pd.to_datetime(last_idx)
+        is_intraday = timeframe.lower() not in ("1d", "d")
 
-        m_val = last_row.get("mean")
-        z_val = last_row.get("z")
-        s_val = last_row.get("slope")
-        v_val = last_row.get("vwap")
-        vu2_val = last_row.get("vwap_upper_2")
-        vl2_val = last_row.get("vwap_lower_2")
-        vol_ma = last_row.get("volume_ma_20")
+        if is_intraday and (last_dt.hour > 15 or (last_dt.hour == 15 and last_dt.minute > 10)):
+            live_candle = None
+        else:
+            ts_sec = int(last_idx.timestamp()) if hasattr(last_idx, "timestamp") else int(pd.to_datetime(last_idx).timestamp())
+            ts_str = last_idx.strftime("%Y-%m-%d %H:%M:%S") if hasattr(last_idx, "strftime") else str(last_idx)
 
-        live_candle = {
-            "time": ts_sec,
-            "timestamp": ts_str,
-            "open": round(float(last_row["open"]), 2),
-            "high": round(float(last_row["high"]), 2),
-            "low": round(float(last_row["low"]), 2),
-            "close": round(float(last_row["close"]), 2),
-            "volume": float(last_row.get("volume", 0)),
-            "volume_ma": round(float(vol_ma), 2) if vol_ma is not None and not np.isnan(vol_ma) else None,
-            "mean": round(float(m_val), 2) if m_val is not None and not np.isnan(m_val) else None,
-            "vwap": round(float(v_val), 2) if v_val is not None and not np.isnan(v_val) else None,
-            "vwap_upper_2": round(float(vu2_val), 2) if vu2_val is not None and not np.isnan(vu2_val) else None,
-            "vwap_lower_2": round(float(vl2_val), 2) if vl2_val is not None and not np.isnan(vl2_val) else None,
-            "z": round(float(z_val), 4) if z_val is not None and not np.isnan(z_val) else None,
-            "slope": round(float(s_val), 6) if s_val is not None and not np.isnan(s_val) else None,
-        }
+            m_val = last_row.get("mean")
+            z_val = last_row.get("z")
+            s_val = last_row.get("slope")
+            v_val = last_row.get("vwap")
+            vu2_val = last_row.get("vwap_upper_2")
+            vl2_val = last_row.get("vwap_lower_2")
+            vol_ma = last_row.get("volume_ma_20")
+
+            live_candle = {
+                "time": ts_sec,
+                "timestamp": ts_str,
+                "open": round(float(last_row["open"]), 2),
+                "high": round(float(last_row["high"]), 2),
+                "low": round(float(last_row["low"]), 2),
+                "close": round(float(last_row["close"]), 2),
+                "volume": float(last_row.get("volume", 0)),
+                "volume_ma": round(float(vol_ma), 2) if vol_ma is not None and not np.isnan(vol_ma) else None,
+                "mean": round(float(m_val), 2) if m_val is not None and not np.isnan(m_val) else None,
+                "vwap": round(float(v_val), 2) if v_val is not None and not np.isnan(v_val) else None,
+                "vwap_upper_2": round(float(vu2_val), 2) if vu2_val is not None and not np.isnan(vu2_val) else None,
+                "vwap_lower_2": round(float(vl2_val), 2) if vl2_val is not None and not np.isnan(vl2_val) else None,
+                "z": round(float(z_val), 4) if z_val is not None and not np.isnan(z_val) else None,
+                "slope": round(float(s_val), 6) if s_val is not None and not np.isnan(s_val) else None,
+            }
 
     state_dict = {
         "signal_name": state.signal_name if state else "NONE",
@@ -718,6 +731,7 @@ async def get_live_candle(
     return JSONResponse(content={
         "status": "ok",
         "price": round(cur_price, 2),
+        "market_close_price": round(cur_price, 2),
         "prev_close": round(float(snapshot.get("prev_close", cur_price)), 2),
         "change": cur_chg,
         "change_pct": round(float(snapshot.get("change_pct", 0.0)), 2),
