@@ -401,6 +401,7 @@ async def serve_robots():
 
 @app.api_route("/sitemap.xml", methods=["GET", "HEAD"])
 @app.api_route("//sitemap.xml", methods=["GET", "HEAD"])
+@app.api_route("/sitemap_index.xml", methods=["GET", "HEAD"])
 async def serve_sitemap():
     """Serves XML sitemap for Google Search Console."""
     sitemap_file = os.path.join(BASE_DIR, "sitemap.xml")
@@ -410,7 +411,7 @@ async def serve_sitemap():
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://yourtradebot.duckdns.org/</loc>
-    <lastmod>2026-11-22</lastmod>
+    <lastmod>2026-11-23</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
