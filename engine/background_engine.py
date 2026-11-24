@@ -189,7 +189,22 @@ class BackgroundTradingEngine:
 
         # Seed 4 months initial data (1st Priority: RAM Cache / CSV fallback)
         cached_df = self.cache_mgr.get_candles(self.api_cfg.symbol, "5m")
-        if cached_df is not None and len(cached_df) >= 3000:
+        is_cache_fresh = False
+        if cached_df is not None and len(cached_df) >= 1000:
+            try:
+                last_ts = pd.to_datetime(cached_df.index[-1])
+                now_curr = datetime.now(IST)
+                if last_ts.tzinfo is None:
+                    last_ts = IST.localize(last_ts)
+                gap_days = (now_curr.date() - last_ts.astimezone(IST).date()).days
+                # Fresh if last candle is from today or previous trading session (<= 1 day, or <= 4 days for weekend/holiday)
+                if gap_days <= 1 or (gap_days <= 4 and now_curr.weekday() in (0, 5, 6)):
+                    is_cache_fresh = True
+            except Exception as ex_fresh:
+                logger.debug("Cache freshness check note: %s", ex_fresh)
+                is_cache_fresh = False
+
+        if cached_df is not None and len(cached_df) >= 3000 and is_cache_fresh:
             try:
                 cached_df = get_volume_aggregator().merge_volume_into_candles(cached_df)
             except Exception as e:
@@ -225,6 +240,7 @@ class BackgroundTradingEngine:
             if not self.sr_signal_history:
                 self._backfill_sr_signals_from_history(df_ind)
         else:
+            logger.info("Cache is missing or stale (is_fresh=%s). Initiating fresh candle sync...", is_cache_fresh)
             self.sync_and_evaluate(force_alert=False)
             if not self.sr_signal_history and not self.latest_df_5m.empty:
                 self._backfill_sr_signals_from_history(self.latest_df_5m)
@@ -358,6 +374,7 @@ class BackgroundTradingEngine:
         """Continuous loop checking live tick & 5-minute clock boundary."""
         logger.info("Background evaluation loop active.")
         tick_counter = 0
+        offline_synced = False
         while self._running:
             try:
                 now_ist = datetime.now(IST)
@@ -376,10 +393,30 @@ class BackgroundTradingEngine:
                 # When market is closed (Saturdays, Sundays, official NSE holidays, and post-market),
                 # pause polling Angel One to rest the server and preserve API limits.
                 if sess["phase"] == "CLOSED":
+                    if not offline_synced:
+                        try:
+                            last_c_ts = self.latest_df_5m.index[-1] if not self.latest_df_5m.empty else None
+                            needs_sync = True
+                            if last_c_ts is not None:
+                                last_c_dt = pd.to_datetime(last_c_ts)
+                                if last_c_dt.tzinfo is None:
+                                    last_c_dt = IST.localize(last_c_dt)
+                                gap = (now_ist.date() - last_c_dt.astimezone(IST).date()).days
+                                if gap <= 1 or (gap <= 4 and now_ist.weekday() in (0, 5, 6)):
+                                    needs_sync = False
+                            if needs_sync:
+                                logger.info("Market is CLOSED but candle cache needs offline catchup. Syncing once...")
+                                self.sync_and_evaluate(force_alert=False)
+                        except Exception as ex_sync:
+                            logger.warning("Offline catchup sync failed: %s", ex_sync)
+                        offline_synced = True
+
                     with self.state_lock:
                         self.next_sync_secs = 300
                     time.sleep(5)
                     continue
+                else:
+                    offline_synced = False
 
                 if wait_secs <= 2 or wait_secs >= 298:
                     curr_bucket = now_ist.replace(

@@ -140,26 +140,7 @@
         </ul>
     </section>
 
-    <!-- ============================================================ -->
-    <!-- 🖥️ Screen Recommendation Notification (5-Second Auto-Dismiss) -->
-    <!-- ============================================================ -->
-    <div id="screen-recommendation-toast" style="display: none;" onclick="event.stopPropagation()">
-        <div class="screen-toast-inner">
-            <div class="screen-toast-content">
-                <div class="screen-toast-icon">🖥️</div>
-                <div class="screen-toast-text">
-                    <div class="screen-toast-title">Best Experience on PC / Laptop</div>
-                    <div class="screen-toast-desc">
-                        For advanced charting, drawing tools & analytics, please use a big screen like a <strong>PC or Laptop</strong> for the best experience.
-                    </div>
-                </div>
-            </div>
-            <button type="button" class="screen-toast-close" onclick="dismissScreenRecommendationToast()" aria-label="Dismiss">✕</button>
-        </div>
-        <div class="screen-toast-progress-track">
-            <div id="screen-toast-progress-bar" class="screen-toast-progress-bar"></div>
-        </div>
-    </div>
+    <!-- Screen Recommendation Notification removed per user request -->
 
 
     <!-- Header Navigation (2-Tier Architecture: Line 1 = Live Ticker, Line 2 = Controls & Dropdowns) -->
@@ -1565,36 +1546,44 @@
                 <button class="copilot-btn-icon" onclick="closeKeySettingsModal()" title="Close">✕</button>
             </div>
 
-            <!-- Feature Paused Notice -->
-            <div style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(239, 68, 68, 0.08)); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; text-align: center;">
-                <div style="font-size: 24px; margin-bottom: 6px;">⏸️</div>
-                <div style="font-size: 14px; font-weight: 800; color: #fbbf24; margin-bottom: 4px;">
-                    This feature is currently stopped
+            <!-- Gemini API Key Configuration Section -->
+            <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                <div style="font-size: 12.5px; color: #cbd5e1; line-height: 1.5; margin-bottom: 12px;">
+                    Use your personal <strong>Google Gemini API Key</strong> to unlock dedicated, unlimited, and high-speed AI Strategy Copilot queries.
                 </div>
-                <div style="font-size: 12px; color: #cbd5e1; line-height: 1.5;">
-                    Direct public API key configuration is temporarily paused.
+
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; font-size: 11.5px; font-weight: 700; color: #94a3b8; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">
+                        Google Gemini API Key
+                    </label>
+                    <input type="password" id="ai-engine-key-input" class="copilot-input" placeholder="AIzaSy... (Paste your personal Gemini API key here)" style="width: 100%; box-sizing: border-box; background: #0b1120; border: 1px solid #334155; color: #f8fafc; padding: 10px 12px; border-radius: 8px; font-size: 13px; font-family: monospace; outline: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="font-size: 11px; color: #38bdf8; text-decoration: none; font-weight: 600;">
+                            🔑 Get Free Gemini API Key from Google AI Studio ↗
+                        </a>
+                        <span style="font-size: 10.5px; color: #64748b;">100% Free & Instant</span>
+                    </div>
+                </div>
+
+                <div id="ai-engine-key-status-msg" style="font-size: 12px; font-weight: 600; min-height: 18px; margin-bottom: 10px;"></div>
+
+                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <button type="button" class="btn-action" onclick="closeKeySettingsModal()" style="padding: 8px 16px; font-weight: 600; background: #1e293b; color: #cbd5e1; border: 1px solid #334155; border-radius: 8px; cursor: pointer; font-size: 12px;">
+                        Cancel
+                    </button>
+                    <button type="button" onclick="saveGeminiKey()" style="padding: 8px 18px; font-weight: 700; background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: #ffffff; border: 1px solid #38bdf8; border-radius: 8px; cursor: pointer; font-size: 12px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);">
+                        💾 Save & Activate Key
+                    </button>
                 </div>
             </div>
 
-            <!-- Contact Developer Callout Box -->
-            <div style="background: rgba(30, 41, 59, 0.7); border: 1px dashed #38bdf8; border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; text-align: center;">
-                <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
-                    Dedicated AI Access
+            <!-- Developer Support Option -->
+            <div style="background: rgba(30, 41, 59, 0.5); border: 1px dashed rgba(148, 163, 184, 0.25); border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                <div style="font-size: 11.5px; color: #94a3b8;">
+                    Need assistance or custom institutional model integration?
                 </div>
-                <div style="font-size: 15px; font-weight: 800; color: #38bdf8; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                    <span>💬 Contact developer for this feature</span>
-                </div>
-                <div style="font-size: 12px; color: #cbd5e1; line-height: 1.6; margin-bottom: 12px;">
-                    Please contact the developer or administrator to enable or configure dedicated AI Strategy Copilot models for your account.
-                </div>
-                <button type="button" onclick="openDeveloperContactModal()" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: #ffffff; border: 1px solid #38bdf8; border-radius: 8px; padding: 8px 16px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);">
-                    💬 Connect with Developer or Webpage Provider
-                </button>
-            </div>
-
-            <div style="display: flex; justify-content: flex-end;">
-                <button class="btn-action" onclick="closeKeySettingsModal()" style="padding: 8px 22px; font-weight: 700; background: #2563eb; color: #ffffff; border: 1px solid #3b82f6; border-radius: 8px; cursor: pointer; font-size: 13px;">
-                    Close
+                <button type="button" onclick="openDeveloperContactModal()" style="background: transparent; border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; border-radius: 6px; padding: 5px 10px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">
+                    💬 Contact Developer
                 </button>
             </div>
         </div>
@@ -3676,8 +3665,10 @@
                 // 1. Update Header UI (LTP, positive/negative colors, +/-% pts, breadth, badge)
                 updateUI(data);
 
+                const live = data.candle;
+
                 // Stop mutating/forming candles past 15:10 IST for intraday sessions
-                if (currentTimeframe !== '1d' && live.time) {
+                if (currentTimeframe !== '1d' && live && live.time) {
                     const istDate = new Date((live.time + 19800) * 1000);
                     const istHour = istDate.getUTCHours();
                     const istMin = istDate.getUTCMinutes();
@@ -3687,7 +3678,6 @@
                 }
 
                 // 2. Incremental Candle Update into Lightweight Chart
-                const live = data.candle;
                 const lastIdx = activeCandles.length - 1;
                 const lastC = activeCandles[lastIdx];
 
@@ -13518,14 +13508,7 @@ function showIndicatorLineActionPill(ind, point) {
                 fetchNewsSentiment();
             }, 30000);
 
-            // 8. 5-Second Screen Recommendation Toast Notification on Website Open
-            setTimeout(() => {
-                try {
-                    showScreenRecommendationToast();
-                } catch (e) {
-                    console.debug("Screen toast error:", e);
-                }
-            }, 400);
+            // Screen Recommendation Toast disabled per user preference
 
             // 9. Instant Value Welcome Banner for First-Time Visitors
             setTimeout(() => {
@@ -13578,49 +13561,9 @@ function showIndicatorLineActionPill(ind, point) {
             dismissWelcomeBanner(e);
         }
 
-        // ============================================================
-        // 🖥️ SCREEN RECOMMENDATION NOTIFICATION ENGINE (5s Auto-Dismiss)
-        // ============================================================
-        function showScreenRecommendationToast() {
-            const toast = document.getElementById('screen-recommendation-toast');
-            if (!toast) return;
-
-            // Make visible with smooth slide down animation
-            toast.style.display = 'block';
-            toast.style.animation = 'toastSlideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards';
-
-            // Reset countdown progress bar animation to exactly 2 seconds
-            const bar = document.getElementById('screen-toast-progress-bar');
-            if (bar) {
-                bar.style.animation = 'none';
-                void bar.offsetWidth; // trigger reflow
-                bar.style.animation = 'toastProgressCountdown 2s linear forwards';
-            }
-
-            // Clear any prior timer
-            if (window._screenToastTimer) {
-                clearTimeout(window._screenToastTimer);
-                window._screenToastTimer = null;
-            }
-
-            // Auto-dismiss after exactly 2 seconds (2000ms)
-            window._screenToastTimer = setTimeout(() => {
-                dismissScreenRecommendationToast();
-            }, 2000);
-        }
-
-        function dismissScreenRecommendationToast() {
-            const toast = document.getElementById('screen-recommendation-toast');
-            if (!toast) return;
-            if (window._screenToastTimer) {
-                clearTimeout(window._screenToastTimer);
-                window._screenToastTimer = null;
-            }
-            toast.style.animation = 'toastSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards';
-            setTimeout(() => {
-                toast.style.display = 'none';
-            }, 290);
-        }
+        // Screen Recommendation Notification (Disabled)
+        function showScreenRecommendationToast() {}
+        function dismissScreenRecommendationToast() {}
 
         window.showScreenRecommendationToast = showScreenRecommendationToast;
         window.dismissScreenRecommendationToast = dismissScreenRecommendationToast;
@@ -14537,10 +14480,10 @@ function showIndicatorLineActionPill(ind, point) {
                     </div>
                 </div>
 
-                <div style="margin-bottom: 14px; background: rgba(56, 189, 248, 0.08); padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.25);">
-                    <div style="color: #38bdf8; font-weight: 700; margin-bottom: 4px; font-size: 11px;">8. Privacy Policy & AI Model Training Data Usage</div>
+                <div style="margin-bottom: 14px; background: rgba(16, 185, 129, 0.08); padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.25);">
+                    <div style="color: #34d399; font-weight: 700; margin-bottom: 4px; font-size: 11px;">8. User Privacy & Strict Data Confidentiality Guarantee</div>
                     <div style="font-size: 10.5px; color: #cbd5e1; line-height: 1.5;">
-                        We securely store user chat history and queries for future model training purposes and continuous technical analysis optimization, and this data is securely saved in our private database with strict encryption and access controls. Your conversations remain protected and private to your account.
+                        Your privacy is our highest priority. Your queries, prompts, and analytical interactions are 100% confidential. Your data is <strong>NEVER used to train public or commercial AI models</strong>, never shared with any third party, and never monetized. All interactions remain strictly private to your personal session.
                     </div>
                 </div>
 
