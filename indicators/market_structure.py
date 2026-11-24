@@ -1,11 +1,15 @@
 """
 indicators/market_structure.py
-Institutional Multi-Timeframe Market Structure Engine:
-- Break of Structure (BoS): Trend Continuation
-- Change of Character (CHoCH): Early Trend Reversal
-- Swings: Higher Highs (HH), Higher Lows (HL), Lower Highs (LH), Lower Lows (LL)
-- Multi-Timeframe Analysis: 5m, 15m, 1h, 1d calculated independently on authentic candles
-- Natural, zero forced structures: Requires real body candle close beyond structural pivots
+LuxAlgo - Smart Money Concepts (SMC) Engine
+Implemented in Python based on the official Pine Script v5 specification:
+- Dual-Layer Structure: Real-Time Swing Structure & Real-Time Internal Structure
+- Leg Scanner: high[size] > ta.highest(size) / low[size] < ta.lowest(size)
+- Trend State Machine: True continuation (BOS) vs reversal (CHoCH) tracking
+- Authentic Horizontal Segments: Line drawn strictly between Pivot candle and Breakout candle
+- Centered Label Positioning: math.round(0.5 * (pivot_bar + breakout_bar))
+- Colors: LuxAlgo Green (#089981) for Bullish, LuxAlgo Red (#F23645) for Bearish
+- Additional SMC Analytics: Strong/Weak Highs & Lows, Equal Highs/Lows (EQH/EQL), and Order Blocks
+- Multi-Timeframe Analysis: 5m, 15m, 1h, 1d independent calculation and RAG intelligence
 """
 
 import math
@@ -15,6 +19,22 @@ import pandas as pd
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+
+def to_unix_seconds(val: Any) -> int:
+    """Normalizes any timestamp (int, float, str, pd.Timestamp) to Unix seconds."""
+    if val is None:
+        return 0
+    if isinstance(val, (int, float, np.integer, np.floating)):
+        v = float(val)
+        return int(v / 1000) if v > 1e11 else int(v)
+    if isinstance(val, pd.Timestamp):
+        return int(val.timestamp())
+    try:
+        dt = pd.to_datetime(val)
+        return int(dt.timestamp())
+    except Exception:
+        return 0
 
 
 class MarketStructureEngine:
@@ -27,273 +47,338 @@ class MarketStructureEngine:
         return cls._instance
 
     @staticmethod
-    def find_swing_pivots(df: pd.DataFrame, left_bars: int = 3, right_bars: int = 3) -> List[Dict[str, Any]]:
+    def calculate_luxalgo_smc(
+        df: pd.DataFrame,
+        swing_size: int = 50,
+        internal_size: int = 5,
+        timeframe: str = "5m"
+    ) -> Dict[str, Any]:
         """
-        Identifies authentic swing highs and swing lows using fractal pivot window.
-        left_bars: number of bars to the left that must be lower (for high) or higher (for low)
-        right_bars: number of bars to the right that must be lower (for high) or higher (for low)
-        """
-        if df is None or len(df) < (left_bars + right_bars + 2):
-            return []
-
-        pivots = []
-        highs = df["high"].values
-        lows = df["low"].values
-        timestamps = df["timestamp"].values if "timestamp" in df.columns else df.index.values
-
-        n = len(df)
-        for i in range(left_bars, n - right_bars):
-            # Check Swing High
-            is_high = True
-            current_h = highs[i]
-            for j in range(i - left_bars, i + right_bars + 1):
-                if j != i and highs[j] >= current_h:
-                    is_high = False
-                    break
-
-            if is_high:
-                pivots.append({
-                    "index": i,
-                    "type": "HIGH",
-                    "price": round(float(current_h), 2),
-                    "timestamp": str(timestamps[i]),
-                })
-
-            # Check Swing Low
-            is_low = True
-            current_l = lows[i]
-            for j in range(i - left_bars, i + right_bars + 1):
-                if j != i and lows[j] <= current_l:
-                    is_low = False
-                    break
-
-            if is_low:
-                pivots.append({
-                    "index": i,
-                    "type": "LOW",
-                    "price": round(float(current_l), 2),
-                    "timestamp": str(timestamps[i]),
-                })
-
-        # Sort pivots strictly by chronological index
-        pivots.sort(key=lambda x: x["index"])
-        return pivots
-
-    @classmethod
-    def analyze_structure_timeframe(cls, df: pd.DataFrame, timeframe: str = "5m") -> Dict[str, Any]:
-        """
-        Calculates authentic BoS and CHoCH on a single timeframe DataFrame.
-        Returns:
-        - trend: BULLISH, BEARISH, or CONSOLIDATION
-        - last_event: dict of latest BoS/CHoCH
-        - active_structures: list of structural breakout lines for chart rendering
-        - key_levels: dict with recent swing high, swing low, choch level, bos level
+        Calculates authentic Smart Money Concepts according to the LuxAlgo Pine Script v5 logic:
+        1. leg(size): Identifies swing extremes via directional high/low dominance.
+        2. Internal Structure (size=5) for micro order flow (dashed lines).
+        3. Swing Structure (size=50 or adaptive) for macro market shifts (solid lines).
+        4. Trend State Machine: Bearish breaking high -> CHOCH; Bullish breaking high -> BOS.
+        5. Strong / Weak High & Low trailing extremes.
+        6. Equal Highs / Lows (EQH / EQL).
         """
         tf_clean = str(timeframe or "5m").lower()
         if df is None or len(df) < 15:
             return {
                 "timeframe": tf_clean,
                 "trend": "NEUTRAL",
+                "internal_trend": "NEUTRAL",
                 "last_event": None,
                 "active_structures": [],
+                "strong_weak_levels": {},
+                "equal_highs_lows": [],
+                "order_blocks": [],
                 "key_levels": {},
-                "summary": f"{tf_clean.upper()}: Insufficient candle data for market structure."
+                "summary": f"{tf_clean.upper()}: Insufficient candle data for LuxAlgo SMC."
             }
 
-        # Window tuning per timeframe
-        if tf_clean in ("1m", "2m", "3m", "5m"):
-            left_bars, right_bars = 3, 2
-        elif tf_clean in ("15m", "30m"):
-            left_bars, right_bars = 3, 2
-        elif tf_clean in ("1h", "2h", "4h"):
-            left_bars, right_bars = 2, 2
-        else:  # 1d
-            left_bars, right_bars = 2, 2
+        # Adapt swing size if candle count is limited
+        n = len(df)
+        actual_swing_size = min(swing_size, max(12, n // 5))
+        actual_internal_size = min(internal_size, max(3, actual_swing_size // 3))
 
-        pivots = cls.find_swing_pivots(df, left_bars=left_bars, right_bars=right_bars)
-        if len(pivots) < 4:
-            return {
-                "timeframe": tf_clean,
-                "trend": "CONSOLIDATION",
-                "last_event": None,
-                "active_structures": [],
-                "key_levels": {},
-                "summary": f"{tf_clean.upper()}: Natural consolidation, swing structure forming."
+        highs = df["high"].values.astype(float)
+        lows = df["low"].values.astype(float)
+        closes = df["close"].values.astype(float)
+        raw_ts = df["timestamp"].values if "timestamp" in df.columns else df.index.values
+        timestamps = [to_unix_seconds(t) for t in raw_ts]
+
+        # Calculate standard ATR(14) for Equal Highs / Lows thresholding
+        atr_14 = 20.0
+        try:
+            tr = np.maximum(
+                highs[1:] - lows[1:],
+                np.maximum(np.abs(highs[1:] - closes[:-1]), np.abs(lows[1:] - closes[:-1]))
+            )
+            if len(tr) >= 14:
+                atr_14 = float(np.mean(tr[-14:]))
+            elif len(tr) > 0:
+                atr_14 = float(np.mean(tr))
+        except Exception:
+            atr_14 = 20.0
+
+        all_structures: List[Dict[str, Any]] = []
+        equal_highs_lows: List[Dict[str, Any]] = []
+        order_blocks: List[Dict[str, Any]] = []
+
+        # ====================================================================
+        # RUN LAYER SCANNER (INTERNAL: size=5, SWING: size=50)
+        # ====================================================================
+        def process_layer(size: int, is_internal: bool):
+            leg = 0  # 0 = BEARISH_LEG, 1 = BULLISH_LEG
+            pivot_high = None  # Dict of {level, index, time, crossed}
+            pivot_low = None   # Dict of {level, index, time, crossed}
+            trend_bias = 0     # 1 = BULLISH, -1 = BEARISH, 0 = NEUTRAL
+            layer_structures: List[Dict[str, Any]] = []
+
+            # Trailing extremes for Strong / Weak levels (only for swing layer)
+            trailing_top = float("-inf")
+            trailing_top_time = 0
+            trailing_bottom = float("inf")
+            trailing_bottom_time = 0
+
+            for i in range(size, n):
+                sub_h = highs[i - size + 1 : i + 1]
+                sub_l = lows[i - size + 1 : i + 1]
+                candle_h = highs[i - size]
+                candle_l = lows[i - size]
+                candle_time = timestamps[i - size]
+
+                new_leg_high = candle_h > np.max(sub_h)
+                new_leg_low = candle_l < np.min(sub_l)
+
+                last_leg = leg
+                if new_leg_high:
+                    leg = 0  # BEARISH_LEG
+                elif new_leg_low:
+                    leg = 1  # BULLISH_LEG
+
+                # Start of New Leg (inflection)
+                if leg != last_leg:
+                    if leg == 1:  # startOfBullishLeg -> Previous candle was Swing Low
+                        new_low_price = round(float(candle_l), 2)
+                        # Check Equal Low (EQL)
+                        if pivot_low is not None and not is_internal and atr_14 > 0:
+                            if abs(pivot_low["price"] - new_low_price) < (0.15 * atr_14):
+                                equal_highs_lows.append({
+                                    "type": "EQL",
+                                    "price": new_low_price,
+                                    "time1": pivot_low["time"],
+                                    "time2": candle_time,
+                                    "timeframe": tf_clean,
+                                    "label": "EQL"
+                                })
+                        pivot_low = {
+                            "price": new_low_price,
+                            "index": i - size,
+                            "time": candle_time,
+                            "crossed": False
+                        }
+                        if not is_internal:
+                            trailing_bottom = new_low_price
+                            trailing_bottom_time = candle_time
+
+                    elif leg == 0:  # startOfBearishLeg -> Previous candle was Swing High
+                        new_high_price = round(float(candle_h), 2)
+                        # Check Equal High (EQH)
+                        if pivot_high is not None and not is_internal and atr_14 > 0:
+                            if abs(pivot_high["price"] - new_high_price) < (0.15 * atr_14):
+                                equal_highs_lows.append({
+                                    "type": "EQH",
+                                    "price": new_high_price,
+                                    "time1": pivot_high["time"],
+                                    "time2": candle_time,
+                                    "timeframe": tf_clean,
+                                    "label": "EQH"
+                                })
+                        pivot_high = {
+                            "price": new_high_price,
+                            "index": i - size,
+                            "time": candle_time,
+                            "crossed": False
+                        }
+                        if not is_internal:
+                            trailing_top = new_high_price
+                            trailing_top_time = candle_time
+
+                # Check Live Breakouts on Current Candle Close
+                cur_close = closes[i]
+
+                # 1. Bullish Breakout (Candle Close crosses ABOVE pivot_high)
+                if pivot_high is not None and not pivot_high["crossed"]:
+                    if cur_close > pivot_high["price"]:
+                        # LuxAlgo Rule: If trend was BEARISH (-1), breaking high is CHOCH; else BOS
+                        tag = "CHOCH" if trend_bias == -1 else "BOS"
+                        trend_bias = 1
+                        pivot_high["crossed"] = True
+
+                        broken_lvl = pivot_high["price"]
+                        break_dist = round(float(cur_close - broken_lvl), 2)
+                        break_pct = round(float((break_dist / broken_lvl) * 100), 2) if broken_lvl > 0 else 0.0
+
+                        layer_structures.append({
+                            "layer": "internal" if is_internal else "swing",
+                            "is_internal": is_internal,
+                            "timeframe": tf_clean,
+                            "type": tag,
+                            "direction": "BULLISH",
+                            "broken_level": broken_lvl,
+                            "breakout_price": round(float(cur_close), 2),
+                            "break_distance": break_dist,
+                            "break_percentage": break_pct,
+                            "pivot_index": pivot_high["index"],
+                            "pivot_timestamp": pivot_high["time"],
+                            "breakout_index": i,
+                            "breakout_timestamp": timestamps[i],
+                            "color": "#089981",  # LuxAlgo Green
+                            "line_style": "dashed" if is_internal else "solid",
+                            "label": tag,
+                            "status": "CONFIRMED"
+                        })
+
+                        # Order Block: Origin low candle between pivot and breakout
+                        p_idx = pivot_high["index"]
+                        if i > p_idx:
+                            sub_low_slice = lows[p_idx : i + 1]
+                            ob_rel_idx = int(np.argmin(sub_low_slice))
+                            ob_idx = p_idx + ob_rel_idx
+                            order_blocks.append({
+                                "bias": "BULLISH",
+                                "layer": "internal" if is_internal else "swing",
+                                "high": round(float(highs[ob_idx]), 2),
+                                "low": round(float(lows[ob_idx]), 2),
+                                "time": timestamps[ob_idx],
+                                "color": "#089981"
+                            })
+
+                # 2. Bearish Breakdown (Candle Close crosses BELOW pivot_low)
+                if pivot_low is not None and not pivot_low["crossed"]:
+                    if cur_close < pivot_low["price"]:
+                        # LuxAlgo Rule: If trend was BULLISH (1), breaking low is CHOCH; else BOS
+                        tag = "CHOCH" if trend_bias == 1 else "BOS"
+                        trend_bias = -1
+                        pivot_low["crossed"] = True
+
+                        broken_lvl = pivot_low["price"]
+                        break_dist = round(float(broken_lvl - cur_close), 2)
+                        break_pct = round(float((break_dist / broken_lvl) * 100), 2) if broken_lvl > 0 else 0.0
+
+                        layer_structures.append({
+                            "layer": "internal" if is_internal else "swing",
+                            "is_internal": is_internal,
+                            "timeframe": tf_clean,
+                            "type": tag,
+                            "direction": "BEARISH",
+                            "broken_level": broken_lvl,
+                            "breakout_price": round(float(cur_close), 2),
+                            "break_distance": break_dist,
+                            "break_percentage": break_pct,
+                            "pivot_index": pivot_low["index"],
+                            "pivot_timestamp": pivot_low["time"],
+                            "breakout_index": i,
+                            "breakout_timestamp": timestamps[i],
+                            "color": "#F23645",  # LuxAlgo Red
+                            "line_style": "dashed" if is_internal else "solid",
+                            "label": tag,
+                            "status": "CONFIRMED"
+                        })
+
+                        # Order Block: Origin high candle between pivot and breakout
+                        p_idx = pivot_low["index"]
+                        if i > p_idx:
+                            sub_high_slice = highs[p_idx : i + 1]
+                            ob_rel_idx = int(np.argmax(sub_high_slice))
+                            ob_idx = p_idx + ob_rel_idx
+                            order_blocks.append({
+                                "bias": "BEARISH",
+                                "layer": "internal" if is_internal else "swing",
+                                "high": round(float(highs[ob_idx]), 2),
+                                "low": round(float(lows[ob_idx]), 2),
+                                "time": timestamps[ob_idx],
+                                "color": "#F23645"
+                            })
+
+            trend_str = "BULLISH" if trend_bias == 1 else ("BEARISH" if trend_bias == -1 else "NEUTRAL")
+            extremes = {
+                "top": trailing_top if trailing_top != float("-inf") else None,
+                "top_time": trailing_top_time,
+                "bottom": trailing_bottom if trailing_bottom != float("inf") else None,
+                "bottom_time": trailing_bottom_time,
+                "trend": trend_str
+            }
+            return layer_structures, trend_str, extremes
+
+        # Execute Internal Structure (size = 5)
+        internal_structs, internal_trend, _ = process_layer(actual_internal_size, is_internal=True)
+        # Execute Swing Structure (size = 50)
+        swing_structs, swing_trend, swing_extremes = process_layer(actual_swing_size, is_internal=False)
+
+        # Merge structures: Retain recent internal and swing structures
+        # Filter duplicates: If internal structure has identical level and breakout bar as swing, prefer swing
+        swing_keys = {(s["broken_level"], s["breakout_index"]) for s in swing_structs}
+        filtered_internal = [s for s in internal_structs if (s["broken_level"], s["breakout_index"]) not in swing_keys]
+
+        all_structures = swing_structs + filtered_internal
+        all_structures.sort(key=lambda s: s["breakout_index"])
+
+        # Display Structures: Keep last 10 structures for clean TradingView display
+        display_structures = all_structures[-10:] if len(all_structures) >= 10 else all_structures
+
+        # LuxAlgo Strong / Weak High & Low
+        strong_weak_levels = {}
+        if swing_extremes.get("top") is not None:
+            is_strong_high = (swing_trend == "BEARISH")
+            strong_weak_levels["high"] = {
+                "price": swing_extremes["top"],
+                "time": swing_extremes["top_time"],
+                "label": "Strong High" if is_strong_high else "Weak High",
+                "color": "#F23645" if is_strong_high else "#878b94"
+            }
+        if swing_extremes.get("bottom") is not None:
+            is_strong_low = (swing_trend == "BULLISH")
+            strong_weak_levels["low"] = {
+                "price": swing_extremes["bottom"],
+                "time": swing_extremes["bottom_time"],
+                "label": "Strong Low" if is_strong_low else "Weak Low",
+                "color": "#089981" if is_strong_low else "#878b94"
             }
 
-        closes = df["close"].values
-        highs = df["high"].values
-        lows = df["low"].values
-        timestamps = df["timestamp"].values if "timestamp" in df.columns else df.index.values
+        # Last verified event
+        last_event = display_structures[-1] if display_structures else None
 
-        # Structural State
-        current_trend = "NEUTRAL"
-        last_high = None
-        last_low = None
-        higher_high = None
-        higher_low = None
-        lower_high = None
-        lower_low = None
-
-        structures: List[Dict[str, Any]] = []
-
-        # Iterate forward through pivots to track structure formation
-        for p in pivots:
-            if p["type"] == "HIGH":
-                if last_high is not None:
-                    if p["price"] > last_high["price"]:
-                        higher_high = p
-                    else:
-                        lower_high = p
-                last_high = p
-            elif p["type"] == "LOW":
-                if last_low is not None:
-                    if p["price"] < last_low["price"]:
-                        lower_low = p
-                    else:
-                        higher_low = p
-                last_low = p
-
-        # Scan candles after the last 2-3 pivots for authentic BoS & CHoCH breaks
-        # Initial estimate of trend from recent pivot sequence
-        if len(pivots) >= 4:
-            recent_pivots = pivots[-4:]
-            recent_highs = [p["price"] for p in recent_pivots if p["type"] == "HIGH"]
-            recent_lows = [p["price"] for p in recent_pivots if p["type"] == "LOW"]
-            if len(recent_highs) >= 2 and len(recent_lows) >= 2:
-                if recent_highs[-1] > recent_highs[-2] and recent_lows[-1] >= recent_lows[-2]:
-                    current_trend = "BULLISH"
-                elif recent_highs[-1] <= recent_highs[-2] and recent_lows[-1] < recent_lows[-2]:
-                    current_trend = "BEARISH"
-                else:
-                    current_trend = "CONSOLIDATION"
-
-        # Track verified breaks across the candle history
-        active_high_pivot = None
-        active_low_pivot = None
-
-        for i in range(len(df)):
-            cur_close = float(closes[i])
-            cur_time = str(timestamps[i])
-
-            # Update active pivots that were confirmed prior to this candle
-            for p in pivots:
-                if p["index"] + right_bars == i:
-                    if p["type"] == "HIGH":
-                        active_high_pivot = p
-                    elif p["type"] == "LOW":
-                        active_low_pivot = p
-
-            if active_high_pivot is None or active_low_pivot is None:
-                continue
-
-            # Check Bullish Breakout (Strict Body Close > active_high_pivot)
-            if cur_close > active_high_pivot["price"] and i > active_high_pivot["index"]:
-                # Is it BoS (continuation) or CHoCH (reversal)?
-                is_choch = (current_trend == "BEARISH")
-                event_type = "CHOCH" if is_choch else "BOS"
-                current_trend = "BULLISH"
-
-                # Mathematical Verification:
-                # Bullish Break Distance = Closing Price - Swing High
-                # Percentage Break = (Break Distance / Broken Level) * 100
-                broken_level = float(active_high_pivot["price"])
-                break_dist = round(float(cur_close - broken_level), 2)
-                break_pct = round(float((break_dist / broken_level) * 100), 2) if broken_level > 0 else 0.0
-
-                structures.append({
-                    "timeframe": tf_clean,
-                    "type": event_type,
-                    "direction": "BULLISH",
-                    "broken_level": broken_level,
-                    "breakout_price": cur_close,
-                    "break_distance": break_dist,
-                    "break_percentage": break_pct,
-                    "pivot_index": active_high_pivot["index"],
-                    "pivot_timestamp": active_high_pivot["timestamp"],
-                    "breakout_index": i,
-                    "breakout_timestamp": cur_time,
-                    "status": "CONFIRMED",
-                    "label": f"[{tf_clean.upper()} {event_type} ↑]"
-                })
-                # Reset pivot so we don't re-trigger on the same level
-                active_high_pivot = None
-
-            # Check Bearish Breakdown (Strict Body Close < active_low_pivot)
-            elif cur_close < active_low_pivot["price"] and i > active_low_pivot["index"]:
-                is_choch = (current_trend == "BULLISH")
-                event_type = "CHOCH" if is_choch else "BOS"
-                current_trend = "BEARISH"
-
-                # Mathematical Verification:
-                # Bearish Break Distance = Swing Low - Closing Price
-                # Percentage Break = (Break Distance / Broken Level) * 100
-                broken_level = float(active_low_pivot["price"])
-                break_dist = round(float(broken_level - cur_close), 2)
-                break_pct = round(float((break_dist / broken_level) * 100), 2) if broken_level > 0 else 0.0
-
-                structures.append({
-                    "timeframe": tf_clean,
-                    "type": event_type,
-                    "direction": "BEARISH",
-                    "broken_level": broken_level,
-                    "breakout_price": cur_close,
-                    "break_distance": break_dist,
-                    "break_percentage": break_pct,
-                    "pivot_index": active_low_pivot["index"],
-                    "pivot_timestamp": active_low_pivot["timestamp"],
-                    "breakout_index": i,
-                    "breakout_timestamp": cur_time,
-                    "status": "CONFIRMED",
-                    "label": f"[{tf_clean.upper()} {event_type} ↓]"
-                })
-                # Reset pivot so we don't re-trigger on the same level
-                active_low_pivot = None
-
-        # Extract latest event and key levels
-        last_event = structures[-1] if structures else None
-        recent_high = max([p["price"] for p in pivots[-3:] if p["type"] == "HIGH"], default=None)
-        recent_low = min([p["price"] for p in pivots[-3:] if p["type"] == "LOW"], default=None)
-
-        # Retain last 3 active structures for chart display
-        display_structures = structures[-3:] if len(structures) >= 3 else structures
-
-        # Build natural summary
+        # Natural summary for AI Copilot & RAG
         if last_event:
-            ev_dir = "Bullish" if last_event["direction"] == "BULLISH" else "Bearish"
+            ev_layer = "Swing" if not last_event.get("is_internal") else "Internal"
             ev_type = last_event["type"]
+            ev_dir = last_event["direction"]
             ev_lvl = last_event["broken_level"]
             ev_dist = last_event.get("break_distance", 0)
             ev_pct = last_event.get("break_percentage", 0)
-            if ev_type == "CHOCH":
-                summary = f"{tf_clean.upper()} {ev_dir} Change of Character (CHoCH) at ₹{ev_lvl:.1f} (Break: +{ev_dist:.1f} pts / +{ev_pct:.2f}% into {current_trend})."
-            else:
-                summary = f"{tf_clean.upper()} {ev_dir} Break of Structure (BoS) at ₹{ev_lvl:.1f} (Continuation: +{ev_dist:.1f} pts / +{ev_pct:.2f}% into {current_trend})."
+            summary = (
+                f"{tf_clean.upper()} LuxAlgo SMC: {ev_layer} {ev_type} ({ev_dir}) at ₹{ev_lvl:.1f} "
+                f"(+{ev_dist:.1f} pts / +{ev_pct:.2f}% into {swing_trend} trend)."
+            )
         else:
-            summary = f"{tf_clean.upper()} Structure: Rangebound consolidation between ₹{recent_low or 0:.1f} - ₹{recent_high or 0:.1f}."
+            summary = f"{tf_clean.upper()} LuxAlgo SMC: Neutral consolidation, structure developing."
+
+        # Keep recent Order Blocks (last 4)
+        recent_order_blocks = order_blocks[-4:] if len(order_blocks) >= 4 else order_blocks
 
         return {
             "timeframe": tf_clean,
-            "trend": current_trend,
+            "trend": swing_trend,
+            "internal_trend": internal_trend,
             "last_event": last_event,
             "active_structures": display_structures,
+            "strong_weak_levels": strong_weak_levels,
+            "equal_highs_lows": equal_highs_lows[-4:],
+            "order_blocks": recent_order_blocks,
             "key_levels": {
-                "recent_swing_high": recent_high,
-                "recent_swing_low": recent_low,
-                "current_trend": current_trend,
+                "strong_weak": strong_weak_levels,
+                "current_trend": swing_trend,
+                "internal_trend": internal_trend
             },
             "summary": summary
         }
 
     @classmethod
+    def analyze_structure_timeframe(cls, df: pd.DataFrame, timeframe: str = "5m") -> Dict[str, Any]:
+        """Entry point for single timeframe structure request."""
+        return cls.calculate_luxalgo_smc(df, swing_size=50, internal_size=5, timeframe=timeframe)
+
+    @classmethod
     def scan_all_timeframes(cls, engine: Any) -> Dict[str, Any]:
         """
-        Executes parallel scan across all 4 core timeframes (5m, 15m, 1h, 1d).
-        Returns comprehensive multi-timeframe structural mapping for chart and AI Copilot.
+        Executes parallel scan across all 4 core timeframes (5m, 15m, 1h, 1d)
+        using the LuxAlgo Smart Money Concepts engine.
         """
         timeframes = ["5m", "15m", "1h", "1d"]
         results: Dict[str, Any] = {}
-        alignment_score = 0
         bullish_count = 0
         bearish_count = 0
 
@@ -304,7 +389,7 @@ class MarketStructureEngine:
                 if df_tf is None or df_tf.empty:
                     df_tf = engine.cache_mgr.get_candles(symbol="NIFTY 50", timeframe=tf)
 
-                tf_res = cls.analyze_structure_timeframe(df_tf, timeframe=tf)
+                tf_res = cls.calculate_luxalgo_smc(df_tf, swing_size=50, internal_size=5, timeframe=tf)
                 results[tf] = tf_res
 
                 trend = tf_res.get("trend", "NEUTRAL")
@@ -313,21 +398,25 @@ class MarketStructureEngine:
                 elif trend == "BEARISH":
                     bearish_count += 1
             except Exception as e:
-                logger.error("Error evaluating market structure for %s: %s", tf, e)
+                logger.error("Error evaluating LuxAlgo SMC for %s: %s", tf, e)
                 results[tf] = {
                     "timeframe": tf,
                     "trend": "NEUTRAL",
+                    "internal_trend": "NEUTRAL",
                     "last_event": None,
                     "active_structures": [],
+                    "strong_weak_levels": {},
+                    "equal_highs_lows": [],
+                    "order_blocks": [],
                     "key_levels": {},
-                    "summary": f"{tf.upper()}: Structure calculation pending."
+                    "summary": f"{tf.upper()}: LuxAlgo SMC calculation pending."
                 }
 
         # Multi-timeframe consensus
         if bullish_count >= 3:
-            overall_structure = "STRONG BULLISH ALIGNMENT"
+            overall_structure = "STRONG BULLISH SMC ALIGNMENT"
         elif bearish_count >= 3:
-            overall_structure = "STRONG BEARISH ALIGNMENT"
+            overall_structure = "STRONG BEARISH SMC ALIGNMENT"
         elif bullish_count > bearish_count:
             overall_structure = "MODERATE BULLISH BIAS"
         elif bearish_count > bullish_count:
@@ -341,10 +430,11 @@ class MarketStructureEngine:
             res = results.get(tf, {})
             ev = res.get("last_event")
             if ev:
-                ev_dist = ev.get('break_distance', 0)
-                ev_pct = ev.get('break_percentage', 0)
+                ev_layer = "Swing" if not ev.get("is_internal") else "Internal"
+                ev_dist = ev.get("break_distance", 0)
+                ev_pct = ev.get("break_percentage", 0)
                 dist_str = f" (+{ev_dist:.1f} pts / +{ev_pct:.2f}%)" if ev_dist else ""
-                briefing_lines.append(f"{tf.upper()}: {ev.get('type')} {ev.get('direction')} @ ₹{ev.get('broken_level'):.1f}{dist_str} ({res.get('trend')})")
+                briefing_lines.append(f"{tf.upper()}: {ev_layer} {ev.get('type')} {ev.get('direction')} @ ₹{ev.get('broken_level'):.1f}{dist_str} ({res.get('trend')})")
             else:
                 briefing_lines.append(f"{tf.upper()}: Rangebound ({res.get('trend')})")
 

@@ -3661,11 +3661,26 @@ async def get_market_structure_endpoint(
             res = MarketStructureEngine.scan_all_timeframes(engine)
             # Collect and flatten active structures across all timeframes
             all_active = []
+            all_eq = []
+            all_ob = []
+            all_sw = {}
             for tf_k, tf_v in res.get("timeframes", {}).items():
-                if isinstance(tf_v, dict) and "active_structures" in tf_v:
-                    all_active.extend(tf_v["active_structures"])
+                if isinstance(tf_v, dict):
+                    if "active_structures" in tf_v:
+                        all_active.extend(tf_v["active_structures"])
+                    if "equal_highs_lows" in tf_v:
+                        all_eq.extend(tf_v["equal_highs_lows"])
+                    if "order_blocks" in tf_v:
+                        all_ob.extend(tf_v["order_blocks"])
+                    if "strong_weak_levels" in tf_v and not all_sw:
+                        all_sw = tf_v["strong_weak_levels"]
             res["active_structures"] = all_active
-            res["data"] = {"active_structures": all_active}
+            res["data"] = {
+                "active_structures": all_active,
+                "equal_highs_lows": all_eq,
+                "order_blocks": all_ob,
+                "strong_weak_levels": all_sw
+            }
             _ms_cache["all"] = res
             _ms_cache_time["all"] = now_ts
 

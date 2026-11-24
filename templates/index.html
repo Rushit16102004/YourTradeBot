@@ -792,7 +792,7 @@
                         </button>
                     </div>
                     <div class="sr-info-tip" style="margin-top: 6px;">
-                        ⚡ <b>Smart Money Concepts:</b> Horizontal projection lines with Break of Structure (BoS) and Change of Character (CHoCH) tags.
+                        ⚡ <b>LuxAlgo Smart Money Concepts:</b> Real-time Swing (Solid) & Internal (Dashed) BOS/CHoCH segments with centered labels and Strong/Weak swing targets.
                     </div>
                 </div>
             </div>
@@ -9324,8 +9324,9 @@ function showIndicatorLineActionPill(ind, point) {
                 }
             }
 
-            // 📈 Multi-Timeframe BoS & CHoCH Market Structure Overlay (Identical to S&R lines)
+            // 📈 LuxAlgo Smart Money Concepts (SMC): Swing & Internal BoS/CHoCH Overlay
             if (isStructureEnabled && latestMarketStructureData && Array.isArray(latestMarketStructureData.active_structures)) {
+                // 1. Draw BOS & CHoCH Structure Lines (Centered labels, strictly from Pivot to Breakout)
                 latestMarketStructureData.active_structures.forEach(st => {
                     if (currentStructureTimeframe !== 'all' && st.timeframe && st.timeframe.toLowerCase() !== currentStructureTimeframe.toLowerCase()) {
                         return;
@@ -9338,22 +9339,39 @@ function showIndicatorLineActionPill(ind, point) {
 
                     const isBull = st.direction === 'BULLISH';
                     const isChoch = st.type === 'CHOCH';
-                    const col = isChoch ? (isBull ? '#38bdf8' : '#f59e0b') : (isBull ? '#22c55e' : '#ef4444');
+                    const isInternal = !!st.is_internal;
+                    // LuxAlgo Official Colors: Bullish = Green (#089981), Bearish = Red (#F23645)
+                    const col = isBull ? '#089981' : '#F23645';
                     const tfText = (st.timeframe || '5m').toUpperCase();
-                    const typeText = st.type || 'BOS';
-                    const labelText = `[${tfText} ${typeText}] ₹${lvl.toFixed(1)}`;
+                    const tag = st.type || 'BOS';
 
-                    let startX = 0;
+                    let pX = null;
+                    if (st.pivot_timestamp) {
+                        const pTime = typeof st.pivot_timestamp === 'number' ? st.pivot_timestamp : (new Date(st.pivot_timestamp).getTime() / 1000);
+                        pX = timeToX(pTime);
+                    }
+                    let bX = null;
                     if (st.breakout_timestamp) {
                         const bTime = typeof st.breakout_timestamp === 'number' ? st.breakout_timestamp : (new Date(st.breakout_timestamp).getTime() / 1000);
-                        const sx = timeToX(bTime);
-                        if (sx != null && sx > 0) startX = Math.max(0, sx);
-                    } else if (st.pivot_timestamp) {
-                        const pTime = typeof st.pivot_timestamp === 'number' ? st.pivot_timestamp : (new Date(st.pivot_timestamp).getTime() / 1000);
-                        const sx = timeToX(pTime);
-                        if (sx != null && sx > 0) startX = Math.max(0, sx);
+                        bX = timeToX(bTime);
                     }
-                    const endX = forwardX;
+
+                    if (pX == null && bX == null) return;
+                    // LuxAlgo Standard: Line extends strictly from Pivot Bar to Breakout Bar
+                    let startX = pX != null ? pX : Math.max(0, bX - 80);
+                    let endX = bX != null ? bX : forwardX;
+
+                    if (startX > endX) {
+                        const tmp = startX;
+                        startX = endX;
+                        endX = tmp;
+                    }
+
+                    // Check if segment is in view
+                    if (endX < 0 || startX > maxUsableWidth) return;
+                    const lineX1 = Math.max(0, startX);
+                    const lineX2 = Math.min(maxUsableWidth, endX);
+                    if (lineX2 - lineX1 < 8) return;
 
                     const gSt = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                     gSt.setAttribute('class', 'structure-overlay-group');
@@ -9361,59 +9379,62 @@ function showIndicatorLineActionPill(ind, point) {
 
                     // Hit Area for reliable hovering
                     const hitLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                    hitLine.setAttribute('x1', startX);
+                    hitLine.setAttribute('x1', lineX1);
                     hitLine.setAttribute('y1', y);
-                    hitLine.setAttribute('x2', endX);
+                    hitLine.setAttribute('x2', lineX2);
                     hitLine.setAttribute('y2', y);
                     hitLine.setAttribute('stroke', 'transparent');
-                    hitLine.setAttribute('stroke-width', '18');
+                    hitLine.setAttribute('stroke-width', '16');
                     hitLine.style.pointerEvents = 'all';
                     gSt.appendChild(hitLine);
 
-                    // Visual Horizontal Line: same style as S&R with clear dash
+                    // LuxAlgo Horizontal Line: Solid for Swing, Dashed for Internal
                     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                    line.setAttribute('x1', startX);
+                    line.setAttribute('x1', lineX1);
                     line.setAttribute('y1', y);
-                    line.setAttribute('x2', endX);
+                    line.setAttribute('x2', lineX2);
                     line.setAttribute('y2', y);
                     line.setAttribute('stroke', col);
-                    line.setAttribute('stroke-opacity', '0.88');
-                    line.setAttribute('stroke-width', '1.8');
-                    line.setAttribute('stroke-dasharray', isChoch ? '7,4' : '4,3');
+                    line.setAttribute('stroke-opacity', isInternal ? '0.82' : '0.95');
+                    line.setAttribute('stroke-width', isInternal ? '1.3' : '1.8');
+                    line.setAttribute('stroke-dasharray', isInternal ? '4,4' : 'none');
                     line.style.pointerEvents = 'all';
                     gSt.appendChild(line);
 
-                    // Badge pill container on the right end
-                    const badgeW = 125;
-                    const badgeH = 20;
-                    const badgeX = Math.max(0, endX - badgeW - 6);
-                    const badgeY = y - (badgeH / 2);
+                    // LuxAlgo Centered Label: math.round(0.5 * (pivot_bar + breakout_bar))
+                    const midX = (lineX1 + lineX2) / 2;
+                    const labelX = Math.max(26, Math.min(maxUsableWidth - 26, midX));
+                    const pillW = isInternal ? 38 : 46;
+                    const pillH = isInternal ? 15 : 17;
+                    const pillX = labelX - (pillW / 2);
+                    const pillY = y - (pillH / 2);
 
                     const pillBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                    pillBg.setAttribute('x', badgeX);
-                    pillBg.setAttribute('y', badgeY);
-                    pillBg.setAttribute('width', badgeW);
-                    pillBg.setAttribute('height', badgeH);
-                    pillBg.setAttribute('rx', '4');
-                    pillBg.setAttribute('fill', 'rgba(15, 23, 42, 0.92)');
+                    pillBg.setAttribute('x', pillX);
+                    pillBg.setAttribute('y', pillY);
+                    pillBg.setAttribute('width', pillW);
+                    pillBg.setAttribute('height', pillH);
+                    pillBg.setAttribute('rx', '3');
+                    pillBg.setAttribute('fill', 'rgba(11, 15, 25, 0.92)');
                     pillBg.setAttribute('stroke', col);
-                    pillBg.setAttribute('stroke-width', '1.2');
+                    pillBg.setAttribute('stroke-width', '1');
                     pillBg.style.pointerEvents = 'all';
                     gSt.appendChild(pillBg);
 
                     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    text.setAttribute('x', badgeX + (badgeW / 2));
-                    text.setAttribute('y', y + 4);
+                    text.setAttribute('x', labelX);
+                    text.setAttribute('y', y + (isInternal ? 3.5 : 4));
                     text.setAttribute('text-anchor', 'middle');
                     text.setAttribute('fill', col);
-                    text.setAttribute('font-size', '10.5');
+                    text.setAttribute('font-size', isInternal ? '9.5' : '10.5');
                     text.setAttribute('font-weight', '800');
                     text.style.pointerEvents = 'none';
-                    text.textContent = labelText;
+                    text.textContent = tag;
                     gSt.appendChild(text);
 
                     // Cursor-tracking Structure info tooltip
-                    const structTooltipText = `${isChoch ? '🔄' : '⚡'} [${tfText} ${typeText}] ${isBull ? 'Bullish' : 'Bearish'} ${isChoch ? 'Change of Character (Reversal)' : 'Break of Structure (Continuation)'}: ₹${lvl.toFixed(1)}`;
+                    const layerText = isInternal ? 'Internal' : 'Swing';
+                    const structTooltipText = `⚡ [${tfText} ${layerText} ${tag}] ${isBull ? 'Bullish' : 'Bearish'} at ₹${lvl.toFixed(1)} (+${st.break_distance || 0} pts / +${st.break_percentage || 0}%)`;
                     gSt.addEventListener('mouseenter', (e) => {
                         if (getCandleUnderCursor(e.clientX, e.clientY)) { hideSRTooltip(); return; }
                         showSRTooltip(e.clientX, e.clientY, structTooltipText);
@@ -9442,6 +9463,66 @@ function showIndicatorLineActionPill(ind, point) {
 
                     overlay.appendChild(gSt);
                 });
+
+                // 2. LuxAlgo Strong / Weak Highs & Lows (Trailing Extremes)
+                if (latestMarketStructureData.strong_weak_levels) {
+                    const sw = latestMarketStructureData.strong_weak_levels;
+                    ['high', 'low'].forEach(k => {
+                        const item = sw[k];
+                        if (!item || !item.price) return;
+                        const swY = priceToY(item.price);
+                        if (swY == null || swY >= maxUsableHeight || swY <= 0) return;
+
+                        let swStartX = 0;
+                        if (item.time) {
+                            const sx = timeToX(item.time);
+                            if (sx != null && sx > 0) swStartX = Math.max(0, sx);
+                        }
+                        const swEndX = maxUsableWidth;
+                        const swCol = item.color || '#878b94';
+
+                        const gSw = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                        gSw.setAttribute('class', 'structure-sw-group');
+                        gSw.style.cursor = 'pointer';
+
+                        const swLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        swLine.setAttribute('x1', swStartX);
+                        swLine.setAttribute('y1', swY);
+                        swLine.setAttribute('x2', swEndX);
+                        swLine.setAttribute('y2', swY);
+                        swLine.setAttribute('stroke', swCol);
+                        swLine.setAttribute('stroke-opacity', '0.65');
+                        swLine.setAttribute('stroke-width', '1.2');
+                        swLine.setAttribute('stroke-dasharray', '5,3');
+                        gSw.appendChild(swLine);
+
+                        const swBadgeW = 82;
+                        const swBadgeH = 17;
+                        const swBadgeX = Math.max(0, swEndX - swBadgeW - 6);
+                        const swPill = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                        swPill.setAttribute('x', swBadgeX);
+                        swPill.setAttribute('y', swY - (swBadgeH / 2));
+                        swPill.setAttribute('width', swBadgeW);
+                        swPill.setAttribute('height', swBadgeH);
+                        swPill.setAttribute('rx', '3');
+                        swPill.setAttribute('fill', 'rgba(15, 23, 42, 0.90)');
+                        swPill.setAttribute('stroke', swCol);
+                        swPill.setAttribute('stroke-width', '1');
+                        gSw.appendChild(swPill);
+
+                        const swTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        swTxt.setAttribute('x', swBadgeX + (swBadgeW / 2));
+                        swTxt.setAttribute('y', swY + 3.5);
+                        swTxt.setAttribute('text-anchor', 'middle');
+                        swTxt.setAttribute('fill', swCol);
+                        swTxt.setAttribute('font-size', '9.5');
+                        swTxt.setAttribute('font-weight', '700');
+                        swTxt.textContent = item.label;
+                        gSw.appendChild(swTxt);
+
+                        overlay.appendChild(gSw);
+                    });
+                }
             }
         }
 
