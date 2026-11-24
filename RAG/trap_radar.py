@@ -75,7 +75,7 @@ class TrapRadar:
                         f"Spot (₹{spot:,.1f}) is within {call_dist:.1f} pts of Max Call OI resistance at ₹{max_call:,.0f}. "
                         f"Institutions are actively writing calls here. Breakouts without heavy Put OI unwinding are high-probability traps."
                     ),
-                    "action": "Do NOT chase Longs/Calls here. Wait for a rejection or an institutional volume breakout above ₹{max_call:,.0f}."
+                    "action": f"Do NOT chase Longs/Calls here. Wait for a rejection or an institutional volume breakout above ₹{max_call:,.0f}."
                 })
 
         # 2. Bear Trap / Put Wall Sweep
@@ -91,7 +91,7 @@ class TrapRadar:
                         f"Spot (₹{spot:,.1f}) is within {put_dist:.1f} pts of Max Put OI support at ₹{max_put:,.0f}. "
                         f"Smart money is defending this floor. Shorting breakdowns here carries extreme bounce risk."
                     ),
-                    "action": "Avoid Shorting/Puts here. Watch for bullish wick rejections off the ₹{max_put:,.0f} support floor."
+                    "action": f"Avoid Shorting/Puts here. Watch for bullish wick rejections off the ₹{max_put:,.0f} support floor."
                 })
 
         # 3. Weak S&R Trap (< 5 touches)

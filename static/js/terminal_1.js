@@ -125,11 +125,11 @@
       tag: 'Timeframes'
     },
     {
-      img: '/static/images/screenshots/shot6_psychology_risk.png',
-      badge: 'Trader Discipline Guard',
-      title: 'Trading Psychology & 1-Click Pre-Flight Checklist',
-      desc: 'Comprehensive multi-factor validation before entering trades. Guard your emotional discipline, eliminate revenge trading, and maintain strict risk parameters.',
-      tag: 'Psychology Guard'
+      img: '/static/images/screenshots/shot6_signals.png',
+      badge: 'Algorithmic Alpha',
+      title: 'Quantitative Buy & Sell Signal Engine',
+      desc: 'Transparent real-time trade execution signals with clean entry markers on chart. Powered by multi-factor confluence, session VWAP boundaries, and institutional volume absorption.',
+      tag: 'Signals'
     }
   ];
 

@@ -790,7 +790,7 @@
 
 
                 <!-- 👤 Multi-User Authentication Widget -->
-            <div id="auth-nav-container" style="position: relative; display: inline-flex; align-items: center; margin-left: 4px;">
+            <div id="auth-nav-container" style="position: relative; display: inline-flex; align-items: center; gap: 8px; margin-left: 4px;">
                 <!-- 👑 Admin Visitor Analytics & 1-Click CSV Download Box (ONLY visible to Admin) -->
                 <div id="admin-analytics-badge" style="display: none; position: relative; margin-right: 6px;">
                     <!-- Direct Stats Pill: Displays BOTH Unique Visitors & Active Users -->
@@ -14645,7 +14645,7 @@ function showIndicatorLineActionPill(ind, point) {
             </div>
 
             <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-top: 1px solid #1e293b; background: #0b1120;">
-                <button onclick="sendQuickPrompt('Explain all active smart-money traps and how to avoid getting trapped right now.')" style="background: #2563eb; border: 1px solid #38bdf8; color: #ffffff; padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                <button onclick="askCopilotForTrapPlan()" style="background: #2563eb; border: 1px solid #38bdf8; color: #ffffff; padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
                     <span>💬</span> Ask Copilot How to Avoid Traps
                 </button>
                 <button onclick="closeTrapRadarModal()" style="background: #1e293b; border: 1px solid #334155; color: #94a3b8; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 12px; cursor: pointer;">
@@ -16788,6 +16788,24 @@ function showIndicatorLineActionPill(ind, point) {
                 </div>
                 ${trapsHtml}
             `;
+        }
+
+        function askCopilotForTrapPlan() {
+            closeTrapRadarModal();
+            const panel = document.getElementById('ai-copilot-panel');
+            if (panel && (panel.classList.contains('collapsed') || !isCopilotOpen)) {
+                if (typeof toggleCopilot === 'function') {
+                    toggleCopilot();
+                }
+            }
+            setTimeout(() => {
+                const promptText = "Explain all active smart-money traps and how to avoid getting trapped right now.";
+                const inp = document.getElementById('copilot-user-input');
+                if (inp) inp.value = promptText;
+                if (typeof sendCopilotMessage === 'function') {
+                    sendCopilotMessage(promptText);
+                }
+            }, 150);
         }
 
     
