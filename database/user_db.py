@@ -699,7 +699,15 @@ def get_user_timeline_activity_admin(user_id: str) -> List[Dict[str, Any]]:
                     "pattern_maintenance_view": "⚠️",
                     "user_login": "🔑",
                     "user_register": "✨",
-                    "page_view": "👁️"
+                    "page_view": "👁️",
+                    "funnel_t1_visit": "🌐",
+                    "funnel_try_guest_click": "🚀",
+                    "funnel_screenshot_view": "📸",
+                    "funnel_indicator_lock": "🔒",
+                    "funnel_guest_periodic_popup": "⏰",
+                    "funnel_direct_login_click": "🔐",
+                    "funnel_direct_login_success": "👑",
+                    "funnel_direct_register_success": "✨"
                 }.get(a_row["action_type"], "⚡")
                 timeline.append({
                     "timestamp": t,
@@ -747,7 +755,15 @@ def get_guest_timeline_activity_admin(visitor_id: str) -> List[Dict[str, Any]]:
                     "pattern_maintenance_view": "⚠️",
                     "user_login": "🔑",
                     "user_register": "✨",
-                    "page_view": "👁️"
+                    "page_view": "👁️",
+                    "funnel_t1_visit": "🌐",
+                    "funnel_try_guest_click": "🚀",
+                    "funnel_screenshot_view": "📸",
+                    "funnel_indicator_lock": "🔒",
+                    "funnel_guest_periodic_popup": "⏰",
+                    "funnel_direct_login_click": "🔐",
+                    "funnel_direct_login_success": "👑",
+                    "funnel_direct_register_success": "✨"
                 }.get(a_row["action_type"], "⚡")
                 timeline.append({
                     "timestamp": t,
@@ -798,7 +814,8 @@ def get_all_guests_admin(limit: int = 100) -> List[Dict[str, Any]]:
                     v.os_name, v.total_active_seconds,
                     b.reason as block_reason,
                     CASE WHEN b.ip_address IS NOT NULL THEN 1 ELSE 0 END as is_blocked,
-                    COUNT(DISTINCT a.id) as actions_count
+                    COUNT(DISTINCT a.id) as actions_count,
+                    GROUP_CONCAT(DISTINCT a.action_type) as action_types
                 FROM visitor_identities v
                 LEFT JOIN blocked_ips b ON v.ip_address = b.ip_address
                 LEFT JOIN visitor_activity_log a ON v.visitor_id = a.visitor_id
@@ -831,8 +848,108 @@ def get_all_guests_admin(limit: int = 100) -> List[Dict[str, Any]]:
                 city = d.get("city") or ""
                 region = d.get("region") or ""
                 d["location_str"] = f"{city}, {region}" if city and region else (city or region or "India")
+
+                actions_str = str(d.get("action_types") or "")
+                if "funnel_direct_login_success" in actions_str or d.get("has_account") == 1:
+                    d["journey_badge"] = "T1 ➔ Converted 👑"
+                elif "funnel_indicator_lock" in actions_str:
+                    d["journey_badge"] = "T1 ➔ Indicator Lock 🔒"
+                elif "funnel_guest_periodic_popup" in actions_str:
+                    d["journey_badge"] = "T1 ➔ 2-Min Popup ⏰"
+                elif "funnel_try_guest_click" in actions_str:
+                    d["journey_badge"] = "T1 ➔ Guest Mode ⚡"
+                elif "funnel_direct_login_click" in actions_str:
+                    d["journey_badge"] = "T1 ➔ Direct Login 🔐"
+                elif "funnel_t1_visit" in actions_str:
+                    d["journey_badge"] = "T1 ➔ Exploring 🌐"
+                else:
+                    d["journey_badge"] = "Guest Explorer 🕵️"
+
                 results.append(d)
             return results
+        finally:
+            conn.close()
+
+
+def get_funnel_stats_admin() -> Dict[str, Any]:
+    """
+    Computes real-time conversion funnel metrics:
+    - Terminal 1 Impressions
+    - Guest Mode Launches
+    - Direct Logins
+    - Guest to Registered Conversions
+    """
+    with _db_lock:
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            
+            # 1. Terminal 1 unique visitor hits
+            cursor.execute("SELECT COUNT(DISTINCT visitor_id) FROM site_pageviews WHERE path = '/'")
+            r1 = cursor.fetchone()
+            t1_views = r1[0] if r1 else 0
+
+            cursor.execute("SELECT COUNT(DISTINCT visitor_id) FROM visitor_activity_log WHERE action_type = 'funnel_t1_visit'")
+            r1_act = cursor.fetchone()
+            t1_actions = r1_act[0] if r1_act else 0
+            t1_total = max(t1_views, t1_actions, 1)
+
+            # 2. Guest Mode launches
+            cursor.execute("""
+                SELECT COUNT(DISTINCT visitor_id) FROM visitor_activity_log 
+                WHERE action_type = 'funnel_try_guest_click' OR path LIKE '/terminal%' OR path LIKE '/trade%'
+            """)
+            r2 = cursor.fetchone()
+            guest_launches = r2[0] if r2 else 0
+
+            # 3. Direct logins from Terminal 1
+            cursor.execute("""
+                SELECT COUNT(DISTINCT visitor_id) FROM visitor_activity_log 
+                WHERE action_type IN ('funnel_direct_login_success', 'funnel_direct_register_success')
+            """)
+            r3 = cursor.fetchone()
+            direct_logins = r3[0] if r3 else 0
+
+            # 4. Registered users total
+            cursor.execute("SELECT COUNT(*) FROM users")
+            r4 = cursor.fetchone()
+            registered_total = r4[0] if r4 else 0
+
+            # 5. Converted from guest
+            cursor.execute("""
+                SELECT COUNT(DISTINCT user_id) FROM visitor_activity_log 
+                WHERE user_id IS NOT NULL AND visitor_id IN (
+                    SELECT visitor_id FROM visitor_activity_log WHERE action_type IN ('funnel_try_guest_click', 'funnel_guest_periodic_popup', 'funnel_indicator_lock')
+                )
+            """)
+            r5 = cursor.fetchone()
+            converted_from_guest = r5[0] if r5 else 0
+
+            guest_launch_rate = round((guest_launches / t1_total) * 100, 1) if t1_total > 0 else 0.0
+            direct_login_rate = round((direct_logins / t1_total) * 100, 1) if t1_total > 0 else 0.0
+            conversion_rate = round((converted_from_guest / max(guest_launches, 1)) * 100, 1) if guest_launches > 0 else 0.0
+
+            return {
+                "t1_visits": t1_total,
+                "guest_launches": guest_launches,
+                "guest_launch_rate": guest_launch_rate,
+                "direct_logins": direct_logins,
+                "direct_login_rate": direct_login_rate,
+                "converted_users": converted_from_guest,
+                "conversion_rate": conversion_rate,
+                "registered_total": registered_total
+            }
+        except Exception:
+            return {
+                "t1_visits": 1,
+                "guest_launches": 0,
+                "guest_launch_rate": 0.0,
+                "direct_logins": 0,
+                "direct_login_rate": 0.0,
+                "converted_users": 0,
+                "conversion_rate": 0.0,
+                "registered_total": 0
+            }
         finally:
             conn.close()
 

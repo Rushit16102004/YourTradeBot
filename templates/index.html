@@ -887,6 +887,11 @@
                         </div>
                     </div>
                 </div>
+                <!-- Terminal 1 Showcase Link -->
+                <a href="/" class="btn-action" title="Back to Terminal 1 Showcase & Features" style="background: rgba(15, 23, 42, 0.7); color: #38bdf8; font-weight: 700; border: 1px solid rgba(56, 189, 248, 0.35); padding: 4px 9px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; font-size: 11.5px;">
+                    <span>🏠</span> <span class="hide-on-mobile">Terminal 1</span>
+                </a>
+
                 <!-- Guest Button -->
                 <button id="btn-guest-login" class="btn-action" onclick="openAuthModal('login')" title="Log In or Register to save drawings & access personalized AI Copilot" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: #ffffff; font-weight: 700; border: 1px solid #60a5fa; box-shadow: 0 0 10px rgba(37,99,235,0.35); padding: 4px 10px; border-radius: 6px;">
                     👤 <span class="hide-on-mobile">Log In</span><span class="show-on-mobile">Login</span>
@@ -14971,10 +14976,13 @@ function showIndicatorLineActionPill(ind, point) {
         function requireAuth(actionDescription = 'access this feature', defaultTab = 'register') {
             const token = localStorage.getItem('auth_token');
             if (!token) {
+                if (typeof trackVisitorAction === 'function') {
+                    trackVisitorAction('funnel_indicator_lock', 'Locked feature triggered: ' + actionDescription);
+                }
                 openAuthModal(defaultTab);
                 const errBox = document.getElementById('auth-error-box');
                 if (errBox) {
-                    errBox.innerHTML = `🔒 <strong>Account Required</strong><br>Please Register a Free Account or Log In to ${actionDescription}.`;
+                    errBox.innerHTML = `🔒 <strong>Free Registration Required</strong><br>Create your 100% Free Account (10s) or Log In to ${actionDescription}.`;
                     errBox.style.display = 'block';
                     errBox.style.background = 'rgba(56, 189, 248, 0.12)';
                     errBox.style.borderColor = 'rgba(56, 189, 248, 0.4)';
@@ -15605,8 +15613,21 @@ function showIndicatorLineActionPill(ind, point) {
                 if (!token) {
                     const overlay = document.getElementById('auth-modal-overlay');
                     if (!overlay || overlay.style.display !== 'flex') {
-                        openAuthModal('login');
+                        openAuthModal('register');
+                        const errBox = document.getElementById('auth-error-box');
+                        if (errBox) {
+                            errBox.innerHTML = `⏰ <strong>Free Guest Preview (2-Minute Reminder)</strong><br>Create your 100% Free Account in 10 seconds to permanently remove this reminder and unlock unlimited AI Copilot & Indicators!`;
+                            errBox.style.display = 'block';
+                            errBox.style.background = 'rgba(245, 158, 11, 0.15)';
+                            errBox.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+                            errBox.style.color = '#fbbf24';
+                        }
+                        if (typeof trackVisitorAction === 'function') {
+                            trackVisitorAction('funnel_guest_periodic_popup', 'Triggered 2-Minute Guest Reminder Popup');
+                        }
                     }
+                } else {
+                    if (guestPeriodicTimer) clearInterval(guestPeriodicTimer);
                 }
             }, 120000); // 120,000 ms = 2 minutes
         }

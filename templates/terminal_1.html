@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YourTradeBot Terminal 1 — Institutional NIFTY 50 Quant & AI Trading Intelligence</title>
+    
+    <!-- SEO & Metadata -->
+    <meta name="description" content="YourTradeBot Terminal 1: India's premier AI trading terminal for NIFTY 50. Live Anchored VWAP ±2σ exhaustion bands, automated S&R confluence touch counts, institutional trap radar, and conversational AI Copilot. 100% Free Guest Mode — No Login Required.">
+    <meta name="keywords" content="NIFTY 50, VWAP, Anchored VWAP, Support and Resistance, Trading Bot, AI Trading, Indian Stock Market, Algorithmic Trading, Trading Terminal">
+    <meta name="author" content="YourTradeBot">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="YourTradeBot Terminal 1 — Institutional NIFTY 50 Intelligence">
+    <meta property="og:description" content="Trade NIFTY 50 with institutional quantitative tools: Anchored VWAP ±2σ bands, automated S&R confluence, trap radar, and real-time AI Copilot. 100% Free Guest Mode.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="/static/images/logo.png">
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/images/favicon-32x32.png">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Terminal 1 Master Stylesheet -->
+    <link rel="stylesheet" href="/static/css/terminal_1.css">
+</head>
+<body>
+
+    <!-- 0. Returning User Welcome Bar -->
+    <div id="returning-banner" class="returning-banner">
+        <span>👋 Welcome back, <strong id="returning-username">Trader</strong>! Your institutional terminal is ready.</span>
+        <a href="/terminal">Launch Live Terminal ➜</a>
+    </div>
+
+    <!-- 1. Top Navbar -->
+    <header class="navbar">
+        <div class="nav-brand">
+            <a href="/" style="display:flex; align-items:center; gap:10px;">
+                <img src="/static/images/logo.png" alt="YourTradeBot Logo" onerror="this.style.display='none'">
+                <span class="brand-text">YourTradeBot</span>
+            </a>
+            <span class="live-badge">
+                <span class="live-dot"></span>
+                NIFTY 50 Live
+            </span>
+        </div>
+
+        <nav>
+            <ul class="nav-links">
+                <li><a href="#screenshots">Live Showcase</a></li>
+                <li><a href="#features">Quant Features</a></li>
+                <li><a href="#why-us">Why Traders Need This</a></li>
+                <li><a href="#pricing">100% Free Access</a></li>
+                <li><a href="#contact">Contact Developer</a></li>
+            </ul>
+        </nav>
+
+        <div class="nav-actions">
+            <button id="nav-login-btn" class="btn-login" onclick="openAuthModal('login')">
+                🔐 Direct Login
+            </button>
+            <button class="btn-cta-primary" onclick="launchGuestMode()">
+                ⚡ Try Free (Guest Mode)
+            </button>
+        </div>
+    </header>
+
+    <!-- 2. Hero Section -->
+    <main>
+        <section class="hero">
+            <div class="hero-pill">
+                <span>⚡ Next-Generation Institutional NIFTY 50 Terminal</span>
+            </div>
+            
+            <h1 class="hero-title">
+                Stop Trading in the Dark.<br>
+                <span class="gradient-text">Trade NIFTY 50 With Quant Precision.</span>
+            </h1>
+
+            <p class="hero-subtitle">
+                <strong>YourTradeBot</strong> empowers Indian intraday and swing traders with institutional math: 
+                <strong>Live Anchored VWAP ±2σ Exhaustion Bands</strong>, automated <strong>Support &amp; Resistance Confluence touch counts</strong>, 
+                and a 24/7 <strong>AI Strategy Copilot</strong> — with <strong>Zero Demat API Key</strong> or mandatory sign-up required.
+            </p>
+
+            <div class="hero-ctas">
+                <button class="btn-hero-guest" onclick="launchGuestMode()">
+                    <span>🚀 Try For Free Without Registration</span>
+                    <span style="font-size: 14px; opacity: 0.9;">(Instant 1-Click Guest Mode)</span>
+                </button>
+                <button class="btn-hero-login" onclick="openAuthModal('login')">
+                    <span>🔐 Direct Login / Sign In</span>
+                </button>
+            </div>
+
+            <div class="trust-badges">
+                <div class="trust-badge-item">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                    <span>100% Free Forever to Explore</span>
+                </div>
+                <div class="trust-badge-item">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                    <span>Zero Demat API Keys Required</span>
+                </div>
+                <div class="trust-badge-item">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                    <span>Sub-Second Pure HTML5 Speed</span>
+                </div>
+                <div class="trust-badge-item">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                    <span>Institutional Liquidity Models</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. Interactive Screenshots Showcase -->
+        <section id="screenshots" class="section">
+            <div class="section-header">
+                <span class="section-tag">Interactive Terminal Showcase</span>
+                <h2 class="section-title">See Exactly What's Inside YourTradeBot</h2>
+                <p class="section-desc">
+                    Click through the live system screenshots below to explore our proprietary institutional engines, algorithmic overlays, and AI copilot in action.
+                </p>
+            </div>
+
+            <!-- Tab Selectors for 6 Screenshots -->
+            <div class="gallery-nav">
+                <button class="gallery-tab active" onclick="selectScreenshot(0)">📊 1. VWAP ±2σ Bands</button>
+                <button class="gallery-tab" onclick="selectScreenshot(1)">🎯 2. Auto S&amp;R Confluence</button>
+                <button class="gallery-tab" onclick="selectScreenshot(2)">⚡ 3. Institutional Trap Radar</button>
+                <button class="gallery-tab" onclick="selectScreenshot(3)">🤖 4. AI Strategy Copilot</button>
+                <button class="gallery-tab" onclick="selectScreenshot(4)">⏱️ 5. Multi-Timeframe Resampling</button>
+                <button class="gallery-tab" onclick="selectScreenshot(5)">🛡️ 6. Psychology &amp; Risk Guard</button>
+            </div>
+
+            <!-- Window Frame -->
+            <div class="window-frame">
+                <div class="window-header">
+                    <div class="window-dots">
+                        <span class="window-dot dot-red"></span>
+                        <span class="window-dot dot-yellow"></span>
+                        <span class="window-dot dot-green"></span>
+                    </div>
+                    <div class="window-title">YourTradeBot Pro Live Terminal — NIFTY 50 Intraday Architecture</div>
+                    <div id="gallery-badge" class="window-badge">Institutional Fair Value</div>
+                </div>
+
+                <div class="gallery-viewport" onclick="openLightbox()" title="Click to inspect full high-resolution image">
+                    <img id="gallery-display-img" class="gallery-img" src="/static/images/screenshots/shot1_vwap_bands.png" alt="YourTradeBot Screenshot">
+                </div>
+
+                <div class="gallery-caption-bar">
+                    <div class="caption-text">
+                        <h4 id="gallery-title">Anchored VWAP &amp; ±2σ Exhaustion Bands</h4>
+                        <p id="gallery-desc">Real-time volume-weighted mathematical boundaries. Know instantly when price is overextended (+2σ Red) or discounted (-2σ Green). Stop buying tops and selling bottoms.</p>
+                    </div>
+                    <div class="caption-action">
+                        <a href="javascript:void(0)" onclick="launchGuestMode()">
+                            ⚡ Test Live in Terminal ➜
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. Core Features Deep Dive -->
+        <section id="features" class="section">
+            <div class="section-header">
+                <span class="section-tag">Core Capabilities</span>
+                <h2 class="section-title">Built To Give You An Unfair Advantage</h2>
+                <p class="section-desc">
+                    Most retail indicators lag by 5-10 bars. YourTradeBot uses volume-weighted physics and order-flow algorithms to keep you ahead of big institutional moves.
+                </p>
+            </div>
+
+            <div class="features-grid">
+                <!-- Feature 1 -->
+                <div class="feature-card">
+                    <div class="feature-icon-wrap" style="color: #38bdf8;">📈</div>
+                    <h3>Anchored VWAP ±2σ Bands</h3>
+                    <p>
+                        Anchored to session open and high-volume inflection points. The upper (+2σ) and lower (-2σ) bands identify statistical mean reversion boundaries with 88%+ historical reversal accuracy.
+                    </p>
+                    <span class="feature-highlight">✓ Eliminates FOMO top-buying</span>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="feature-card">
+                    <div class="feature-icon-wrap" style="color: #10b981;">🎯</div>
+                    <h3>Automated S&amp;R Confluence</h3>
+                    <p>
+                        No more guesswork drawing horizontal lines. Our engine scans across multiple timeframes, counts exact historical wick and body rejections, and paints high-liquidity zones automatically.
+                    </p>
+                    <span class="feature-highlight">✓ Real-time break &amp; retest alerts</span>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="feature-card">
+                    <div class="feature-icon-wrap" style="color: #ef4444;">⚡</div>
+                    <h3>Institutional Trap Radar</h3>
+                    <p>
+                        Continuously tracks heavyweights (Reliance, HDFC Bank, ICICI Bank, Infosys) against index movement. Spots fakeouts when the index pushes up while institutional volume is heavily selling.
+                    </p>
+                    <span class="feature-highlight">✓ Catches bull &amp; bear traps</span>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="feature-card">
+                    <div class="feature-icon-wrap" style="color: #a855f7;">🤖</div>
+                    <h3>RAG-Powered AI Copilot</h3>
+                    <p>
+                        A dedicated trading AI trained on institutional quant theory. Ask questions about the current trend, evaluate risk before placing orders, or get a comprehensive audit of current market regime.
+                    </p>
+                    <span class="feature-highlight">✓ 10 Free questions in Guest Mode</span>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="feature-card">
+                    <div class="feature-icon-wrap" style="color: #f59e0b;">⏱️</div>
+                    <h3>Pure In-Memory RAM Engine</h3>
+                    <p>
+                        Zero lag. We store 2 full months of granular NIFTY 50 candles in server RAM. Switch effortlessly between 5m, 15m, 1h, and 1D timeframes with sub-second chart rendering.
+                    </p>
+                    <span class="feature-highlight">✓ Instant zero-freeze chart</span>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="feature-card">
+                    <div class="feature-icon-wrap" style="color: #06b6d4;">🛡️</div>
+                    <h3>Psychology &amp; Pre-Flight Guard</h3>
+                    <p>
+                        90% of retail losses come from emotional revenge trading. Our Pre-Flight checklist forces you to verify multi-factor confluence, risk-reward ratios, and emotional calm before entering trades.
+                    </p>
+                    <span class="feature-highlight">✓ Guards your trading capital</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. Why Traders Need This -->
+        <section id="why-us" class="section">
+            <div class="section-header">
+                <span class="section-tag">The Quant Edge</span>
+                <h2 class="section-title">Retail Trading vs. YourTradeBot Edge</h2>
+                <p class="section-desc">
+                    See why hundreds of active Indian traders are switching from messy retail setups to our institutional intelligence dashboard.
+                </p>
+            </div>
+
+            <div class="comparison-grid">
+                <!-- Retail Column -->
+                <div class="comp-col comp-retail">
+                    <h3>❌ The Retail Trader Trap</h3>
+                    <ul class="comp-list">
+                        <li class="comp-item">
+                            <span class="icon">❌</span>
+                            <span><strong>Laggard Indicators:</strong> Relying on standard RSI or MACD which give signals after the major move has already completed.</span>
+                        </li>
+                        <li class="comp-item">
+                            <span class="icon">❌</span>
+                            <span><strong>Caught in Institutional Fakeouts:</strong> Buying breakouts that instantly reverse because smart money was offloading.</span>
+                        </li>
+                        <li class="comp-item">
+                            <span class="icon">❌</span>
+                            <span><strong>Subjective Manual Lines:</strong> Drawing arbitrary trendlines that change depending on zoom level or emotion.</span>
+                        </li>
+                        <li class="comp-item">
+                            <span class="icon">❌</span>
+                            <span><strong>Revenge Trading &amp; Tilt:</strong> Taking oversized positions to recover past losses, wiping out accounts.</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- YourTradeBot Column -->
+                <div class="comp-col comp-pro">
+                    <h3>✅ The YourTradeBot Solution</h3>
+                    <ul class="comp-list">
+                        <li class="comp-item">
+                            <span class="icon">✅</span>
+                            <span><strong>Statistical ±2σ Boundaries:</strong> Trade mathematical exhaustion points where institutional algorithms rebalance.</span>
+                        </li>
+                        <li class="comp-item">
+                            <span class="icon">✅</span>
+                            <span><strong>Heavyweight Volume Delta:</strong> Verify if top 4 NIFTY constituents support the move before risking capital.</span>
+                        </li>
+                        <li class="comp-item">
+                            <span class="icon">✅</span>
+                            <span><strong>Automated Algorithmic Confluence:</strong> Objective mathematical touch counts and multi-timeframe liquidity zones.</span>
+                        </li>
+                        <li class="comp-item">
+                            <span class="icon">✅</span>
+                            <span><strong>AI Copilot &amp; Discipline Guard:</strong> Systematic pre-flight checklist keeping you objective, disciplined, and calm.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. Is It Free? Transparent Pricing -->
+        <section id="pricing" class="section">
+            <div class="section-header">
+                <span class="section-tag">Zero Financial Barrier</span>
+                <h2 class="section-title">Is This Really Free? Yes, 100%.</h2>
+                <p class="section-desc">
+                    No hidden credit card requirements, no trial expirations, and no Demat broker lock-ins. Explore as a guest or create a free account in 10 seconds.
+                </p>
+            </div>
+
+            <div class="pricing-grid">
+                <!-- Guest Mode Card -->
+                <div class="pricing-card">
+                    <div class="pricing-tier">Guest Mode</div>
+                    <div class="pricing-price">₹0 <span>/ forever</span></div>
+                    <div class="pricing-desc">Instant 1-click access without providing any name, email, or password.</div>
+
+                    <ul class="pricing-features">
+                        <li class="pricing-feature">✓ Real-time NIFTY 50 live chart streaming</li>
+                        <li class="pricing-feature">✓ Multi-timeframe resampling (5m, 15m, 1h, 1D)</li>
+                        <li class="pricing-feature">✓ Automated Support &amp; Resistance lines</li>
+                        <li class="pricing-feature">✓ 10 Free AI Strategy Copilot questions</li>
+                        <li class="pricing-feature dimmed">⚠️ 2-Minute periodic login reminder popup</li>
+                        <li class="pricing-feature dimmed">⚠️ Temporary drawing memory (not cloud synced)</li>
+                        <li class="pricing-feature dimmed">⚠️ Buy/Sell Execution signals locked</li>
+                    </ul>
+
+                    <button class="btn-hero-login" style="width: 100%; justify-content: center;" onclick="launchGuestMode()">
+                        ⚡ Launch Guest Mode Now
+                    </button>
+                </div>
+
+                <!-- Free Registered Account Card -->
+                <div class="pricing-card featured">
+                    <span class="badge-featured">Recommended</span>
+                    <div class="pricing-tier">Registered Trader Account</div>
+                    <div class="pricing-price">₹0 <span>/ 100% Free</span></div>
+                    <div class="pricing-desc">Takes 10 seconds to create. Unlocks uninterrupted pro institutional trading.</div>
+
+                    <ul class="pricing-features">
+                        <li class="pricing-feature">✓ <strong>No 2-minute popups</strong> (completely disabled forever)</li>
+                        <li class="pricing-feature">✓ <strong>Unlimited 24/7 AI Strategy Copilot chats</strong></li>
+                        <li class="pricing-feature">✓ <strong>⚡ Buy / Sell Strategy Execution Signals</strong></li>
+                        <li class="pricing-feature">✓ <strong>All Institutional Indicators Unlocked</strong> (Supertrend, Trap Radar, etc.)</li>
+                        <li class="pricing-feature">✓ Cloud drawing persistence across desktop &amp; mobile</li>
+                        <li class="pricing-feature">✓ Personalized Trader Psychology profile &amp; risk tracking</li>
+                        <li class="pricing-feature">✓ Real-Time Macro News Sentiment analysis</li>
+                    </ul>
+
+                    <button class="btn-cta-primary" style="width: 100%; justify-content: center; padding: 14px;" onclick="openAuthModal('register')">
+                        👑 Create 100% Free Account (10s)
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 7. Contact Developer & Support -->
+        <section id="contact" class="section">
+            <div class="section-header">
+                <span class="section-tag">Direct Support &amp; Community</span>
+                <h2 class="section-title">Connect With The Developer</h2>
+                <p class="section-desc">
+                    Have questions about the algorithm, need help setting up, or want to suggest a new indicator? We're here to help you succeed.
+                </p>
+            </div>
+
+            <div class="contact-wrap">
+                <!-- Info & Links -->
+                <div class="contact-info">
+                    <h3>We're Committed To Trader Success</h3>
+                    <p>
+                        YourTradeBot is actively developed by quant traders for Indian market participants. Join our community or message us directly anytime.
+                    </p>
+
+                    <div class="contact-channels">
+                        <a href="https://t.me/yourtradebot" target="_blank" rel="noopener" class="channel-btn">
+                            <span class="icon">✈️</span>
+                            <span>Join Official Telegram Community</span>
+                        </a>
+                        <a href="https://wa.me/919999999999" target="_blank" rel="noopener" class="channel-btn">
+                            <span class="icon">💬</span>
+                            <span>Chat on WhatsApp Support</span>
+                        </a>
+                        <a href="mailto:support@yourtradebot.in" class="channel-btn">
+                            <span class="icon">✉️</span>
+                            <span>support@yourtradebot.in</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Form -->
+                <div>
+                    <form id="contact-form" class="contact-form" onsubmit="submitContactForm(event)">
+                        <div class="form-group">
+                            <label for="contact-name">Your Name</label>
+                            <input type="text" id="contact-name" class="form-control" placeholder="e.g. Rahul Sharma">
+                        </div>
+                        <div class="form-group">
+                            <label for="contact-email">Email or Phone</label>
+                            <input type="text" id="contact-email" class="form-control" placeholder="e.g. rahul@gmail.com / 9876543210">
+                        </div>
+                        <div class="form-group">
+                            <label for="contact-msg">Message or Question</label>
+                            <textarea id="contact-msg" class="form-control" placeholder="Tell us how we can help or what feature you'd like to see..." required></textarea>
+                        </div>
+                        <button type="submit" id="btn-contact-submit" class="btn-submit-contact">
+                            Send Message to Developer ➜
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 8. Footer -->
+    <footer class="footer">
+        <div class="footer-top">
+            <div class="footer-brand">
+                <img src="/static/images/logo.png" alt="YourTradeBot Logo" onerror="this.style.display='none'">
+                <span class="brand-text">YourTradeBot</span>
+            </div>
+
+            <div class="footer-cta-box">
+                <button class="btn-login" onclick="openAuthModal('login')">Sign In</button>
+                <button class="btn-cta-primary" onclick="launchGuestMode()">⚡ Launch Live Terminal</button>
+            </div>
+        </div>
+
+        <div class="footer-bottom">
+            <p style="margin-bottom: 8px;">
+                <strong>Regulatory &amp; Educational Disclaimer:</strong> YourTradeBot is an institutional algorithmic charting and educational analysis platform designed for informational purposes only. We are not a SEBI-registered financial advisor, broker, or portfolio manager. All content, indicators, AI Copilot responses, and automated Support &amp; Resistance levels are computational outputs and should not be construed as financial advice or an invitation to trade. Options and futures trading carry high risk. Always consult a certified financial advisor before risking capital.
+            </p>
+            <p>
+                © 2026 YourTradeBot. All rights reserved. Sub-second Pure HTML5/Python Quantitative Engine.
+            </p>
+        </div>
+    </footer>
+
+    <!-- 9. Embedded Auth Modal (Login / Register) -->
+    <div id="auth-modal" class="modal-overlay">
+        <div class="modal-box">
+            <button class="modal-close-btn" onclick="closeAuthModal()" title="Close">✕</button>
+
+            <div class="auth-tabs">
+                <button id="tab-btn-login" class="auth-tab-btn active" onclick="switchAuthTab('login')">Sign In</button>
+                <button id="tab-btn-register" class="auth-tab-btn" onclick="switchAuthTab('register')">Create Free Account</button>
+            </div>
+
+            <div id="auth-msg" class="auth-msg"></div>
+
+            <!-- Login Form -->
+            <form id="form-login" class="auth-form" onsubmit="submitLogin(event)">
+                <div class="form-group">
+                    <label for="login-ident">Username or Email</label>
+                    <input type="text" id="login-ident" class="form-control" placeholder="Enter your username or email" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-pwd">Password</label>
+                    <input type="password" id="login-pwd" class="form-control" placeholder="Enter your password" required>
+                </div>
+                <button type="submit" id="btn-submit-login" class="btn-cta-primary" style="width: 100%; justify-content: center; padding: 12px; margin-top: 6px;">
+                    Sign In to Terminal ➜
+                </button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="form-register" class="auth-form" style="display: none;" onsubmit="submitRegister(event)">
+                <div class="form-group">
+                    <label for="reg-uname">Username</label>
+                    <input type="text" id="reg-uname" class="form-control" placeholder="Choose a username" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-email">Email Address</label>
+                    <input type="email" id="reg-email" class="form-control" placeholder="yourname@gmail.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-phone">Phone Number (Optional)</label>
+                    <input type="tel" id="reg-phone" class="form-control" placeholder="e.g. 9876543210">
+                </div>
+                <div class="form-group">
+                    <label for="reg-pwd">Password</label>
+                    <input type="password" id="reg-pwd" class="form-control" placeholder="Create a secure password" required minlength="4">
+                </div>
+                <div class="form-group">
+                    <label for="reg-style">Primary Trading Style</label>
+                    <select id="reg-style" class="form-control">
+                        <option value="intraday_scalper">Intraday Scalper (5m - 15m)</option>
+                        <option value="breakout_momentum">Breakout &amp; Confluence Momentum</option>
+                        <option value="mean_reversion">VWAP Mean Reversion Trader</option>
+                        <option value="swing_positional">Positional &amp; Swing Trader</option>
+                    </select>
+                </div>
+                <div class="form-group" style="display: flex; align-items: flex-start; gap: 8px; margin-top: 6px; margin-bottom: 6px;">
+                    <input type="checkbox" id="reg-policy" required checked style="margin-top: 3px; cursor: pointer; accent-color: #38bdf8;">
+                    <label for="reg-policy" style="font-size: 11.5px; color: #94a3b8; line-height: 1.45; cursor: pointer;">
+                        I agree to the <a href="/terminal#sebi" target="_blank" style="color: #38bdf8; text-decoration: underline;">Terms of Service, SEBI Notice &amp; Privacy Policy</a> (Educational analytics software, not financial advice).
+                    </label>
+                </div>
+                <button type="submit" id="btn-submit-register" class="btn-hero-guest" style="width: 100%; justify-content: center; padding: 12px; margin-top: 6px;">
+                    Create 100% Free Account ➜
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 10. Lightbox Modal -->
+    <div id="lightbox-modal" class="lightbox-modal" onclick="closeLightbox()">
+        <img id="lightbox-img" class="lightbox-content" src="" alt="Full Screen Preview">
+    </div>
+
+    <!-- Master Interactive Script -->
+    <script src="/static/js/terminal_1.js"></script>
+</body>
+</html>

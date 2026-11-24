@@ -177,6 +177,7 @@ BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 INDEX_HTML = TEMPLATES_DIR / "index.html"
+TERMINAL_1_HTML = TEMPLATES_DIR / "terminal_1.html"
 DRAWINGS_CACHE_FILE = TEMP_STORAGE_DIR / "drawings.json"
 LEGACY_DRAWINGS_FILE = BASE_DIR / "data_cache" / "drawings.json"
 
@@ -379,7 +380,35 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 @app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def serve_index(request: Request):
-    """Serves the pure lightweight HTML5/CSS3/JavaScript trading terminal with IP block check."""
+    """Serves the Terminal 1 showcase landing page (or trading terminal if terminal_1.html missing)."""
+    client_ip = get_client_ip(request)
+    blocked, reason = user_db.is_ip_blocked(client_ip)
+    if blocked:
+        return HTMLResponse(
+            content=admin_center.render_account_blocked_html(reason=reason, is_ip=True, entity_id=client_ip),
+            status_code=403
+        )
+
+    target_file = TERMINAL_1_HTML if TERMINAL_1_HTML.exists() else INDEX_HTML
+    if not target_file.exists():
+        return HTMLResponse(
+            "<h3>Error: templates not found!</h3>",
+            status_code=404,
+        )
+    return FileResponse(
+        target_file,
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
+
+
+@app.api_route("/terminal", methods=["GET", "HEAD"], response_class=HTMLResponse)
+@app.api_route("/trade", methods=["GET", "HEAD"], response_class=HTMLResponse)
+async def serve_terminal(request: Request):
+    """Serves the pure lightweight HTML5/CSS3/JavaScript live trading terminal."""
     client_ip = get_client_ip(request)
     blocked, reason = user_db.is_ip_blocked(client_ip)
     if blocked:
@@ -426,9 +455,21 @@ async def serve_sitemap():
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://yourtradebot.duckdns.org/</loc>
-    <lastmod>2026-11-23</lastmod>
+    <lastmod>2026-11-24</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://yourtradebot.duckdns.org/terminal</loc>
+    <lastmod>2026-11-24</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://yourtradebot.duckdns.org/trade</loc>
+    <lastmod>2026-11-24</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
   </url>
 </urlset>"""
     return Response(content=sitemap_xml, media_type="application/xml")
@@ -1218,7 +1259,7 @@ async def api_register(request: Request, payload: dict = Body(...)):
 async def api_login(request: Request, payload: dict = Body(...)):
     """Authenticates user via username or email with Brute Force Protection and rate limiting."""
     client_ip = get_client_ip(request)
-    identifier = str(payload.get("username") or payload.get("email") or payload.get("login") or "").strip()
+    identifier = str(payload.get("identifier") or payload.get("username") or payload.get("email") or payload.get("login") or "").strip()
     password = str(payload.get("password") or "")
 
     # 1. Check Brute-Force lockout (5 failures = 15 min lock)
@@ -1389,6 +1430,7 @@ async def api_admin_users(
     guests = user_db.get_all_guests_admin(limit=200)
     blocked = user_db.get_blocked_entities_admin()
     feedbacks = user_db.get_all_feedback_admin(limit=200)
+    funnel_stats = user_db.get_funnel_stats_admin()
 
     if wants_json:
         return JSONResponse(content={
@@ -1399,7 +1441,8 @@ async def api_admin_users(
             "users": users,
             "guests": guests,
             "blocked": blocked,
-            "feedbacks": feedbacks
+            "feedbacks": feedbacks,
+            "funnel_stats": funnel_stats
         })
 
     html_content = admin_center.render_admin_command_center_html(
@@ -1408,7 +1451,8 @@ async def api_admin_users(
         blocked=blocked,
         admin_key=master_key or user_db.ADMIN_MASTER_KEY,
         active_tab=tab,
-        feedbacks=feedbacks
+        feedbacks=feedbacks,
+        funnel_stats=funnel_stats
     )
     return HTMLResponse(content=html_content)
 
@@ -1426,8 +1470,8 @@ async def api_submit_feedback(request: Request, payload: dict = Body(...)):
     client_ip = get_client_ip(request)
 
     user_id = "guest"
-    username = f"Guest ({client_ip})"
-    email = ""
+    username = str(payload.get("name") or payload.get("username") or f"Guest ({client_ip})").strip()
+    email = str(payload.get("email") or "").strip()
 
     auth_header = request.headers.get("authorization", "")
     if auth_header.startswith("Bearer "):
@@ -1438,8 +1482,10 @@ async def api_submit_feedback(request: Request, payload: dict = Body(...)):
                 user = user_db.get_user_by_id(token_data["sub"])
                 if user:
                     user_id = user["id"]
-                    username = user["username"]
-                    email = user.get("email", "")
+                    if not payload.get("name"):
+                        username = user["username"]
+                    if not email:
+                        email = user.get("email", "")
         except Exception:
             pass
 

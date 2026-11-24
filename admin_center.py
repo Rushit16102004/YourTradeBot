@@ -133,17 +133,28 @@ def render_admin_command_center_html(
     blocked: Dict[str, Any],
     admin_key: str,
     active_tab: str = "users",
-    feedbacks: Optional[List[Dict[str, Any]]] = None
+    feedbacks: Optional[List[Dict[str, Any]]] = None,
+    funnel_stats: Optional[Dict[str, Any]] = None
 ) -> str:
     """
     Renders the Master User & Guest Intelligence Command Center.
     Includes:
+      - Executive Conversion Funnel Analytics Cards
       - Tab 1: Registered Users (Profiles, Passwords, Total Display Time, Timeline, Freeze, Purge)
       - Tab 2: Guest Visitors (IP, Geolocation, ISP, Total Display Time, Block IP, Purge, Timeline)
       - Tab 3: Blocked Accounts & Banned IPs
     """
     import html
     encoded_key = html.escape(admin_key)
+
+    fs = funnel_stats or {}
+    t1_visits = fs.get("t1_visits", 0)
+    guest_launches = fs.get("guest_launches", 0)
+    guest_launch_rate = fs.get("guest_launch_rate", 0.0)
+    direct_logins = fs.get("direct_logins", 0)
+    direct_login_rate = fs.get("direct_login_rate", 0.0)
+    converted_users = fs.get("converted_users", 0)
+    conversion_rate = fs.get("conversion_rate", 0.0)
 
     users_count = len(users)
     guests_count = len(guests)
@@ -280,6 +291,7 @@ def render_admin_command_center_html(
         glast = html.escape(str(g.get("last_seen_ist", "--")))
         is_blocked = bool(g.get("is_blocked"))
         block_reason = html.escape(str(g.get("block_reason", "") or ""))
+        j_badge = html.escape(str(g.get("journey_badge", "T1 ➔ Guest")))
 
         status_pill = f'<span class="badge badge-frozen">🚫 Blocked IP</span>' if is_blocked else f'<span class="badge badge-active">🟢 Allowed</span>'
 
@@ -287,7 +299,7 @@ def render_admin_command_center_html(
         <tr data-visitor-id="{vid}" data-ip="{gip}" data-location="{gloc}" data-isp="{gisp}" class="guest-row {'row-frozen' if is_blocked else ''}">
             <td>
                 <div style="font-weight: 700; color: #f8fafc; font-size: 12.5px; font-family: monospace;">{vid[:12]}...</div>
-                <div style="font-size: 10.5px; color: #64748b;">Guest Visitor</div>
+                <div style="margin-top: 3px; display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">{j_badge}</div>
             </td>
             <td>
                 <div style="display: flex; align-items: center; gap: 6px;">
@@ -786,7 +798,32 @@ def render_admin_command_center_html(
             <a href="/api/admin/copilot/queries?admin_key={encoded_key}" class="btn btn-secondary">💬 Copilot Chat Audit</a>
             <a href="/api/admin/visitors?admin_key={encoded_key}" class="btn btn-secondary">🌐 Daily Activity Log</a>
             <a href="/api/admin/users/csv?admin_key={encoded_key}" class="btn btn-csv">📥 Download Users CSV</a>
-            <a href="/" class="btn btn-primary">📈 Return to Terminal</a>
+            <a href="/" class="btn btn-secondary">🏠 Terminal 1 Showcase</a>
+            <a href="/terminal" class="btn btn-primary">📈 Live Terminal</a>
+        </div>
+    </div>
+
+    <!-- 📊 Executive Conversion Funnel Analytics -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-bottom: 24px;">
+        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid #1e293b; border-radius: 10px; padding: 14px 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">🌐 Terminal 1 Visits</div>
+            <div style="font-size: 24px; font-weight: 800; color: #38bdf8; margin-top: 4px;">{t1_visits}</div>
+            <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Landing page impressions</div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid #1e293b; border-radius: 10px; padding: 14px 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">⚡ Guest Mode Launches</div>
+            <div style="font-size: 24px; font-weight: 800; color: #10b981; margin-top: 4px;">{guest_launches} <span style="font-size: 13.5px; font-weight: 700; color: #34d399;">({guest_launch_rate}%)</span></div>
+            <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Clicked 'Try for Free'</div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid #1e293b; border-radius: 10px; padding: 14px 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">🔐 Direct Logins</div>
+            <div style="font-size: 24px; font-weight: 800; color: #f59e0b; margin-top: 4px;">{direct_logins} <span style="font-size: 13.5px; font-weight: 700; color: #fbbf24;">({direct_login_rate}%)</span></div>
+            <div style="font-size: 11px; color: #64748b; margin-top: 2px;">T1 ➔ Logged in directly</div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid #1e293b; border-radius: 10px; padding: 14px 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">👑 Converted Traders</div>
+            <div style="font-size: 24px; font-weight: 800; color: #a855f7; margin-top: 4px;">{converted_users} <span style="font-size: 13.5px; font-weight: 700; color: #c084fc;">({conversion_rate}%)</span></div>
+            <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Guest ➔ Registered Account</div>
         </div>
     </div>
 
