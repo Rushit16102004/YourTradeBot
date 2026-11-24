@@ -79,7 +79,7 @@
           }
           const navLoginBtn = document.getElementById('nav-login-btn');
           if (navLoginBtn) {
-            navLoginBtn.textContent = '👑 My Terminal';
+            navLoginBtn.innerHTML = '<span class="btn-full-text">👑 My Terminal</span><span class="btn-mobile-text">👑 Terminal</span>';
             navLoginBtn.onclick = () => { window.location.href = '/terminal'; };
           }
         }

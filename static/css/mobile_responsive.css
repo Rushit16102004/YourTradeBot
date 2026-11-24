@@ -1,3 +1,8 @@
+        /* Default: Mobile Line 3 is strictly hidden on desktop */
+        .header-line-mobile-3 {
+            display: none !important;
+        }
+
         /* ═══════════════════════════════════════════════════════════
            SMARTPHONES & MOBILE SCREENS (<= 768px)
            Ultra-Responsive High-Density Mobile Terminal Architecture
@@ -185,19 +190,74 @@
                 white-space: nowrap;
             }
 
-            /* 👤 Sticky Guest Login & User Profile: Always visible on phone view without side scrolling */
+            /* 👤 Line 2 Auth Widget: Completely hidden from Line 2 on mobile so trading controls have 100% free width */
+            .header-line-bottom #auth-nav-container,
             #auth-nav-container {
-                position: sticky !important;
-                right: 0 !important;
-                margin-left: auto !important;
+                display: none !important;
+            }
+
+            /* 🌟 Dedicated Line 3 for Mobile (Home, Settings, Login/User Profile) */
+            .header-line-mobile-3 {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                height: 35px !important;
+                padding: 0 8px !important;
+                background: #090e1c !important;
+                border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
                 flex-shrink: 0 !important;
-                z-index: 100 !important;
-                background: #070a13 !important;
-                padding-left: 6px !important;
-                padding-right: 4px !important;
-                box-shadow: -8px 0 12px #070a13 !important;
+                gap: 6px !important;
+                z-index: 99 !important;
+                box-sizing: border-box !important;
+            }
+
+            .mobile-line-3-left,
+            .mobile-line-3-right {
+                display: flex !important;
+                align-items: center !important;
+                gap: 6px !important;
+            }
+
+            .mobile-nav-btn {
+                height: 26px !important;
+                padding: 2px 8px !important;
+                font-size: 11px !important;
+                font-weight: 700 !important;
+                border-radius: 6px !important;
                 display: inline-flex !important;
                 align-items: center !important;
+                gap: 4px !important;
+                cursor: pointer !important;
+                text-decoration: none !important;
+                white-space: nowrap !important;
+                transition: all 0.15s ease !important;
+                box-sizing: border-box !important;
+            }
+
+            .mobile-home-btn {
+                background: rgba(15, 23, 42, 0.85) !important;
+                color: #38bdf8 !important;
+                border: 1px solid rgba(56, 189, 248, 0.35) !important;
+            }
+
+            .mobile-settings-btn {
+                background: rgba(56, 189, 248, 0.12) !important;
+                color: #38bdf8 !important;
+                border: 1px solid rgba(56, 189, 248, 0.4) !important;
+            }
+
+            .mobile-login-btn {
+                background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%) !important;
+                color: #ffffff !important;
+                border: 1px solid #60a5fa !important;
+                box-shadow: 0 0 8px rgba(37,99,235,0.4) !important;
+            }
+
+            .mobile-user-btn {
+                background: rgba(16, 185, 129, 0.15) !important;
+                color: #10b981 !important;
+                border: 1px solid rgba(16, 185, 129, 0.5) !important;
             }
 
             #btn-guest-login {
@@ -207,7 +267,6 @@
                 height: 28px !important;
                 border-radius: 6px !important;
                 white-space: nowrap !important;
-                display: inline-flex !important;
                 align-items: center !important;
                 gap: 3px !important;
                 background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%) !important;
@@ -710,16 +769,9 @@
                 height: 26px;
             }
 
+            .header-line-bottom #auth-nav-container,
             #auth-nav-container {
-                position: sticky !important;
-                right: 0 !important;
-                margin-left: auto !important;
-                flex-shrink: 0 !important;
-                z-index: 100 !important;
-                background: #070a13 !important;
-                padding-left: 4px !important;
-                padding-right: 2px !important;
-                box-shadow: -6px 0 10px #070a13 !important;
+                display: none !important;
             }
 
             #btn-guest-login {

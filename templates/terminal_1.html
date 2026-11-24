@@ -61,10 +61,12 @@
 
         <div class="nav-actions">
             <button id="nav-login-btn" class="btn-login" onclick="openAuthModal('login')">
-                🔐 Direct Login
+                <span class="btn-full-text">🔐 Direct Login</span>
+                <span class="btn-mobile-text" style="display: none;">🔐 Login</span>
             </button>
             <button class="btn-cta-primary" onclick="launchGuestMode()">
-                ⚡ Try Free (Guest Mode)
+                <span class="btn-full-text">⚡ Try Free (Guest Mode)</span>
+                <span class="btn-mobile-text" style="display: none;">⚡ Guest Mode</span>
             </button>
         </div>
     </header>
@@ -326,13 +328,13 @@
                     <div class="pricing-desc">Instant 1-click access without providing any name, email, or password.</div>
 
                     <ul class="pricing-features">
-                        <li class="pricing-feature">✓ Real-time NIFTY 50 live chart streaming</li>
-                        <li class="pricing-feature">✓ Multi-timeframe resampling (5m, 15m, 1h, 1D)</li>
-                        <li class="pricing-feature">✓ Automated Support &amp; Resistance lines</li>
-                        <li class="pricing-feature">✓ 10 Free AI Strategy Copilot questions</li>
-                        <li class="pricing-feature dimmed">⚠️ 2-Minute periodic login reminder popup</li>
-                        <li class="pricing-feature dimmed">⚠️ Temporary drawing memory (not cloud synced)</li>
-                        <li class="pricing-feature dimmed">⚠️ Buy/Sell Execution signals locked</li>
+                        <li class="pricing-feature"><span class="pf-icon">✓</span><span>Real-time NIFTY 50 live chart streaming</span></li>
+                        <li class="pricing-feature"><span class="pf-icon">✓</span><span>Multi-timeframe resampling (5m, 15m, 1h, 1D)</span></li>
+                        <li class="pricing-feature"><span class="pf-icon">✓</span><span>Automated Support &amp; Resistance lines</span></li>
+                        <li class="pricing-feature"><span class="pf-icon">✓</span><span>10 Free AI Strategy Copilot questions</span></li>
+                        <li class="pricing-feature dimmed"><span class="pf-icon">⚠️</span><span>2-Minute periodic login reminder popup</span></li>
+                        <li class="pricing-feature dimmed"><span class="pf-icon">⚠️</span><span>Temporary drawing memory (not cloud synced)</span></li>
+                        <li class="pricing-feature dimmed"><span class="pf-icon">⚠️</span><span>Buy/Sell Execution signals locked</span></li>
                     </ul>
 
                     <button class="btn-hero-login" style="width: 100%; justify-content: center;" onclick="launchGuestMode()">
@@ -348,13 +350,13 @@
                     <div class="pricing-desc">Takes 10 seconds to create. Unlocks uninterrupted pro institutional trading.</div>
 
                     <ul class="pricing-features">
-                        <li class="pricing-feature">✓ <strong>No 2-minute popups</strong> (completely disabled forever)</li>
-                        <li class="pricing-feature">✓ <strong>Unlimited 24/7 AI Strategy Copilot chats</strong></li>
-                        <li class="pricing-feature">✓ <strong>⚡ Buy / Sell Strategy Execution Signals</strong></li>
-                        <li class="pricing-feature">✓ <strong>All Institutional Indicators Unlocked</strong> (Supertrend, Trap Radar, etc.)</li>
-                        <li class="pricing-feature">✓ Cloud drawing persistence across desktop &amp; mobile</li>
-                        <li class="pricing-feature">✓ Personalized Trader Psychology profile &amp; risk tracking</li>
-                        <li class="pricing-feature">✓ Real-Time Macro News Sentiment analysis</li>
+                        <li class="pricing-feature"><span class="pf-icon">✓</span><span><strong>No 2-minute popups</strong> (completely disabled forever)</span></li>
+                        <li class="pricing-feature"><span class="pf-icon">✓</span><span><strong>Unlimited 24/7 AI Strategy Copilot chats</strong></span></li>
+                        <li class="pricing-feature"><span class="pf-icon">✓</span><span><strong>⚡ Buy / Sell Strategy Execution Signals</strong></span></li>
+                        <li class="pricing-feature"><span class="pf-icon">✓</span><span><strong>All Institutional Indicators Unlocked</strong> (Supertrend, Trap Radar, etc.)</span></li>
+                        <li class="pricing-feature"><span class="pf-icon">✓</span><span>Cloud drawing persistence across desktop &amp; mobile</span></li>
+                        <li class="pricing-feature"><span class="pf-icon">✓</span><span>Personalized Trader Psychology profile &amp; risk tracking</span></li>
+                        <li class="pricing-feature"><span class="pf-icon">✓</span><span>Real-Time Macro News Sentiment analysis</span></li>
                     </ul>
 
                     <button class="btn-cta-primary" style="width: 100%; justify-content: center; padding: 14px;" onclick="openAuthModal('register')">
