@@ -3664,6 +3664,7 @@ async def get_market_structure_endpoint(
             all_eq = []
             all_ob = []
             all_sw = {}
+            all_afl = {}
             for tf_k, tf_v in res.get("timeframes", {}).items():
                 if isinstance(tf_v, dict):
                     if "active_structures" in tf_v:
@@ -3674,9 +3675,12 @@ async def get_market_structure_endpoint(
                         all_ob.extend(tf_v["order_blocks"])
                     if "strong_weak_levels" in tf_v and not all_sw:
                         all_sw = tf_v["strong_weak_levels"]
+                    if "active_future_levels" in tf_v and not all_afl:
+                        all_afl = tf_v["active_future_levels"]
             res["active_structures"] = all_active
             res["data"] = {
                 "active_structures": all_active,
+                "active_future_levels": all_afl,
                 "equal_highs_lows": all_eq,
                 "order_blocks": all_ob,
                 "strong_weak_levels": all_sw

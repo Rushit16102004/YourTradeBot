@@ -283,6 +283,15 @@ class MarketStructureEngine:
                                 "color": "#F23645"
                             })
 
+                # Pine Script updateTrailingExtremes: continuously tracks the true swing peak and trough on EVERY bar
+                if not is_internal:
+                    if highs[i] > trailing_top:
+                        trailing_top = round(float(highs[i]), 2)
+                        trailing_top_time = timestamps[i]
+                    if lows[i] < trailing_bottom:
+                        trailing_bottom = round(float(lows[i]), 2)
+                        trailing_bottom_time = timestamps[i]
+
             trend_str = "BULLISH" if trend_bias == 1 else ("BEARISH" if trend_bias == -1 else "NEUTRAL")
             extremes = {
                 "top": trailing_top if trailing_top != float("-inf") else None,
@@ -291,12 +300,66 @@ class MarketStructureEngine:
                 "bottom_time": trailing_bottom_time,
                 "trend": trend_str
             }
-            return layer_structures, trend_str, extremes
+
+            # Active Future Breakout Levels to watch on upcoming candles:
+            active_levels = {}
+            if pivot_high is not None and not pivot_high["crossed"]:
+                ev_tag = "CHOCH" if trend_bias == -1 else "BOS"
+                active_levels["high"] = {
+                    "price": pivot_high["price"],
+                    "time": pivot_high["time"],
+                    "type": ev_tag,
+                    "direction": "BULLISH",
+                    "color": "#089981",
+                    "label": f"Active {ev_tag}: ₹{pivot_high['price']:.1f}",
+                    "is_internal": is_internal
+                }
+            elif trailing_top > 0 and trailing_top != float("-inf"):
+                ev_tag = "CHOCH" if trend_bias == -1 else "BOS"
+                active_levels["high"] = {
+                    "price": trailing_top,
+                    "time": trailing_top_time,
+                    "type": ev_tag,
+                    "direction": "BULLISH",
+                    "color": "#089981",
+                    "label": f"Active {ev_tag}: ₹{trailing_top:.1f}",
+                    "is_internal": is_internal
+                }
+
+            if pivot_low is not None and not pivot_low["crossed"]:
+                ev_tag = "CHOCH" if trend_bias == 1 else "BOS"
+                active_levels["low"] = {
+                    "price": pivot_low["price"],
+                    "time": pivot_low["time"],
+                    "type": ev_tag,
+                    "direction": "BEARISH",
+                    "color": "#F23645",
+                    "label": f"Active {ev_tag}: ₹{pivot_low['price']:.1f}",
+                    "is_internal": is_internal
+                }
+            elif trailing_bottom > 0 and trailing_bottom != float("inf"):
+                ev_tag = "CHOCH" if trend_bias == 1 else "BOS"
+                active_levels["low"] = {
+                    "price": trailing_bottom,
+                    "time": trailing_bottom_time,
+                    "type": ev_tag,
+                    "direction": "BEARISH",
+                    "color": "#F23645",
+                    "label": f"Active {ev_tag}: ₹{trailing_bottom:.1f}",
+                    "is_internal": is_internal
+                }
+
+            return layer_structures, trend_str, extremes, active_levels
 
         # Execute Internal Structure (size = 5)
-        internal_structs, internal_trend, _ = process_layer(actual_internal_size, is_internal=True)
+        internal_structs, internal_trend, _, internal_active = process_layer(actual_internal_size, is_internal=True)
         # Execute Swing Structure (size = 50)
-        swing_structs, swing_trend, swing_extremes = process_layer(actual_swing_size, is_internal=False)
+        swing_structs, swing_trend, swing_extremes, swing_active = process_layer(actual_swing_size, is_internal=False)
+
+        active_future_levels = {
+            "high": swing_active.get("high") or internal_active.get("high"),
+            "low": swing_active.get("low") or internal_active.get("low")
+        }
 
         # Merge structures: Retain recent internal and swing structures
         # Filter duplicates: If internal structure has identical level and breakout bar as swing, prefer swing
@@ -355,6 +418,7 @@ class MarketStructureEngine:
             "internal_trend": internal_trend,
             "last_event": last_event,
             "active_structures": display_structures,
+            "active_future_levels": active_future_levels,
             "strong_weak_levels": strong_weak_levels,
             "equal_highs_lows": equal_highs_lows[-4:],
             "order_blocks": recent_order_blocks,

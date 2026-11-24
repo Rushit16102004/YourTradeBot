@@ -2341,9 +2341,8 @@
             if (vwapLower2Series) try { vwapLower2Series.applyOptions({ color: s.bandsColor }); } catch (e) {}
             if (smaSeries) try { smaSeries.applyOptions({ color: s.smaColor }); } catch (e) {}
 
-            if (typeof renderSRLevels === 'function') {
-                const overlay = document.getElementById('drawing-overlay');
-                if (overlay) renderSRLevels(overlay);
+            if (typeof renderAllDrawings === 'function') {
+                renderAllDrawings();
             }
         }
 
@@ -9193,14 +9192,14 @@ function showIndicatorLineActionPill(ind, point) {
                     rect.setAttribute('y', rectY);
                     rect.setAttribute('width', rectW);
                     rect.setAttribute('height', rectH);
-                    const isSupp = lvl.is_support || (roleText && roleText.toLowerCase() === 'support');
-                    const isRes = (!lvl.is_support && lvl.is_support !== undefined) || (roleText && roleText.toLowerCase() === 'resistance');
-                    const isOther = isLocal || (roleText && (roleText.toLowerCase().includes('flip') || roleText.toLowerCase().includes('zone') || roleText.toLowerCase().includes('breakout')));
-                    let srCol = '#ffffff';
-                    if (!isOther && isSupp && roleText.toLowerCase() === 'support') {
-                        srCol = currentThemeSettings.srSupport || '#22c55e';
-                    } else if (!isOther && isRes && roleText.toLowerCase() === 'resistance') {
-                        srCol = currentThemeSettings.srResistance || '#ef4444';
+                    const roleLower = String(roleText || '').toLowerCase();
+                    const isSupp = (lvl.is_support === true) || roleLower.includes('support') || roleLower.includes('demand');
+                    const isRes = (lvl.is_support === false) || roleLower.includes('resistance') || roleLower.includes('supply');
+                    let srCol = '#ffffff'; // Default: Other all lines = White
+                    if (isSupp && !roleLower.includes('resistance')) {
+                        srCol = currentThemeSettings.srSupport || '#22c55e'; // Default: Support = Green
+                    } else if (isRes && !roleLower.includes('support')) {
+                        srCol = currentThemeSettings.srResistance || '#ef4444'; // Default: Resistance = Red
                     }
                     rect.setAttribute('fill', srCol);
                     rect.setAttribute('fill-opacity', fillOpacity);
@@ -9267,15 +9266,15 @@ function showIndicatorLineActionPill(ind, point) {
                     hitLine.style.pointerEvents = 'all';
                     g.appendChild(hitLine);
 
-                    // Visual Line: Support = Green, Resistance = Red, other lines = White
-                    const isSuppLine = lvl.is_support || (roleText && roleText.toLowerCase() === 'support');
-                    const isResLine = (!lvl.is_support && lvl.is_support !== undefined) || (roleText && roleText.toLowerCase() === 'resistance');
-                    const isOtherLine = isLocal || (roleText && (roleText.toLowerCase().includes('flip') || roleText.toLowerCase().includes('breakout')));
-                    let srCol = '#ffffff';
-                    if (!isOtherLine && isSuppLine && roleText.toLowerCase() === 'support') {
-                        srCol = currentThemeSettings.srSupport || '#22c55e';
-                    } else if (!isOtherLine && isResLine && roleText.toLowerCase() === 'resistance') {
-                        srCol = currentThemeSettings.srResistance || '#ef4444';
+                    // Visual Line: Support = Green, Resistance = Red, other lines = White default
+                    const roleLower = String(roleText || '').toLowerCase();
+                    const isSuppLine = (lvl.is_support === true) || roleLower.includes('support') || roleLower.includes('demand');
+                    const isResLine = (lvl.is_support === false) || roleLower.includes('resistance') || roleLower.includes('supply');
+                    let srCol = '#ffffff'; // Default: Other all lines = White
+                    if (isSuppLine && !roleLower.includes('resistance')) {
+                        srCol = currentThemeSettings.srSupport || '#22c55e'; // Default: Support = Green
+                    } else if (isResLine && !roleLower.includes('support')) {
+                        srCol = currentThemeSettings.srResistance || '#ef4444'; // Default: Resistance = Red
                     }
                     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                     line.setAttribute('x1', startX);
@@ -9521,6 +9520,90 @@ function showIndicatorLineActionPill(ind, point) {
                         gSw.appendChild(swTxt);
 
                         overlay.appendChild(gSw);
+                    });
+                }
+
+                // 3. LuxAlgo Active Future Breakout Levels (Projected targets for upcoming live candles)
+                if (latestMarketStructureData.active_future_levels) {
+                    const afl = latestMarketStructureData.active_future_levels;
+                    ['high', 'low'].forEach(k => {
+                        const item = afl[k];
+                        if (!item || !item.price) return;
+                        const aflY = priceToY(item.price);
+                        if (aflY == null || aflY >= maxUsableHeight || aflY <= 0) return;
+
+                        let aflStartX = 0;
+                        if (item.time) {
+                            const sx = timeToX(item.time);
+                            if (sx != null && sx > 0) aflStartX = Math.max(0, sx);
+                        }
+                        const aflEndX = maxUsableWidth;
+                        const isBull = item.direction === 'BULLISH';
+                        const aflCol = isBull ? '#089981' : '#F23645';
+
+                        const gAfl = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                        gAfl.setAttribute('class', 'structure-future-target-group');
+                        gAfl.style.cursor = 'pointer';
+
+                        // Guide line projecting to future candles
+                        const aflLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        aflLine.setAttribute('x1', aflStartX);
+                        aflLine.setAttribute('y1', aflY);
+                        aflLine.setAttribute('x2', aflEndX);
+                        aflLine.setAttribute('y2', aflY);
+                        aflLine.setAttribute('stroke', aflCol);
+                        aflLine.setAttribute('stroke-opacity', '0.78');
+                        aflLine.setAttribute('stroke-width', '1.4');
+                        aflLine.setAttribute('stroke-dasharray', '6,3');
+                        aflLine.style.pointerEvents = 'all';
+                        gAfl.appendChild(aflLine);
+
+                        // Pill Badge placed to the right (offset if Strong/Weak badge exists at same Y)
+                        let badgeRightOffset = 6;
+                        if (latestMarketStructureData.strong_weak_levels && latestMarketStructureData.strong_weak_levels[k]) {
+                            const swP = latestMarketStructureData.strong_weak_levels[k].price;
+                            if (Math.abs(swP - item.price) < 5) {
+                                badgeRightOffset = 94; // Avoid overlapping with Strong/Weak label
+                            }
+                        }
+
+                        const aflBadgeW = 110;
+                        const aflBadgeH = 17;
+                        const aflBadgeX = Math.max(0, aflEndX - aflBadgeW - badgeRightOffset);
+                        const aflPill = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                        aflPill.setAttribute('x', aflBadgeX);
+                        aflPill.setAttribute('y', aflY - (aflBadgeH / 2));
+                        aflPill.setAttribute('width', aflBadgeW);
+                        aflPill.setAttribute('height', aflBadgeH);
+                        aflPill.setAttribute('rx', '3');
+                        aflPill.setAttribute('fill', 'rgba(11, 15, 25, 0.92)');
+                        aflPill.setAttribute('stroke', aflCol);
+                        aflPill.setAttribute('stroke-width', '1.2');
+                        gAfl.appendChild(aflPill);
+
+                        const aflTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        aflTxt.setAttribute('x', aflBadgeX + (aflBadgeW / 2));
+                        aflTxt.setAttribute('y', aflY + 3.5);
+                        aflTxt.setAttribute('text-anchor', 'middle');
+                        aflTxt.setAttribute('fill', aflCol);
+                        aflTxt.setAttribute('font-size', '9.5');
+                        aflTxt.setAttribute('font-weight', '800');
+                        aflTxt.textContent = `🎯 ${item.label}`;
+                        gAfl.appendChild(aflTxt);
+
+                        // Tooltip
+                        const aflTooltipText = `🎯 [Future Target]: Candle close ${isBull ? 'above' : 'below'} ₹${item.price.toFixed(1)} triggers ${item.direction} ${item.type}`;
+                        gAfl.addEventListener('mouseenter', (e) => {
+                            if (getCandleUnderCursor(e.clientX, e.clientY)) { hideSRTooltip(); return; }
+                            showSRTooltip(e.clientX, e.clientY, aflTooltipText);
+                        });
+                        gAfl.addEventListener('mousemove', (e) => {
+                            if (getCandleUnderCursor(e.clientX, e.clientY)) { hideSRTooltip(); return; }
+                            moveSRTooltip(e.clientX, e.clientY);
+                        });
+                        gAfl.addEventListener('mouseleave', () => { hideSRTooltip(); });
+
+                        overlay.appendChild(gAfl);
                     });
                 }
             }
