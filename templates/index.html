@@ -238,10 +238,10 @@
 
                 <!-- ✨ Multi-Timeframe Patterns Dropdown Menu (5m, 15m, 1h, 1d) -->
                 <div class="custom-dropdown" id="dropdown-patterns" style="display: inline-block; margin-left: 8px;">
-                    <button class="dropdown-trigger-btn" id="btn-patterns-dropdown" onclick="toggleDropdown('dropdown-patterns')" title="Pattern Detection is currently under maintenance & development process" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95)); border: 1.5px solid rgba(245, 158, 11, 0.4); border-radius: 6px; padding: 4px 10px; font-size: 11.5px; font-weight: 700; color: #fbbf24; display: inline-flex; align-items: center; gap: 7px; transition: all 0.2s ease;">
-                        <span class="pattern-pulse-dot" id="patterns-pulse-dot" style="background: #f59e0b; box-shadow: 0 0 6px #f59e0b;"></span>
-                        <span id="patterns-btn-label">🛠️ Patterns</span>
-                        <span id="patterns-breakout-badge" class="pattern-badge-action" style="display: inline-block; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(245, 158, 11, 0.4);">🛠️ MAINTENANCE</span>
+                    <button class="dropdown-trigger-btn" id="btn-patterns-dropdown" onclick="toggleDropdown('dropdown-patterns')" title="Multi-Timeframe Chart Patterns & Breakout Detector" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95)); border: 1.5px solid rgba(56, 189, 248, 0.4); border-radius: 6px; padding: 4px 10px; font-size: 11.5px; font-weight: 700; color: #e2e8f0; display: inline-flex; align-items: center; gap: 7px; transition: all 0.2s ease;">
+                        <span class="pattern-pulse-dot" id="patterns-pulse-dot" style="background: #38bdf8; box-shadow: 0 0 6px #38bdf8;"></span>
+                        <span id="patterns-btn-label">✨ Patterns</span>
+                        <span id="patterns-breakout-badge" class="pattern-badge-action" style="display: none;"></span>
                         <span class="arrow-down">▾</span>
                     </button>
                     <div class="dropdown-menu-panel" id="panel-patterns-dropdown" style="min-width: 360px; max-width: 420px; padding: 0; background: #0f172a; border: 1.5px solid #334155; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.65); z-index: 10000;">
@@ -1604,12 +1604,6 @@
         function toggleDropdown(dropdownId) {
             if (dropdownId === 'dropdown-indicators') {
                 if (!requireAuth('add and configure technical indicators (EMA, SMA, BB, Supertrend, RSI, MACD, Stoch RSI)', 'register')) return;
-            } else if (dropdownId === 'dropdown-patterns') {
-                const isAdmin = currentUser && currentUser.role === 'admin';
-                if (!isAdmin) {
-                    showPatternMaintenanceModal();
-                    return;
-                }
             }
             const el = document.getElementById(dropdownId);
             const isOpen = el && el.classList.contains('open');
@@ -8593,13 +8587,7 @@ function showIndicatorLineActionPill(ind, point) {
 
         async function fetchDetectedPatterns(timeframe = null, forceRefresh = false) {
             try {
-                const isAdmin = currentUser && currentUser.role === 'admin';
-                if (!isAdmin) {
-                    setPatternButtonMaintenanceMode();
-                    return;
-                }
-
-                // Call multi-timeframe endpoint (scans 5m, 15m, 1h, 1d) with admin auth
+                // Call multi-timeframe endpoint (scans 5m, 15m, 1h, 1d) for all registered and guest users
                 const token = localStorage.getItem('auth_token') || '';
                 const queryUrl = '/api/patterns/all' + (token ? '?token=' + encodeURIComponent(token) : '');
                 const resp = await fetch(queryUrl, {
@@ -8633,14 +8621,14 @@ function showIndicatorLineActionPill(ind, point) {
                 const breakoutCount = d.breakout_count || 0;
 
                 if (countTag) {
-                    countTag.textContent = `👑 Admin • ${totalActive} Active${breakoutCount > 0 ? ` • ${breakoutCount} Breakout` : ''}`;
+                    countTag.textContent = `${totalActive} Active${breakoutCount > 0 ? ` • ${breakoutCount} Breakout` : ''}`;
                     countTag.style.background = breakoutCount > 0 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(56, 189, 248, 0.15)';
                     countTag.style.color = breakoutCount > 0 ? '#f87171' : '#38bdf8';
                     countTag.style.borderColor = breakoutCount > 0 ? 'rgba(239, 68, 68, 0.4)' : 'rgba(56, 189, 248, 0.3)';
                 }
 
                 if (breakoutCount > 0) {
-                    if (btnLabel) btnLabel.textContent = `⚡ Patterns [Admin] (${totalActive})`;
+                    if (btnLabel) btnLabel.textContent = `⚡ Patterns (${totalActive})`;
                     if (breakoutBadge) {
                         breakoutBadge.style.display = 'inline-block';
                         breakoutBadge.textContent = `⚡ ${breakoutCount} BREAKOUT`;
@@ -8657,7 +8645,7 @@ function showIndicatorLineActionPill(ind, point) {
                         btn.style.color = '#e2e8f0';
                     }
                 } else if (totalActive > 0) {
-                    if (btnLabel) btnLabel.textContent = `✨ Patterns [Admin] (${totalActive})`;
+                    if (btnLabel) btnLabel.textContent = `✨ Patterns (${totalActive})`;
                     if (breakoutBadge) breakoutBadge.style.display = 'none';
                     if (pulseDot) {
                         pulseDot.style.background = '#38bdf8';
@@ -8668,7 +8656,7 @@ function showIndicatorLineActionPill(ind, point) {
                         btn.style.color = '#e2e8f0';
                     }
                 } else {
-                    if (btnLabel) btnLabel.textContent = `✨ Patterns [Admin]`;
+                    if (btnLabel) btnLabel.textContent = `✨ Patterns`;
                     if (breakoutBadge) breakoutBadge.style.display = 'none';
                     if (pulseDot) {
                         pulseDot.style.background = '#64748b';
@@ -13645,11 +13633,6 @@ function showIndicatorLineActionPill(ind, point) {
                     <button type="submit" id="btn-submit-login" style="width: 100%; padding: 12px; min-height: 44px; background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: #fff; border: 1px solid #60a5fa; font-weight: 700; border-radius: 8px; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(37,99,235,0.4);">
                         Log In to Terminal
                     </button>
-                    <div style="margin-top: 14px; text-align: center;">
-                        <button type="button" id="btn-quick-admin-login" onclick="fillAdminLogin()" style="background: rgba(56, 189, 248, 0.12); border: 1px dashed #38bdf8; color: #38bdf8; padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">
-                            🔑 Login as Admin
-                        </button>
-                    </div>
                     <div style="margin-top: 16px; margin-bottom: 8px; text-align: center; font-size: 12px; color: #64748b;">
                         Don't have an account? <a href="javascript:void(0)" onclick="switchAuthTab('register')" style="color: #10b981; font-weight: 700; text-decoration: underline;">Create New Account ✨</a>
                     </div>
@@ -15034,7 +15017,13 @@ function showIndicatorLineActionPill(ind, point) {
                 if (userBadge) userBadge.style.display = 'none';
                 if (adminBadge) adminBadge.style.display = 'none';
                 if (adminStatsTimer) { clearInterval(adminStatsTimer); adminStatsTimer = null; }
-                setPatternButtonMaintenanceMode();
+                const patBtn = document.getElementById('btn-patterns-dropdown');
+                if (patBtn) {
+                    patBtn.title = 'Multi-Timeframe Chart Patterns & Breakout Detector';
+                    patBtn.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                    patBtn.style.color = '#e2e8f0';
+                }
+                fetchDetectedPatterns();
                 showGuestVipBannerIfNeeded();
                 return;
             }
@@ -15055,20 +15044,17 @@ function showIndicatorLineActionPill(ind, point) {
                             if (adminBadge) adminBadge.style.display = 'inline-flex';
                             fetchAdminVisitorStats();
                             if (!adminStatsTimer) adminStatsTimer = setInterval(fetchAdminVisitorStats, 30000);
-                            const patBtnLabel = document.getElementById('patterns-btn-label');
-                            if (patBtnLabel) patBtnLabel.textContent = '✨ Patterns [Admin]';
-                            const patBtn = document.getElementById('btn-patterns-dropdown');
-                            if (patBtn) {
-                                patBtn.title = 'Multi-Timeframe Chart Patterns & Breakout Detector (Admin Mode Active)';
-                                patBtn.style.borderColor = 'rgba(56, 189, 248, 0.4)';
-                                patBtn.style.color = '#e2e8f0';
-                            }
-                            fetchDetectedPatterns();
                         } else {
                             if (adminBadge) adminBadge.style.display = 'none';
                             if (adminStatsTimer) { clearInterval(adminStatsTimer); adminStatsTimer = null; }
-                            setPatternButtonMaintenanceMode();
                         }
+                        const patBtn = document.getElementById('btn-patterns-dropdown');
+                        if (patBtn) {
+                            patBtn.title = 'Multi-Timeframe Chart Patterns & Breakout Detector';
+                            patBtn.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                            patBtn.style.color = '#e2e8f0';
+                        }
+                        fetchDetectedPatterns();
                         linkVisitorToUser();
                         if (navUserDisplay) navUserDisplay.innerText = currentUser.username || 'Trader';
                         if (menuName) menuName.innerText = currentUser.username || 'Trader';
@@ -15094,7 +15080,13 @@ function showIndicatorLineActionPill(ind, point) {
                 if (userBadge) userBadge.style.display = 'none';
                 if (adminBadge) adminBadge.style.display = 'none';
                 if (adminStatsTimer) { clearInterval(adminStatsTimer); adminStatsTimer = null; }
-                setPatternButtonMaintenanceMode();
+                const patBtn = document.getElementById('btn-patterns-dropdown');
+                if (patBtn) {
+                    patBtn.title = 'Multi-Timeframe Chart Patterns & Breakout Detector';
+                    patBtn.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                    patBtn.style.color = '#e2e8f0';
+                }
+                fetchDetectedPatterns();
                 resetAllIndicatorsToDefaultOff();
             } catch (e) {
                 console.warn("Auth verify check failed:", e);
@@ -15249,11 +15241,6 @@ function showIndicatorLineActionPill(ind, point) {
 
         function openAdminPatternLab(e) {
             if (e) e.stopPropagation();
-            const isAdmin = currentUser && currentUser.role === 'admin';
-            if (!isAdmin) {
-                showPatternMaintenanceModal();
-                return;
-            }
             closeAdminStatsModal();
             const el = document.getElementById('dropdown-patterns');
             if (el) {

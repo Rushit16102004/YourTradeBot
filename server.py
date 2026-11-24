@@ -3613,16 +3613,8 @@ async def get_active_patterns_endpoint(
     Head & Shoulders (slanted neckline), Triangles/Wedges (angled trendlines),
     Harmonic Butterfly/Gartley/Bat (Fibonacci ratios), and Double Tops/Bottoms.
     Supports all timeframes: 5m, 15m, 1h, 1d with multi-day swing detection.
-    NOTE: Currently restricted to Admin Dashboard testing while under maintenance.
+    Active for all users (registered and guest).
     """
-    if not is_admin_request(request):
-        return JSONResponse(content={
-            "status": "maintenance",
-            "is_maintenance": True,
-            "message": "Pattern detection engine is currently under maintenance / development process. Temporarily available in Admin Dashboard only.",
-            "patterns": None
-        })
-
     tf_clean = str(timeframe or "5m").lower()
     snapshot = engine.get_snapshot(timeframe=tf_clean)
     df_tf = snapshot.get("df", engine.latest_df_5m) if isinstance(snapshot, dict) else engine.latest_df_5m
@@ -3672,18 +3664,8 @@ async def get_all_timeframe_patterns_endpoint(request: Request):
     across ALL 4 timeframes: 5m, 15m, 1h, and 1d.
     Includes breakout states, cross-timeframe drawing shapes, and alerts.
     Strictly zero forced patterns: reports natural consolidation if absent.
-    NOTE: Currently restricted to Admin Dashboard testing while under maintenance.
+    Active for all users (registered and guest).
     """
-    if not is_admin_request(request):
-        return JSONResponse(content={
-            "status": "maintenance",
-            "is_maintenance": True,
-            "message": "Pattern detection engine is currently under maintenance / development process. Temporarily available in Admin Dashboard only.",
-            "total_active_patterns": 0,
-            "breakout_count": 0,
-            "timeframes": {}
-        })
-
     try:
         from indicators.pattern_detector import get_pattern_detector
         detector = get_pattern_detector()
