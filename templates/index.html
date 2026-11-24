@@ -709,7 +709,7 @@
                             </div>
                         </div>
                         <label class="modern-switch-wrap" onclick="event.stopPropagation()">
-                            <input type="checkbox" id="chk-sr-master" checked onchange="toggleSRLevels()">
+                            <input type="checkbox" id="chk-sr-master" onchange="toggleSRLevels()">
                             <span class="modern-switch-slider"></span>
                         </label>
                     </div>
@@ -750,7 +750,7 @@
                             </div>
                         </div>
                         <label class="modern-switch-wrap" onclick="event.stopPropagation()">
-                            <input type="checkbox" id="chk-structure-master" checked onchange="toggleStructureLevels()">
+                            <input type="checkbox" id="chk-structure-master" onchange="toggleStructureLevels()">
                             <span class="modern-switch-slider"></span>
                         </label>
                     </div>
@@ -968,9 +968,6 @@
             <button class="guest-vip-btn" onclick="openAuthModal('register')">
                 <span class="hide-on-mobile">Unlock AI Copilot & Auto S&R 🚀</span>
                 <span class="show-on-mobile">Register 🚀</span>
-            </button>
-            <button type="button" class="guest-connect-dev-btn" onclick="openDeveloperContactModal()" title="Connect with Developer or Webpage Provider">
-                <span>💬 <span class="hide-on-mobile">Connect with Developer or Webpage Provider</span><span class="show-on-mobile">Help</span></span>
             </button>
             <button type="button" class="guest-vip-close" onclick="dismissGuestVipBanner(event)" title="Dismiss banner">✕</button>
         </div>
@@ -2049,7 +2046,7 @@
         }
 
         // Auto Support & Resistance levels from rolling 2M, 4M, 1&2M, 1,2,3M, and All 4M datasets (100% Free in Guest Mode)
-        let isSREnabled = true;
+        let isSREnabled = false;
         let currentSRPeriod = 'all'; // '2m', '4m', '1_2m', '1_2_3m', 'all'
         let srLevelsData = { '2m': [], '4m': [], '1_2m': [], '1_2_3m': [], 'all': [], 'combined': [], '1m': [] };
         let latestMarketStructureData = null;
@@ -2103,7 +2100,7 @@
             setTimeout(() => { closeAllDropdowns(); }, 120);
         }
 
-        let isStructureEnabled = true;
+        let isStructureEnabled = false;
         let currentStructureTimeframe = 'all';
 
         function toggleStructureLevels() {
@@ -3568,6 +3565,9 @@
             updateFutureWhitespaceSeries();
             fetchData(false);
             fetchDetectedPatterns(tf);
+            if (typeof saveCurrentUserPreferences === 'function') {
+                saveCurrentUserPreferences();
+            }
         }
 
         function showLoading(show) {
@@ -13136,6 +13136,9 @@ function showIndicatorLineActionPill(ind, point) {
             if (!token) {
                 const newCount = incrementGuestChatCount();
                 updateGuestCopilotPlaceholder(newCount);
+                if (typeof updateDockLockState === 'function') {
+                    updateDockLockState();
+                }
             }
 
             const nowTime = new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -15070,6 +15073,7 @@ function showIndicatorLineActionPill(ind, point) {
                         }
                         await loadUserPreferencesFromServer();
                         loadCopilotHistory(true);
+                        if (typeof updateDockLockState === 'function') updateDockLockState();
                         return;
                     }
                 }
@@ -15088,6 +15092,7 @@ function showIndicatorLineActionPill(ind, point) {
                 }
                 fetchDetectedPatterns();
                 resetAllIndicatorsToDefaultOff();
+                if (typeof updateDockLockState === 'function') updateDockLockState();
             } catch (e) {
                 console.warn("Auth verify check failed:", e);
             }
@@ -15950,8 +15955,10 @@ function showIndicatorLineActionPill(ind, point) {
             isBandsEnabled = false;
             isSMAEnabled = false;
             isSignalsEnabled = false;
-            isSREnabled = true;
+            isSREnabled = false;
+            isStructureEnabled = false;
             currentSRPeriod = 'all';
+            currentStructureTimeframe = 'all';
 
             if (indConfig) {
                 indConfig.ema9_enabled = false;
@@ -16032,6 +16039,8 @@ function showIndicatorLineActionPill(ind, point) {
                 signals: isSignalsEnabled,
                 sr_enabled: isSREnabled,
                 sr_period: currentSRPeriod,
+                structure_enabled: isStructureEnabled,
+                structure_tf: currentStructureTimeframe,
                 timeframe: currentTimeframe,
                 indConfig: JSON.parse(JSON.stringify(indConfig)),
                 dynamicIndicators: cleanDyn
@@ -16095,10 +16104,20 @@ function showIndicatorLineActionPill(ind, point) {
                 isBandsEnabled = (prefs.bands !== undefined) ? !!prefs.bands : false;
                 isSMAEnabled = !!prefs.sma;
                 isSignalsEnabled = !!prefs.signals;
-                isSREnabled = (prefs.sr_enabled !== undefined) ? !!prefs.sr_enabled : true;
+                isSREnabled = (prefs.sr_enabled !== undefined) ? !!prefs.sr_enabled : false;
                 if (prefs.sr_period) currentSRPeriod = prefs.sr_period;
+                isStructureEnabled = (prefs.structure_enabled !== undefined) ? !!prefs.structure_enabled : false;
+                if (prefs.structure_tf) currentStructureTimeframe = prefs.structure_tf;
                 if (prefs.timeframe && prefs.timeframe !== currentTimeframe) {
                     currentTimeframe = prefs.timeframe;
+                    const activeTfEl = document.getElementById('active-tf-label');
+                    if (activeTfEl) {
+                        const tfLabels = { '5m': '⏱ 5m', '15m': '⏱ 15m', '1h': '⏱ 1H', '1d': '⏱ 1D' };
+                        activeTfEl.innerText = tfLabels[currentTimeframe] || `⏱ ${currentTimeframe.toUpperCase()}`;
+                    }
+                    document.querySelectorAll('#panel-tf-dropdown .dropdown-item').forEach(item => {
+                        item.classList.toggle('active', item.dataset.tf === currentTimeframe);
+                    });
                 }
                 if (prefs.indConfig) {
                     Object.assign(indConfig, prefs.indConfig);
@@ -16708,7 +16727,19 @@ function showIndicatorLineActionPill(ind, point) {
         // 🎯 Smart Money & Trap Radar Controller
         // ==============================================================
         function openTrapRadarModal() {
-            if (!requireAuth('access Institutional Smart Money Trap Radar')) return;
+            const token = localStorage.getItem('auth_token');
+            if (!token && getGuestChatCount() >= GUEST_CHAT_LIMIT) {
+                const errBox = document.getElementById('auth-error-box');
+                if (errBox) {
+                    errBox.innerHTML = `🔒 <strong>Account Required</strong><br>Your ${GUEST_CHAT_LIMIT} free guest preview chats are completed. Please <strong>Create a Free Account</strong> to continue accessing Institutional Smart Money Trap Radar.`;
+                    errBox.style.display = 'block';
+                    errBox.style.background = 'rgba(56, 189, 248, 0.12)';
+                    errBox.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                    errBox.style.color = '#38bdf8';
+                }
+                openAuthModal('register');
+                return;
+            }
             if (typeof trackVisitorAction === 'function') {
                 trackVisitorAction('tool_open', 'Opened Traps Radar');
             }
@@ -16809,13 +16840,61 @@ function showIndicatorLineActionPill(ind, point) {
         }
 
     
+        function updateDockLockState() {
+            const dock = document.getElementById('floating-terminal-dock');
+            if (!dock) return;
+            const token = localStorage.getItem('auth_token');
+            const guestCount = typeof getGuestChatCount === 'function' ? getGuestChatCount() : 0;
+            const isGuest = !token;
+            const isLocked = isGuest && guestCount >= GUEST_CHAT_LIMIT;
+
+            const minIcon = dock.querySelector('.dock-minimized-icon');
+            if (isLocked) {
+                dock.classList.add('dock-locked');
+                dock.classList.add('minimized');
+                dock.setAttribute('title', '🔒 10 Free AI Chats Completed • Click to Register Free');
+                if (minIcon) {
+                    minIcon.innerHTML = `
+                        <span style="color: #f59e0b; font-size: 13px;">🔒</span>
+                        <span style="color: #f8fafc; font-weight: 800;">AI Tools & Traps</span>
+                        <span style="background: rgba(245, 158, 11, 0.25); border: 1px solid rgba(245, 158, 11, 0.6); color: #fbbf24; font-size: 9.5px; padding: 2px 7px; border-radius: 9999px; font-weight: 800; letter-spacing: 0.3px;">LOCKED</span>
+                    `;
+                }
+            } else {
+                dock.classList.remove('dock-locked');
+                dock.setAttribute('title', 'Click to Expand Dock');
+                if (minIcon) {
+                    minIcon.innerHTML = `
+                        <span class="copilot-pulse-dot"></span>
+                        <span>⚡ AI Tools & Traps ▾</span>
+                    `;
+                }
+            }
+        }
+
         function toggleDockMinimize(e) {
             if (e) e.stopPropagation();
+            const token = localStorage.getItem('auth_token');
+            if (!token && typeof getGuestChatCount === 'function' && getGuestChatCount() >= GUEST_CHAT_LIMIT) {
+                const errBox = document.getElementById('auth-error-box');
+                if (errBox) {
+                    errBox.innerHTML = `🔒 <strong>Free Guest Prompts Completed (${GUEST_CHAT_LIMIT}/${GUEST_CHAT_LIMIT})</strong><br>You have used your ${GUEST_CHAT_LIMIT} free AI preview questions. Create a Free Account to unlock unlimited AI Strategy Copilot, Smart Money Trap Radar, Macro News & Pre-Flight checks.`;
+                    errBox.style.display = 'block';
+                    errBox.style.background = 'rgba(56, 189, 248, 0.12)';
+                    errBox.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                    errBox.style.color = '#38bdf8';
+                }
+                openAuthModal('register');
+                return;
+            }
             const dock = document.getElementById('floating-terminal-dock');
             if (!dock) return;
             dock.classList.toggle('minimized');
             const isMin = dock.classList.contains('minimized');
-            try { localStorage.setItem('dock_minimized', isMin ? 'true' : 'false'); } catch (err) {}
+            try {
+                localStorage.setItem('dock_minimized', isMin ? 'true' : 'false');
+                if (isMin) localStorage.setItem('dock_manually_minimized', 'true');
+            } catch (err) {}
         }
 
         // Draggable floating terminal action dock
@@ -16854,9 +16933,33 @@ function showIndicatorLineActionPill(ind, point) {
                 if (!dock || !handle) return;
 
                 try {
-                    // Problem 6: Strictly default minimized across all displays (mobile and desktop)
+                    // Strictly default minimized across all displays (mobile and desktop)
                     dock.classList.add('minimized');
+                    updateDockLockState();
                 } catch (e) {}
+
+                // 🌟 Auto-pop up into full toolbar (Image 2) after 3.5 seconds with attractive animation
+                setTimeout(() => {
+                    try {
+                        const token = localStorage.getItem('auth_token');
+                        const isLocked = !token && (typeof getGuestChatCount === 'function' && getGuestChatCount() >= GUEST_CHAT_LIMIT);
+                        if (isLocked) {
+                            updateDockLockState();
+                            return;
+                        }
+                        const manuallyMin = localStorage.getItem('dock_manually_minimized') === 'true';
+                        if (!manuallyMin) {
+                            const d = document.getElementById('floating-terminal-dock');
+                            if (d && d.classList.contains('minimized')) {
+                                d.classList.remove('minimized');
+                                d.classList.add('dock-pop-expand');
+                                setTimeout(() => {
+                                    if (d) d.classList.remove('dock-pop-expand');
+                                }, 800);
+                            }
+                        }
+                    } catch (e) {}
+                }, 3500);
 
                 let isDragging = false;
                 let startX, startY, initLeft, initTop;
