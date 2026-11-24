@@ -950,6 +950,9 @@ async def trigger_manual_sync():
     )
 
 
+_tf_sr_cache = {}
+_tf_sr_cache_time = {}
+
 @app.get("/api/sr-levels")
 async def get_support_resistance_levels(
     timeframe: str = Query("5m", description="Candle timeframe: 5m, 15m, 1h, 1d"),
@@ -973,8 +976,12 @@ async def get_support_resistance_levels(
     eff_res = limit if limit is not None else max_resistance
     tf_clean = str(timeframe).lower()
 
-    # Timeframe-specific calculation for 15m, 1h, 1d
+    # Timeframe-specific calculation for 15m, 1h, 1d with high-speed in-memory cache
     if tf_clean not in ("5m", "5min"):
+        now_ts = time.time()
+        if not force and tf_clean in _tf_sr_cache and (now_ts - _tf_sr_cache_time.get(tf_clean, 0)) < 15.0:
+            return JSONResponse(content=_tf_sr_cache[tf_clean])
+
         snap = engine.get_snapshot(timeframe=tf_clean)
         df_tf = snap.get("df", pd.DataFrame()) if isinstance(snap, dict) else pd.DataFrame()
         if df_tf is None or df_tf.empty:
@@ -1002,27 +1009,32 @@ async def get_support_resistance_levels(
         count_supp = sum(1 for l in tf_levels if "Support" in l.get("role", "") or l.get("is_support"))
         count_res = sum(1 for l in tf_levels if "Resistance" in l.get("role", "") or not l.get("is_support"))
 
-        # Sync timeframe S&R into RAG database
-        try:
-            from RAG.rag_database import RAGDatabase
-            RAGDatabase.get_instance().add_sr_levels(tf_levels, period_tag=f"tf_{tf_clean}")
-        except Exception:
-            pass
+        res_content = {
+            "status": "ok",
+            "timeframe": tf_clean,
+            "period": "timeframe_specific",
+            "count": len(tf_levels),
+            "count_support": count_supp,
+            "count_resistance": count_res,
+            "future_candles": future_candles,
+            "mode": "timeframe_candles",
+            "in_update_window": True,
+            "levels": tf_levels,
+        }
+        _tf_sr_cache[tf_clean] = res_content
+        _tf_sr_cache_time[tf_clean] = now_ts
 
-        return JSONResponse(
-            content={
-                "status": "ok",
-                "timeframe": tf_clean,
-                "period": "timeframe_specific",
-                "count": len(tf_levels),
-                "count_support": count_supp,
-                "count_resistance": count_res,
-                "future_candles": future_candles,
-                "mode": "timeframe_candles",
-                "in_update_window": True,
-                "levels": tf_levels,
-            }
-        )
+        # Sync timeframe S&R into RAG database in non-blocking background thread
+        def _bg_sync_sr(levels, tag):
+            try:
+                from RAG.rag_database import RAGDatabase
+                RAGDatabase.get_instance().add_sr_levels(levels, period_tag=tag)
+            except Exception:
+                pass
+        import threading
+        threading.Thread(target=_bg_sync_sr, args=(tf_levels, f"tf_{tf_clean}"), daemon=True).start()
+
+        return JSONResponse(content=res_content)
 
     cur_df = engine.latest_df_5m
     if cur_df.empty:
@@ -3599,6 +3611,9 @@ async def refresh_news_sentiment_endpoint(request: Request):
     return JSONResponse(content={"status": "ok", "news": summary})
 
 
+_ms_cache = {}
+_ms_cache_time = {}
+
 @app.get("/api/market-structure")
 async def get_market_structure_endpoint(
     request: Request,
@@ -3612,7 +3627,11 @@ async def get_market_structure_endpoint(
     """
     try:
         from indicators.market_structure import MarketStructureEngine
-        from RAG.rag_database import RAGDatabase
+        tf_key = str(timeframe or "all").lower()
+        now_ts = time.time()
+        if tf_key in _ms_cache and (now_ts - _ms_cache_time.get(tf_key, 0)) < 15.0:
+            return JSONResponse(content=_ms_cache[tf_key])
+
         if timeframe and str(timeframe).lower() != "all":
             tf_clean = str(timeframe).lower()
             snap = engine.get_snapshot(timeframe=tf_clean)
@@ -3624,12 +3643,20 @@ async def get_market_structure_endpoint(
                 if base_5m is not None and not base_5m.empty:
                     df_tf = engine.cache_mgr.resample_timeframe(base_5m, tf_clean)
             res = MarketStructureEngine.analyze_structure_timeframe(df_tf, timeframe=tf_clean)
-            # Sync active structure into RAG memory
-            try:
-                RAGDatabase.get_instance().add_market_structure(res.get("active_structures", []))
-            except Exception:
-                pass
-            return JSONResponse(content={"status": "ok", "data": res})
+            resp_content = {"status": "ok", "data": res}
+            _ms_cache[tf_key] = resp_content
+            _ms_cache_time[tf_key] = now_ts
+
+            # Sync active structure into RAG memory in background thread
+            def _bg_sync_ms(structs):
+                try:
+                    from RAG.rag_database import RAGDatabase
+                    RAGDatabase.get_instance().add_market_structure(structs)
+                except Exception:
+                    pass
+            import threading
+            threading.Thread(target=_bg_sync_ms, args=(res.get("active_structures", []),), daemon=True).start()
+            return JSONResponse(content=resp_content)
         else:
             res = MarketStructureEngine.scan_all_timeframes(engine)
             # Collect and flatten active structures across all timeframes
@@ -3639,11 +3666,18 @@ async def get_market_structure_endpoint(
                     all_active.extend(tf_v["active_structures"])
             res["active_structures"] = all_active
             res["data"] = {"active_structures": all_active}
-            # Sync all active structures into RAG memory
-            try:
-                RAGDatabase.get_instance().add_market_structure(all_active)
-            except Exception:
-                pass
+            _ms_cache["all"] = res
+            _ms_cache_time["all"] = now_ts
+
+            # Sync all active structures into RAG memory in background thread
+            def _bg_sync_all_ms(structs):
+                try:
+                    from RAG.rag_database import RAGDatabase
+                    RAGDatabase.get_instance().add_market_structure(structs)
+                except Exception:
+                    pass
+            import threading
+            threading.Thread(target=_bg_sync_all_ms, args=(all_active,), daemon=True).start()
             return JSONResponse(content=res)
     except Exception as e:
         logger.error("Error in /api/market-structure: %s", e)

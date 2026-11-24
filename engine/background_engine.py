@@ -39,20 +39,47 @@ CACHE_FILE_SR_SIGNALS = os.path.join(
 
 
 
+NSE_HOLIDAYS_MAP = {
+    "2026-01-26": "Republic Day",
+    "2026-02-18": "Mahashivratri",
+    "2026-03-03": "Holi",
+    "2026-03-20": "Id-Ul-Fitr (Ramzan Eid)",
+    "2026-03-27": "Ram Navami",
+    "2026-03-31": "Mahavir Jayanti",
+    "2026-04-03": "Good Friday",
+    "2026-04-14": "Dr. Baba Saheb Ambedkar Jayanti",
+    "2026-05-01": "Maharashtra Day",
+    "2026-05-27": "Bakri Id",
+    "2026-06-26": "Muharram",
+    "2026-08-15": "Independence Day",
+    "2026-09-04": "Milad-Un-Nabi",
+    "2026-10-02": "Mahatma Gandhi Jayanti",
+    "2026-10-20": "Dussehra",
+    "2026-11-08": "Diwali Laxmi Pujan",
+    "2026-11-10": "Diwali Balipratipada",
+    "2026-11-24": "Gurunanak Jayanti",
+    "2026-12-25": "Christmas",
+}
+
+
 def get_market_session_info(now_ist: Optional[datetime] = None) -> Dict[str, Any]:
     """
     Calculates real-time session state for NSE:
     - PRE_MARKET_AUCTION: 09:00:00 to 09:07:59 IST (Call Auction & Order Collection)
     - PRE_MARKET_DISCOVERED: 09:08:00 to 09:14:59 IST (Order Matching complete, Pre-Open Price settled by Angel One)
     - REGULAR_LIVE: 09:15:00 to 15:30:00 IST (Continuous market)
-    - CLOSED: Weekend or outside market hours
+    - CLOSED: Weekend, official NSE holiday, or outside market hours
     """
     if now_ist is None:
         now_ist = datetime.now(IST)
-    is_weekday = now_ist.weekday() < 5
+    is_weekend = now_ist.weekday() >= 5
+    date_key = now_ist.strftime("%Y-%m-%d")
+    is_holiday = date_key in NSE_HOLIDAYS_MAP
+    is_trading_day = (not is_weekend) and (not is_holiday)
+
     t_sec = now_ist.hour * 3600 + now_ist.minute * 60 + now_ist.second
-    is_pre_market = is_weekday and (9 * 3600 <= t_sec < 9 * 3600 + 15 * 60)
-    is_live_market = is_weekday and (9 * 3600 + 15 * 60 <= t_sec <= 15 * 3600 + 30 * 60)
+    is_pre_market = is_trading_day and (9 * 3600 <= t_sec < 9 * 3600 + 15 * 60)
+    is_live_market = is_trading_day and (9 * 3600 + 15 * 60 <= t_sec <= 15 * 3600 + 30 * 60)
     
     phase = "CLOSED"
     if is_live_market:
@@ -63,7 +90,11 @@ def get_market_session_info(now_ist: Optional[datetime] = None) -> Dict[str, Any
         else:
             phase = "PRICE_DISCOVERED"
     return {
-        "is_weekday": is_weekday,
+        "is_weekday": not is_weekend,
+        "is_weekend": is_weekend,
+        "is_holiday": is_holiday,
+        "holiday_name": NSE_HOLIDAYS_MAP.get(date_key, ""),
+        "is_trading_day": is_trading_day,
         "is_pre_market": is_pre_market,
         "is_live_market": is_live_market,
         "phase": phase,
@@ -340,6 +371,16 @@ class BackgroundTradingEngine:
 
                 # Fetch official historical candles at 5-minute boundaries
                 sess = get_market_session_info(now_ist)
+
+                # Problem 4: Weekend, Holiday, and Closed Market Pause
+                # When market is closed (Saturdays, Sundays, official NSE holidays, and post-market),
+                # pause polling Angel One to rest the server and preserve API limits.
+                if sess["phase"] == "CLOSED":
+                    with self.state_lock:
+                        self.next_sync_secs = 300
+                    time.sleep(5)
+                    continue
+
                 if wait_secs <= 2 or wait_secs >= 298:
                     curr_bucket = now_ist.replace(
                         minute=(now_ist.minute // 5) * 5,

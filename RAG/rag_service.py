@@ -523,8 +523,10 @@ class RAGService:
                 market_state["recent_chat_history"] = self.memory.get_history(user_id, limit=6)
             market_state["active_trade"] = self.memory.get_active_trade(user_id, cur_price=cur_p)
 
-        # Retrieve context from Vector DB with user_id drawing isolation
-        retrieved_docs = self.db.query_context(query_text=query, user_id=user_id, top_k=4)
+        # Retrieve context from Vector DB with user_id drawing isolation & phonetic intent normalization
+        from .llm_client import normalize_query_intent
+        norm_q = normalize_query_intent(query)
+        retrieved_docs = self.db.query_context(query_text=norm_q, user_id=user_id, top_k=4)
 
         # Retrieve relevant past trade prediction reflections (self-learning memory)
         try:

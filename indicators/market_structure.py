@@ -187,19 +187,28 @@ class MarketStructureEngine:
             if active_high_pivot is None or active_low_pivot is None:
                 continue
 
-            # Check Bullish Breakout (Close > active_high_pivot)
+            # Check Bullish Breakout (Strict Body Close > active_high_pivot)
             if cur_close > active_high_pivot["price"] and i > active_high_pivot["index"]:
                 # Is it BoS (continuation) or CHoCH (reversal)?
                 is_choch = (current_trend == "BEARISH")
                 event_type = "CHOCH" if is_choch else "BOS"
                 current_trend = "BULLISH"
 
+                # Mathematical Verification:
+                # Bullish Break Distance = Closing Price - Swing High
+                # Percentage Break = (Break Distance / Broken Level) * 100
+                broken_level = float(active_high_pivot["price"])
+                break_dist = round(float(cur_close - broken_level), 2)
+                break_pct = round(float((break_dist / broken_level) * 100), 2) if broken_level > 0 else 0.0
+
                 structures.append({
                     "timeframe": tf_clean,
                     "type": event_type,
                     "direction": "BULLISH",
-                    "broken_level": active_high_pivot["price"],
+                    "broken_level": broken_level,
                     "breakout_price": cur_close,
+                    "break_distance": break_dist,
+                    "break_percentage": break_pct,
                     "pivot_index": active_high_pivot["index"],
                     "pivot_timestamp": active_high_pivot["timestamp"],
                     "breakout_index": i,
@@ -210,18 +219,27 @@ class MarketStructureEngine:
                 # Reset pivot so we don't re-trigger on the same level
                 active_high_pivot = None
 
-            # Check Bearish Breakdown (Close < active_low_pivot)
+            # Check Bearish Breakdown (Strict Body Close < active_low_pivot)
             elif cur_close < active_low_pivot["price"] and i > active_low_pivot["index"]:
                 is_choch = (current_trend == "BULLISH")
                 event_type = "CHOCH" if is_choch else "BOS"
                 current_trend = "BEARISH"
 
+                # Mathematical Verification:
+                # Bearish Break Distance = Swing Low - Closing Price
+                # Percentage Break = (Break Distance / Broken Level) * 100
+                broken_level = float(active_low_pivot["price"])
+                break_dist = round(float(broken_level - cur_close), 2)
+                break_pct = round(float((break_dist / broken_level) * 100), 2) if broken_level > 0 else 0.0
+
                 structures.append({
                     "timeframe": tf_clean,
                     "type": event_type,
                     "direction": "BEARISH",
-                    "broken_level": active_low_pivot["price"],
+                    "broken_level": broken_level,
                     "breakout_price": cur_close,
+                    "break_distance": break_dist,
+                    "break_percentage": break_pct,
                     "pivot_index": active_low_pivot["index"],
                     "pivot_timestamp": active_low_pivot["timestamp"],
                     "breakout_index": i,
@@ -245,10 +263,12 @@ class MarketStructureEngine:
             ev_dir = "Bullish" if last_event["direction"] == "BULLISH" else "Bearish"
             ev_type = last_event["type"]
             ev_lvl = last_event["broken_level"]
+            ev_dist = last_event.get("break_distance", 0)
+            ev_pct = last_event.get("break_percentage", 0)
             if ev_type == "CHOCH":
-                summary = f"{tf_clean.upper()} {ev_dir} Change of Character (CHoCH) triggered at ₹{ev_lvl:.1f} (Early Trend Shift to {current_trend})."
+                summary = f"{tf_clean.upper()} {ev_dir} Change of Character (CHoCH) at ₹{ev_lvl:.1f} (Break: +{ev_dist:.1f} pts / +{ev_pct:.2f}% into {current_trend})."
             else:
-                summary = f"{tf_clean.upper()} {ev_dir} Break of Structure (BoS) confirmed at ₹{ev_lvl:.1f} (Trend Continuation in {current_trend})."
+                summary = f"{tf_clean.upper()} {ev_dir} Break of Structure (BoS) at ₹{ev_lvl:.1f} (Continuation: +{ev_dist:.1f} pts / +{ev_pct:.2f}% into {current_trend})."
         else:
             summary = f"{tf_clean.upper()} Structure: Rangebound consolidation between ₹{recent_low or 0:.1f} - ₹{recent_high or 0:.1f}."
 
@@ -321,7 +341,10 @@ class MarketStructureEngine:
             res = results.get(tf, {})
             ev = res.get("last_event")
             if ev:
-                briefing_lines.append(f"{tf.upper()}: {ev.get('type')} {ev.get('direction')} @ ₹{ev.get('broken_level'):.1f} ({res.get('trend')})")
+                ev_dist = ev.get('break_distance', 0)
+                ev_pct = ev.get('break_percentage', 0)
+                dist_str = f" (+{ev_dist:.1f} pts / +{ev_pct:.2f}%)" if ev_dist else ""
+                briefing_lines.append(f"{tf.upper()}: {ev.get('type')} {ev.get('direction')} @ ₹{ev.get('broken_level'):.1f}{dist_str} ({res.get('trend')})")
             else:
                 briefing_lines.append(f"{tf.upper()}: Rangebound ({res.get('trend')})")
 

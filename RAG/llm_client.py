@@ -15,6 +15,51 @@ from .config import RAGConfig
 logger = logging.getLogger("LLMClient")
 
 
+def normalize_query_intent(query: str) -> str:
+    """Normalizes phonetic trader slang, Hinglish terms, and common misspellings for RAG and LLM comprehension."""
+    if not query:
+        return ""
+    q = query
+    replacements = [
+        (r"\bnest\b", "next"),
+        (r"\bpertan\b", "pattern"),
+        (r"\bpertans\b", "patterns"),
+        (r"\bperton\b", "pattern"),
+        (r"\bsantimat\b", "sentiment"),
+        (r"\bsantimarte\b", "sentiment"),
+        (r"\bdefrunt\b", "different"),
+        (r"\bbatter\b", "better"),
+        (r"\bfack\b", "fake"),
+        (r"\bbreack\b", "break"),
+        (r"\bbreackout\b", "breakout"),
+        (r"\bdepandancy\b", "dependency"),
+        (r"\bdepand\b", "depend"),
+        (r"\bdissision\b", "decision"),
+        (r"\bdesission\b", "decision"),
+        (r"\bdessision\b", "decision"),
+        (r"\bvoletile\b", "volatile"),
+        (r"\blonk\b", "long"),
+        (r"\bans\b", "answer"),
+        (r"\birreted\b", "irritated"),
+        (r"\balos\b", "also"),
+        (r"\bmantion\b", "mention"),
+        (r"\bwhioch\b", "which"),
+        (r"\bwight\b", "white"),
+        (r"\bminimizi\b", "minimize"),
+        (r"\bfibonachi\b", "fibonacci"),
+        (r"\bfibo\b", "fibonacci"),
+        (r"\bdrowin\b", "drawing"),
+        (r"\bkya trade lu\b", "what trade to take"),
+        (r"\btrade do\b", "give trade setup"),
+        (r"\bcall le lu\b", "should I buy call"),
+        (r"\bput le lu\b", "should I buy put"),
+        (r"\ble sakte hai\b", "can we enter"),
+    ]
+    for pat, rep in replacements:
+        q = re.sub(pat, rep, q, flags=re.IGNORECASE)
+    return q
+
+
 class GeminiLLMClient:
     """
     Communicates with Google Gemini 1.5 Flash using official REST API.
@@ -689,9 +734,14 @@ class GeminiLLMClient:
         brevity_prefix = ""
         if not is_explanation_requested:
             brevity_prefix = (
-                "🚨 STRICT USER COMMAND: ANSWER ONLY IN SHORT (2-3 BULLETS, UNDER 50 WORDS)! 🚨\n"
-                "The trader specifically demanded: 'When I ask any question, give ONLY a short answer. In every question give the main point only, in 2 to 3 bullet points, under 50 words! No long descriptions, no textbook lectures, no filler! Only if I explicitly say \"explain\" or \"why\" should you give a detailed explanation.'\n"
-                "THEREFORE: Answer directly in 2 to 3 short bullets. Total word count must be strictly under 50-60 words!\n\n"
+                "TRADER GUIDANCE & BREVITY DIRECTIVE:\n"
+                "1. COMPREHEND: First understand the trader's core question deeply, including any informal trader slang, Hindi/Hinglish terms, or broken English.\n"
+                "2. CONCISE ANSWER: Give a direct, punchy answer in 2 to 3 bullet points (under 60 words). Directly address what they asked without boilerplate or filler.\n"
+                "3. EXPLANATIONS: Only provide detailed lectures if the user explicitly asks to 'explain' or 'why'.\n\n"
+            )
+        else:
+            brevity_prefix = (
+                "TRADER GUIDANCE: The user has explicitly requested an explanation. Provide a thorough, step-by-step breakdown.\n\n"
             )
 
         full_prompt = (
@@ -971,8 +1021,7 @@ class GeminiLLMClient:
                     "temperature": 0.2,
                     "topK": 40,
                     "topP": 0.95,
-                    "maxOutputTokens": 400 if not is_explanation_requested else 2500,
-                    "thinkingConfig": {"thinkingBudget": 0}
+                    "maxOutputTokens": 800 if not is_explanation_requested else 2500
                 }
             }
 
@@ -1203,7 +1252,7 @@ class GeminiLLMClient:
         except Exception:
             pass
 
-        q_lower = query.lower()
+        q_lower = normalize_query_intent(query).lower()
         synthesis = ""
         cur_p = (market_state.get("price") or market_state.get("current_price") or market_state.get("close") or 22500.0) if market_state else 22500.0
         try:

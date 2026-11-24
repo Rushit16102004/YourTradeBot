@@ -1518,15 +1518,6 @@
             <button class="copilot-pill" onclick="sendQuickPrompt('What is the 9:15 - 9:45 AM ORB (Opening Range Breakout) status, range high/low, and trading playbook for NIFTY 50 today?')" style="border-color: rgba(251, 113, 133, 0.45); color: #fda4af; background: rgba(244, 63, 94, 0.16);" title="9:15 - 9:45 AM Opening Range Breakout">
                 ⏱️ 9:15 AM ORB
             </button>
-            <button class="copilot-pill" onclick="sendQuickPrompt('What is my current trading psychology, discipline score, emotional bias check, and coaching advice?')" style="border-color: rgba(129, 140, 248, 0.4); color: #a5b4fc; background: rgba(99, 102, 241, 0.14);" title="Trading Psychology & Coaching Score">
-                🧠 Psychology
-            </button>
-            <button class="copilot-pill" onclick="sendQuickPrompt('Trade Doctor: Perform an instant clinical post-mortem on my last completed trade. Why did it win or lose?')" style="border-color: rgba(56, 189, 248, 0.4); color: #7dd3fc; background: rgba(14, 165, 233, 0.14);" title="Trade Doctor: Clinical Post-Mortem">
-                🩺 Trade Doctor
-            </button>
-            <button class="copilot-pill" onclick="sendQuickPrompt('Analyze my active on-chart drawings and trendlines against live institutional VWAP and S&R levels.')" style="border-color: rgba(250, 204, 21, 0.4); color: #fde047; background: rgba(234, 179, 8, 0.14);" title="On-Chart Drawings & Trendlines Confluence">
-                🎨 Chart Drawings
-            </button>
         </div>
 
         <!-- Messages Thread -->
@@ -2865,8 +2856,17 @@
                 visible: indConfig.bb_enabled,
             });
 
-            // Crosshair inspection for OHLCV legend
+            // Crosshair inspection for OHLCV legend & haptic phone vibration on candle scrub
+            let _lastVibratedCandleTime = null;
             chart.subscribeCrosshairMove(param => {
+                if (param && param.time && param.point !== undefined) {
+                    if (param.time !== _lastVibratedCandleTime) {
+                        _lastVibratedCandleTime = param.time;
+                        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                            try { navigator.vibrate(12); } catch (e) {}
+                        }
+                    }
+                }
                 if (!param || !param.time || !param.seriesData) {
                     updateIndicatorPointerValues(null);
                     if (activeCandles && activeCandles.length > 0) {
@@ -3519,7 +3519,9 @@
                 item.classList.toggle('active', item.dataset.tf === tf);
             });
             updateMarketStatusAndCandleTimer();
-            showLoading(true);
+            if (!activeCandles || activeCandles.length === 0) {
+                showLoading(true);
+            }
 
             // Update S&R toggle button state for active timeframe
             updateSRButtonUI();
@@ -6973,10 +6975,10 @@ function showIndicatorLineActionPill(ind, point) {
                 _marketClosePriceLine = candleSeries.createPriceLine({
                     price: Number(price),
                     color: '#06b6d4',
-                    lineWidth: 2,
+                    lineWidth: 1.5,
                     lineStyle: 2, // Dashed
                     axisLabelVisible: true,
-                    title: `📌 15:30 CLOSE: ₹${Number(price).toFixed(2)}`,
+                    title: `EOD: ₹${Number(price).toFixed(1)}`,
                 });
             } catch (e) {
                 console.debug('Market close price line note:', e);
@@ -7870,13 +7872,13 @@ function showIndicatorLineActionPill(ind, point) {
 
                     if (titleEl && metaEl) {
                         if (signalOnBar) {
-                            titleEl.textContent = `Explain ${signalOnBar.signal} Signal`;
+                            titleEl.textContent = `${signalOnBar.signal} Signal`;
                             titleEl.style.color = (signalOnBar.signal === 'BUY') ? '#00e676' : '#f23645';
-                            metaEl.textContent = `₹${candle.close.toFixed(2)} • ${timeStr}`;
+                            metaEl.textContent = timeStr;
                         } else {
-                            titleEl.textContent = 'Explain Candle with AI';
+                            titleEl.textContent = 'Explain Candle';
                             titleEl.style.color = '#60a5fa';
-                            metaEl.textContent = `₹${candle.close.toFixed(2)} • ${timeStr}`;
+                            metaEl.textContent = timeStr;
                         }
                     }
 
@@ -7927,13 +7929,13 @@ function showIndicatorLineActionPill(ind, point) {
 
             if (titleEl && metaEl) {
                 if (signalOnBar) {
-                    titleEl.textContent = `Explain ${signalOnBar.signal} Signal`;
+                    titleEl.textContent = `${signalOnBar.signal} Signal`;
                     titleEl.style.color = (signalOnBar.signal === 'BUY') ? '#00e676' : '#f23645';
-                    metaEl.textContent = `₹${candle.close.toFixed(2)} • ${timeStr}`;
+                    metaEl.textContent = timeStr;
                 } else {
-                    titleEl.textContent = 'Explain Candle with AI';
+                    titleEl.textContent = 'Explain Candle';
                     titleEl.style.color = '#60a5fa';
-                    metaEl.textContent = `₹${candle.close.toFixed(2)} • ${timeStr}`;
+                    metaEl.textContent = timeStr;
                 }
             }
 
@@ -9104,11 +9106,13 @@ function showIndicatorLineActionPill(ind, point) {
             if (!overlay) return;
             const chartContainer = document.getElementById('chart-container');
             const chartWidth = Math.max(800, chartContainer ? chartContainer.clientWidth : 1200);
+            const chartHeight = Math.max(300, chartContainer ? chartContainer.clientHeight : 600);
+            // Stop S&R lines and zones strictly before right price scale (Y-axis) and bottom time scale (X-axis)
+            const maxUsableWidth = Math.max(200, chartWidth - 65);
+            const maxUsableHeight = Math.max(100, chartHeight - 28);
             const lastCandle = (activeCandles && activeCandles.length > 0) ? activeCandles[activeCandles.length - 1] : null;
             const lastTime = lastCandle ? lastCandle.time : 0;
             const forwardTime = lastTime + (100 * 300); // Projected +100 candles forward
-            // Stop S&R line before the right price scale (Y-axis) so price scale numbers and dragging are never blocked
-            const maxUsableWidth = Math.max(200, chartWidth - 65);
             const forwardX = Math.min(maxUsableWidth, Math.max(maxUsableWidth - 50, timeToX(forwardTime) || maxUsableWidth));
 
             // 1. Support & Resistance Levels (All Timeframes: 5m, 15m, 1h, 1d)
@@ -9159,12 +9163,15 @@ function showIndicatorLineActionPill(ind, point) {
                     const y1 = priceToY(p1);
                     const y2 = priceToY(p2);
                     if (y1 == null || y2 == null) return;
+                    // Strict X & Y axis bounds: never draw over bottom time scale (X-axis) or outside view
+                    if (Math.min(y1, y2) >= maxUsableHeight || Math.max(y1, y2) <= 0) return;
 
                     const startX = lvl.time1 ? Math.max(0, timeToX(lvl.time1) || 0) : 0;
                     const endX = forwardX;
                     const rectW = Math.max(60, endX - startX);
-                    const rectH = Math.max(4, Math.abs(y2 - y1));
-                    const rectY = Math.min(y1, y2);
+                    const rectY = Math.max(0, Math.min(y1, y2));
+                    const rawH = Math.abs(y2 - y1);
+                    const rectH = Math.max(4, Math.min(rawH, maxUsableHeight - rectY));
 
                     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                     g.setAttribute('class', 'sr-overlay-group');
@@ -9239,7 +9246,8 @@ function showIndicatorLineActionPill(ind, point) {
                     const p = lvl.avg_price != null ? lvl.avg_price : lvl.price1;
                     if (p == null) return;
                     const y = priceToY(p);
-                    if (y == null) return;
+                    // Strict X & Y axis bounds: never draw over bottom time scale (X-axis) or outside view
+                    if (y == null || y >= maxUsableHeight || y <= 0) return;
 
                     const startX = lvl.time1 ? Math.max(0, timeToX(lvl.time1) || 0) : 0;
                     const endX = forwardX;
@@ -9325,7 +9333,8 @@ function showIndicatorLineActionPill(ind, point) {
                     const lvl = parseFloat(st.broken_level);
                     if (!lvl) return;
                     const y = priceToY(lvl);
-                    if (y == null) return;
+                    // Strict X & Y axis bounds: never draw over bottom time scale (X-axis) or outside view
+                    if (y == null || y >= maxUsableHeight || y <= 0) return;
 
                     const isBull = st.direction === 'BULLISH';
                     const isChoch = st.type === 'CHOCH';
@@ -9599,12 +9608,24 @@ function showIndicatorLineActionPill(ind, point) {
 
             let srLayer = document.getElementById('sr-overlay-layer');
             let drawingsLayer = document.getElementById('drawings-overlay-layer');
+            let defs = document.getElementById('svg-defs');
 
-            if (!srLayer || !drawingsLayer) {
+            if (!srLayer || !drawingsLayer || !defs) {
                 overlay.innerHTML = '<defs id="svg-defs"></defs><g id="sr-overlay-layer"></g><g id="drawings-overlay-layer"></g>';
+                defs = document.getElementById('svg-defs');
                 srLayer = document.getElementById('sr-overlay-layer');
                 drawingsLayer = document.getElementById('drawings-overlay-layer');
             }
+
+            // Enforce SVG ClipPath to strictly prevent ANY overlay element from encroaching on X (bottom) or Y (right) axis!
+            const chartContainer = document.getElementById('chart-container');
+            const cWidth = chartContainer ? chartContainer.clientWidth : 1200;
+            const cHeight = chartContainer ? chartContainer.clientHeight : 600;
+            const maxUsableW = Math.max(200, cWidth - 65);
+            const maxUsableH = Math.max(100, cHeight - 28);
+            defs.innerHTML = `<clipPath id="chart-plot-clip"><rect x="0" y="0" width="${maxUsableW}" height="${maxUsableH}" /></clipPath>`;
+            srLayer.setAttribute('clip-path', 'url(#chart-plot-clip)');
+            drawingsLayer.setAttribute('clip-path', 'url(#chart-plot-clip)');
 
             // 🛡️ Auto Support & Resistance Engine Overlay (Only re-render when not drawingsOnly)
             if (!drawingsOnly) {
@@ -16547,12 +16568,8 @@ function showIndicatorLineActionPill(ind, point) {
                 if (!dock || !handle) return;
 
                 try {
-                    // Default minimized across all displays unless user explicitly expanded it
-                    if (localStorage.getItem('dock_minimized') !== 'false') {
-                        dock.classList.add('minimized');
-                    } else {
-                        dock.classList.remove('minimized');
-                    }
+                    // Problem 6: Strictly default minimized across all displays (mobile and desktop)
+                    dock.classList.add('minimized');
                 } catch (e) {}
 
                 let isDragging = false;

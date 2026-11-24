@@ -139,8 +139,15 @@
                 display: none;
             }
 
-            .header-line-left, .header-line-right {
+            .header-line-left {
+                display: flex;
+                align-items: center;
                 gap: 4px;
+                flex-shrink: 0;
+            }
+
+            .header-line-right {
+                display: contents; /* Unwraps flex items so #auth-nav-container can anchor sticky to the right edge */
             }
 
             #mtf-ribbon {
@@ -178,16 +185,35 @@
                 white-space: nowrap;
             }
 
+            /* 👤 Sticky Guest Login & User Profile: Always visible on phone view without side scrolling */
             #auth-nav-container {
-                margin-left: 0 !important;
-                flex-shrink: 0;
+                position: sticky !important;
+                right: 0 !important;
+                margin-left: auto !important;
+                flex-shrink: 0 !important;
+                z-index: 100 !important;
+                background: #070a13 !important;
+                padding-left: 6px !important;
+                padding-right: 4px !important;
+                box-shadow: -8px 0 12px #070a13 !important;
+                display: inline-flex !important;
+                align-items: center !important;
             }
 
             #btn-guest-login {
-                padding: 3px 6px !important;
-                font-size: 10.5px !important;
+                padding: 3px 8px !important;
+                font-size: 11px !important;
+                font-weight: 700 !important;
                 height: 28px !important;
-                border-radius: 5px !important;
+                border-radius: 6px !important;
+                white-space: nowrap !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                gap: 3px !important;
+                background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%) !important;
+                color: #ffffff !important;
+                border: 1px solid #60a5fa !important;
+                box-shadow: 0 0 10px rgba(37,99,235,0.4) !important;
             }
 
             #btn-user-menu {
@@ -684,7 +710,28 @@
                 height: 26px;
             }
 
-            #btn-guest-login, #btn-user-menu {
+            #auth-nav-container {
+                position: sticky !important;
+                right: 0 !important;
+                margin-left: auto !important;
+                flex-shrink: 0 !important;
+                z-index: 100 !important;
+                background: #070a13 !important;
+                padding-left: 4px !important;
+                padding-right: 2px !important;
+                box-shadow: -6px 0 10px #070a13 !important;
+            }
+
+            #btn-guest-login {
+                padding: 2px 6px !important;
+                font-size: 10px !important;
+                font-weight: 700 !important;
+                height: 26px !important;
+                border-radius: 5px !important;
+                white-space: nowrap !important;
+            }
+
+            #btn-user-menu {
                 padding: 2px 5px !important;
                 font-size: 9.5px !important;
                 height: 26px !important;

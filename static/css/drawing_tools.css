@@ -121,6 +121,12 @@
             z-index: 15;
         }
 
+        /* 🛡️ Strict Chart Area Clipping: Never cover bottom X-axis time bar or right Y-axis price bar */
+        #sr-overlay-layer,
+        #drawings-overlay-layer {
+            clip-path: url(#chart-plot-clip);
+        }
+
         #drawing-overlay.drawing-active {
             pointer-events: auto;
             touch-action: none;
