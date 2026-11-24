@@ -509,20 +509,24 @@
                 max-width: 92vw !important;
             }
 
-            /* Mobile Floating Terminal Action Dock (Docked at bottom-right corner, leaving chart clear) */
+            /* Mobile Floating Terminal Action Dock (Centered & Optimized so all 4 buttons fit without clipping) */
             .floating-terminal-dock {
                 position: fixed !important;
                 bottom: 10px !important;
-                right: 10px !important;
-                left: auto !important;
+                left: 50% !important;
+                right: auto !important;
                 top: auto !important;
-                transform: none !important;
+                transform: translateX(-50%) !important;
                 z-index: 1100 !important;
-                padding: 3px 5px !important;
-                gap: 4px !important;
-                max-width: 260px !important;
+                padding: 3px 6px !important;
+                gap: 3px !important;
+                width: max-content !important;
+                max-width: calc(100vw - 12px) !important;
                 box-sizing: border-box !important;
                 border-radius: 9999px !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
             }
 
             .floating-terminal-dock .dock-drag-handle {
@@ -530,21 +534,29 @@
             }
 
             .floating-terminal-dock .dock-btn {
-                padding: 5px 9px !important;
+                padding: 4px 8px !important;
                 font-size: 11px !important;
-                gap: 4px !important;
+                gap: 3px !important;
                 border-radius: 9999px !important;
+                flex-shrink: 0 !important;
+                white-space: nowrap !important;
             }
 
             .floating-terminal-dock .dock-btn span {
                 font-size: 11px !important;
             }
 
+            .floating-terminal-dock .dock-btn.copilot-btn {
+                padding: 4px 9px !important;
+            }
+
             .floating-terminal-dock .dock-minimize-btn {
                 width: 18px !important;
                 height: 18px !important;
-                font-size: 12px !important;
+                font-size: 13px !important;
                 padding: 0 !important;
+                margin-left: 2px !important;
+                flex-shrink: 0 !important;
             }
 
             .floating-terminal-dock.minimized {
@@ -553,7 +565,13 @@
                 left: auto !important;
                 top: auto !important;
                 transform: none !important;
-                padding: 5px 12px !important;
+                width: auto !important;
+                max-width: max-content !important;
+                padding: 5px 13px !important;
+            }
+
+            .floating-terminal-dock.minimized .dock-minimized-icon {
+                font-size: 11px !important;
             }
 
             /* Chart Viewport: 100% Full Width Edge-to-Edge */
