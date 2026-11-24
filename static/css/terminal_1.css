@@ -909,35 +909,107 @@ textarea.form-control {
 }
 
 /* =====================================================================
-   Authentication Modal (Embedded on Terminal 1)
+   Authentication Modal (Embedded on Terminal 1 - Matching Guest Mode)
    ===================================================================== */
+@keyframes authFadeIn {
+  from { opacity: 0; transform: scale(0.96) translateY(-6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+#auth-modal-overlay,
 .modal-overlay {
   display: none;
   position: fixed;
   inset: 0;
-  z-index: 9999;
-  background: rgba(3, 7, 18, 0.85);
-  backdrop-filter: blur(14px);
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 99999;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: 12px 10px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
+#auth-modal-card,
 .modal-box {
-  background: #0d1322;
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(56, 189, 248, 0.2);
+  background: #0f172a;
+  border: 1px solid #1e293b;
   border-radius: 14px;
   width: 100%;
   max-width: 440px;
-  padding: 28px;
+  max-height: 92vh;
+  max-height: calc(100dvh - 20px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85);
+  overflow: hidden;
+  animation: authFadeIn 0.2s ease-out;
+  margin: auto;
   position: relative;
-  animation: modal-enter 0.25s ease-out;
 }
 
-@keyframes modal-enter {
-  from { opacity: 0; transform: scale(0.96) translateY(10px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+#auth-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid #1e293b;
+  background: #0f172a;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+#auth-modal-tabs {
+  display: flex;
+  border-bottom: 1px solid #1e293b;
+  background: #0b1120;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+#auth-modal-body {
+  padding: 16px 18px 24px 18px;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+#auth-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+#auth-modal-body::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+}
+#auth-modal-body::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+#auth-modal-body::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+@media (max-width: 600px) {
+  #auth-modal-overlay {
+    padding: 6px !important;
+    align-items: flex-start !important;
+  }
+  #auth-modal-card {
+    max-height: calc(100dvh - 12px) !important;
+    border-radius: 12px !important;
+    margin: auto !important;
+  }
+  #auth-modal-body {
+    padding: 14px 14px 24px 14px !important;
+  }
 }
 
 .modal-close-btn {

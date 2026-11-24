@@ -210,61 +210,199 @@
     startSlideAutoTimer();
   };
 
-  // --- 6. Auth Modal Logic ---
+  // --- 6. Auth Modal Logic (Matching Live Terminal Guest Mode) ---
+  let usernameCheckTimer = null;
+  let isUsernameAvailable = false;
+  let phoneCheckTimer = null;
+  let isPhoneAvailable = null;
+  let selectedCountryCode = '+91';
+  let selectedCountryFlag = '🇮🇳';
+
+  const countryCodeData = [
+    { code: '+91', flag: '🇮🇳', name: 'India' },
+    { code: '+1', flag: '🇺🇸', name: 'United States' },
+    { code: '+1', flag: '🇨🇦', name: 'Canada' },
+    { code: '+44', flag: '🇬🇧', name: 'United Kingdom' },
+    { code: '+971', flag: '🇦🇪', name: 'United Arab Emirates' },
+    { code: '+966', flag: '🇸🇦', name: 'Saudi Arabia' },
+    { code: '+65', flag: '🇸🇬', name: 'Singapore' },
+    { code: '+61', flag: '🇦🇺', name: 'Australia' },
+    { code: '+49', flag: '🇩🇪', name: 'Germany' },
+    { code: '+33', flag: '🇫🇷', name: 'France' },
+    { code: '+81', flag: '🇯🇵', name: 'Japan' },
+    { code: '+7', flag: '🇷🇺', name: 'Russia' },
+    { code: '+86', flag: '🇨🇳', name: 'China' },
+    { code: '+55', flag: '🇧🇷', name: 'Brazil' },
+    { code: '+27', flag: '🇿🇦', name: 'South Africa' },
+    { code: '+62', flag: '🇮🇩', name: 'Indonesia' },
+    { code: '+60', flag: '🇲🇾', name: 'Malaysia' },
+    { code: '+92', flag: '🇵🇰', name: 'Pakistan' },
+    { code: '+880', flag: '🇧🇩', name: 'Bangladesh' },
+    { code: '+977', flag: '🇳🇵', name: 'Nepal' },
+    { code: '+94', flag: '🇱🇰', name: 'Sri Lanka' },
+    { code: '+974', flag: '🇶🇦', name: 'Qatar' },
+    { code: '+965', flag: '🇰🇼', name: 'Kuwait' },
+    { code: '+968', flag: '🇴🇲', name: 'Oman' },
+    { code: '+973', flag: '🇧🇭', name: 'Bahrain' },
+    { code: '+234', flag: '🇳🇬', name: 'Nigeria' },
+    { code: '+90', flag: '🇹🇷', name: 'Turkey' },
+    { code: '+39', flag: '🇮🇹', name: 'Italy' },
+    { code: '+34', flag: '🇪🇸', name: 'Spain' },
+    { code: '+31', flag: '🇳🇱', name: 'Netherlands' },
+    { code: '+41', flag: '🇨🇭', name: 'Switzerland' },
+    { code: '+46', flag: '🇸🇪', name: 'Sweden' },
+    { code: '+47', flag: '🇳🇴', name: 'Norway' },
+    { code: '+64', flag: '🇳🇿', name: 'New Zealand' },
+    { code: '+63', flag: '🇵🇭', name: 'Philippines' },
+    { code: '+66', flag: '🇹🇭', name: 'Thailand' },
+    { code: '+84', flag: '🇻🇳', name: 'Vietnam' },
+    { code: '+52', flag: '🇲🇽', name: 'Mexico' },
+    { code: '+54', flag: '🇦🇷', name: 'Argentina' },
+    { code: '+20', flag: '🇪🇬', name: 'Egypt' },
+    { code: '+254', flag: '🇰🇪', name: 'Kenya' },
+    { code: '+82', flag: '🇰🇷', name: 'South Korea' },
+    { code: '+353', flag: '🇮🇪', name: 'Ireland' },
+    { code: '+972', flag: '🇮🇱', name: 'Israel' },
+    { code: '+48', flag: '🇵🇱', name: 'Poland' },
+    { code: '+351', flag: '🇵🇹', name: 'Portugal' },
+    { code: '+32', flag: '🇧🇪', name: 'Belgium' },
+    { code: '+43', flag: '🇦🇹', name: 'Austria' },
+    { code: '+852', flag: '🇭🇰', name: 'Hong Kong' },
+    { code: '+886', flag: '🇹🇼', name: 'Taiwan' }
+  ];
+
   window.openAuthModal = function (tab) {
-    const overlay = document.getElementById('auth-modal');
+    const overlay = document.getElementById('auth-modal-overlay') || document.getElementById('auth-modal');
     if (overlay) {
       overlay.style.display = 'flex';
-      switchAuthTab(tab || 'login');
+      overlay.scrollTop = 0;
     }
-    trackFunnelAction('funnel_direct_login_click', 'Opened Auth Modal (' + tab + ')');
+    switchAuthTab(tab || 'login');
+    const modalBody = document.getElementById('auth-modal-body');
+    if (modalBody) modalBody.scrollTop = 0;
+    const errBox = document.getElementById('auth-error-box');
+    if (errBox) errBox.style.display = 'none';
+    const passInput = document.getElementById('login-password');
+    if (passInput) {
+      passInput.value = '';
+    }
+    trackFunnelAction('funnel_direct_login_click', 'Opened Auth Modal (' + (tab || 'login') + ')');
   };
 
   window.closeAuthModal = function () {
-    const overlay = document.getElementById('auth-modal');
+    const overlay = document.getElementById('auth-modal-overlay') || document.getElementById('auth-modal');
     if (overlay) overlay.style.display = 'none';
   };
 
-  window.switchAuthTab = function (tab) {
-    const tabLogin = document.getElementById('tab-btn-login');
-    const tabRegister = document.getElementById('tab-btn-register');
-    const formLogin = document.getElementById('form-login');
-    const formRegister = document.getElementById('form-register');
-    const msgBox = document.getElementById('auth-msg');
-
-    if (msgBox) {
-      msgBox.className = 'auth-msg';
-      msgBox.style.display = 'none';
-    }
-
-    if (tab === 'register') {
-      tabRegister.classList.add('active');
-      tabLogin.classList.remove('active');
-      formRegister.style.display = 'flex';
-      formLogin.style.display = 'none';
-    } else {
-      tabLogin.classList.add('active');
-      tabRegister.classList.remove('active');
-      formLogin.style.display = 'flex';
-      formRegister.style.display = 'none';
+  window.handleAuthOverlayClick = function (event) {
+    if (event.target.id === 'auth-modal-overlay' || event.target.id === 'auth-modal') {
+      closeAuthModal();
     }
   };
 
-  // Login Submit Handler
-  window.submitLogin = async function (e) {
-    e.preventDefault();
-    const ident = document.getElementById('login-ident').value.trim();
-    const pwd = document.getElementById('login-pwd').value.trim();
-    const msgBox = document.getElementById('auth-msg');
+  window.switchAuthTab = function (tab) {
+    const tabLogin = document.getElementById('auth-tab-login') || document.getElementById('tab-btn-login');
+    const tabReg = document.getElementById('auth-tab-register') || document.getElementById('tab-btn-register');
+    const formLogin = document.getElementById('form-auth-login') || document.getElementById('form-login');
+    const formReg = document.getElementById('form-auth-register') || document.getElementById('form-register');
+    const formForgot = document.getElementById('form-auth-forgot');
+    const privBox = document.getElementById('auth-privileges-box');
+    const errBox = document.getElementById('auth-error-box') || document.getElementById('auth-msg');
+    const modalBody = document.getElementById('auth-modal-body');
+    const overlay = document.getElementById('auth-modal-overlay') || document.getElementById('auth-modal');
+
+    if (errBox) errBox.style.display = 'none';
+    if (formForgot) formForgot.style.display = 'none';
+    if (modalBody) modalBody.scrollTop = 0;
+    if (overlay) overlay.scrollTop = 0;
+
+    if (tab === 'register') {
+      if (tabReg) {
+        tabReg.classList.add('active');
+        tabReg.style.color = '#10b981';
+        tabReg.style.borderBottomColor = '#10b981';
+      }
+      if (tabLogin) {
+        tabLogin.classList.remove('active');
+        tabLogin.style.color = '#64748b';
+        tabLogin.style.borderBottomColor = 'transparent';
+      }
+      if (formLogin) formLogin.style.display = 'none';
+      if (formReg) formReg.style.display = 'block';
+      if (privBox) privBox.style.display = 'block';
+    } else {
+      if (tabLogin) {
+        tabLogin.classList.add('active');
+        tabLogin.style.color = '#38bdf8';
+        tabLogin.style.borderBottomColor = '#38bdf8';
+      }
+      if (tabReg) {
+        tabReg.classList.remove('active');
+        tabReg.style.color = '#64748b';
+        tabReg.style.borderBottomColor = 'transparent';
+      }
+      if (formLogin) formLogin.style.display = 'block';
+      if (formReg) formReg.style.display = 'none';
+      if (privBox) privBox.style.display = 'none';
+    }
+  };
+
+  window.openForgotPasswordView = function () {
+    const formLogin = document.getElementById('form-auth-login') || document.getElementById('form-login');
+    const formReg = document.getElementById('form-auth-register') || document.getElementById('form-register');
+    const formForgot = document.getElementById('form-auth-forgot');
+    const tabLogin = document.getElementById('auth-tab-login') || document.getElementById('tab-btn-login');
+    const tabReg = document.getElementById('auth-tab-register') || document.getElementById('tab-btn-register');
+    const privBox = document.getElementById('auth-privileges-box');
+    const errBox = document.getElementById('auth-error-box') || document.getElementById('auth-msg');
+    const modalBody = document.getElementById('auth-modal-body');
+    const overlay = document.getElementById('auth-modal-overlay') || document.getElementById('auth-modal');
+
+    if (errBox) errBox.style.display = 'none';
+    if (privBox) privBox.style.display = 'none';
+    if (formLogin) formLogin.style.display = 'none';
+    if (formReg) formReg.style.display = 'none';
+    if (formForgot) formForgot.style.display = 'block';
+
+    if (tabLogin) { tabLogin.style.color = '#64748b'; tabLogin.style.borderBottomColor = 'transparent'; }
+    if (tabReg) { tabReg.style.color = '#64748b'; tabReg.style.borderBottomColor = 'transparent'; }
+
+    if (modalBody) modalBody.scrollTop = 0;
+    if (overlay) overlay.scrollTop = 0;
+  };
+
+  window.fillAdminLogin = function () {
+    const identInput = document.getElementById('login-identifier') || document.getElementById('login-ident');
+    const passInput = document.getElementById('login-password') || document.getElementById('login-pwd');
+    if (identInput) {
+      identInput.value = 'admin';
+      identInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if (passInput) {
+      passInput.value = '';
+      passInput.focus();
+    }
+  };
+
+  window.handleLoginSubmit = async function (e) {
+    if (e) e.preventDefault();
+    const identInput = document.getElementById('login-identifier') || document.getElementById('login-ident');
+    const passInput = document.getElementById('login-password') || document.getElementById('login-pwd');
+    const errBox = document.getElementById('auth-error-box') || document.getElementById('auth-msg');
     const btn = document.getElementById('btn-submit-login');
 
+    const ident = identInput ? identInput.value.trim() : '';
+    const pwd = passInput ? passInput.value : '';
+
     if (!ident || !pwd) {
-      showAuthMsg('Please enter both username/email and password.', 'error');
+      showAuthError('Please enter both username/email and password.');
       return;
     }
 
-    btn.disabled = true;
-    btn.textContent = 'Verifying...';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerText = 'Verifying...';
+    }
 
     try {
       const res = await fetch('/api/auth/login', {
@@ -276,56 +414,373 @@
       if (res.ok && data.token) {
         localStorage.setItem('auth_token', data.token);
         trackFunnelAction('funnel_direct_login_success', 'Logged in directly from Terminal 1');
-        showAuthMsg('Login successful! Redirecting to Live Terminal...', 'success');
+        showAuthSuccess('Login successful! Redirecting to Live Terminal...');
         setTimeout(() => {
           window.location.href = '/terminal';
-        }, 800);
+        }, 600);
       } else {
-        showAuthMsg(data.message || data.error || 'Login failed. Please check credentials.', 'error');
-        btn.disabled = false;
-        btn.textContent = 'Sign In to Terminal';
+        showAuthError(data.message || data.error || 'Login failed. Please check credentials.');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerText = 'Log In to Terminal';
+        }
       }
     } catch (err) {
-      showAuthMsg('Network error occurred. Please try again.', 'error');
-      btn.disabled = false;
-      btn.textContent = 'Sign In to Terminal';
+      showAuthError('Network error occurred. Please try again.');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = 'Log In to Terminal';
+      }
+    }
+  };
+  window.submitLogin = window.handleLoginSubmit;
+
+  window.handleForgotPasswordSubmit = async function (e) {
+    if (e) e.preventDefault();
+    const identifier = document.getElementById('reset-identifier').value.trim();
+    const phone = document.getElementById('reset-phone').value.trim();
+    const newPass = document.getElementById('reset-new-password').value;
+    const confPass = document.getElementById('reset-confirm-password').value;
+    const btn = document.getElementById('btn-submit-reset');
+
+    if (!identifier || !phone || !newPass) return;
+    if (newPass.length < 6) {
+      showAuthError('New password must be at least 6 characters.');
+      return;
+    }
+    if (newPass !== confPass) {
+      showAuthError('Passwords do not match.');
+      return;
+    }
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerText = 'Verifying & Resetting...';
+    }
+
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: identifier, phone: phone, new_password: newPass })
+      });
+      const data = await res.json();
+      if (res.ok && data.token) {
+        localStorage.setItem('auth_token', data.token);
+        trackFunnelAction('funnel_direct_reset_success', 'Password reset directly from Terminal 1');
+        showAuthSuccess('Password successfully reset! Launching Live Terminal...');
+        setTimeout(() => {
+          window.location.href = '/terminal';
+        }, 700);
+      } else {
+        showAuthError(data.message || 'Could not reset password. Please check your username and registered phone.');
+      }
+    } catch (e) {
+      showAuthError('Network error during password reset. Please try again.');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = '🚀 Reset Password & Log In';
+      }
     }
   };
 
-  // Register Submit Handler
-  window.submitRegister = async function (e) {
-    e.preventDefault();
-    const uname = document.getElementById('reg-uname').value.trim();
-    const email = document.getElementById('reg-email').value.trim();
-    const phone = document.getElementById('reg-phone').value.trim();
-    const pwd = document.getElementById('reg-pwd').value.trim();
-    const style = document.getElementById('reg-style').value;
+  // Country Code Selection
+  function renderCountryCodeList(filterText = '') {
+    const listEl = document.getElementById('reg-country-list');
+    if (!listEl) return;
+    const q = (filterText || '').toLowerCase().trim();
+    const filtered = countryCodeData.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      c.code.includes(q) ||
+      c.code.replace('+', '').includes(q)
+    );
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<div style="padding: 8px; color: #94a3b8; font-size: 11px; text-align: center;">No country found</div>';
+      return;
+    }
+    listEl.innerHTML = filtered.map(c => {
+      const isSel = selectedCountryCode === c.code;
+      const safeName = c.name.replace(/'/g, "\\'");
+      return `<div onclick="selectCountryCode('${c.code}', '${c.flag}', '${safeName}')" style="display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; border-radius: 5px; cursor: pointer; font-size: 12px; color: ${isSel ? '#38bdf8' : '#e2e8f0'}; background: ${isSel ? 'rgba(56, 189, 248, 0.15)' : 'transparent'}; transition: background 0.15s ease;">` +
+        `<span style="display: flex; align-items: center; gap: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">` +
+          `<span style="font-size: 14px;">${c.flag}</span>` +
+          `<span>${c.name}</span>` +
+        `</span>` +
+        `<span style="font-weight: 700; color: #94a3b8; font-size: 11px; margin-left: 8px;">${c.code}</span>` +
+      `</div>`;
+    }).join('');
+  }
+
+  window.toggleCountryCodeDropdown = function (e) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const drop = document.getElementById('reg-country-dropdown');
+    if (!drop) return;
+    const isShown = drop.style.display === 'block';
+    drop.style.display = isShown ? 'none' : 'block';
+    if (!isShown) {
+      renderCountryCodeList();
+      const searchInput = document.getElementById('reg-country-search');
+      if (searchInput) {
+        searchInput.value = '';
+        setTimeout(() => searchInput.focus(), 60);
+      }
+    }
+  };
+
+  window.filterCountryList = function (val) {
+    renderCountryCodeList(val);
+  };
+
+  window.selectCountryCode = function (code, flag, name) {
+    selectedCountryCode = code;
+    selectedCountryFlag = flag;
+    const codeEl = document.getElementById('reg-country-code');
+    const flagEl = document.getElementById('reg-country-flag');
+    const phoneInput = document.getElementById('reg-phone');
+    if (codeEl) codeEl.textContent = code;
+    if (flagEl) flagEl.textContent = flag;
+    const drop = document.getElementById('reg-country-dropdown');
+    if (drop) drop.style.display = 'none';
+
+    if (phoneInput) {
+      if (code === '+91') {
+        phoneInput.maxLength = 10;
+        phoneInput.placeholder = '10-digit mobile number';
+      } else {
+        phoneInput.maxLength = 14;
+        phoneInput.placeholder = 'Mobile number (' + code + ')';
+      }
+      phoneInput.focus();
+    }
+    handleRegPhoneInput();
+  };
+
+  window.handleRegPhoneInput = function () {
+    const input = document.getElementById('reg-phone');
+    if (!input) return;
+    const maxLen = (selectedCountryCode === '+91') ? 10 : 14;
+    input.value = input.value.replace(/\D/g, '').substring(0, maxLen);
+    if (phoneCheckTimer) clearTimeout(phoneCheckTimer);
+    phoneCheckTimer = setTimeout(checkPhoneAvailability, 300);
+  };
+
+  window.checkPhoneAvailability = async function () {
+    const phoneInput = document.getElementById('reg-phone');
+    const hint = document.getElementById('reg-phone-hint');
+    const statusEl = document.getElementById('reg-phone-status');
+    if (!phoneInput) return;
+    const clean = phoneInput.value.replace(/\D/g, '');
+    if (!clean) {
+      if (statusEl) statusEl.innerHTML = '';
+      if (hint) hint.innerHTML = '';
+      phoneInput.style.borderColor = '#334155';
+      isPhoneAvailable = null;
+      return;
+    }
+
+    if (selectedCountryCode === '+91') {
+      if (clean.length < 10 || !['6', '7', '8', '9'].includes(clean[0])) {
+        if (statusEl) statusEl.innerHTML = '<span style="color: #f87171;">Must be 10 digits (6-9)</span>';
+        phoneInput.style.borderColor = '#f59e0b';
+        isPhoneAvailable = false;
+        return;
+      }
+    } else {
+      if (clean.length < 6 || clean.length > 14) {
+        if (statusEl) statusEl.innerHTML = '<span style="color: #f87171;">6-14 digits required</span>';
+        phoneInput.style.borderColor = '#f59e0b';
+        isPhoneAvailable = false;
+        return;
+      }
+    }
+
+    try {
+      const res = await fetch(`/api/auth/check-phone?phone=${encodeURIComponent(clean)}&country_code=${encodeURIComponent(selectedCountryCode)}`);
+      const data = await res.json();
+      if (data.available) {
+        if (statusEl) statusEl.innerHTML = '<span style="color: #34d399; font-weight: 600;">✅ Available</span>';
+        if (hint) hint.innerHTML = `<span style="color: #34d399;">✅ Valid number (${selectedCountryCode} ${clean})</span>`;
+        phoneInput.style.borderColor = '#10b981';
+        isPhoneAvailable = true;
+      } else {
+        if (statusEl) statusEl.innerHTML = '<span style="color: #f87171; font-weight: 600;">❌ Already registered</span>';
+        if (hint) hint.innerHTML = `<span style="color: #f87171; font-weight: 700;">❌ ${data.message} <a href="javascript:void(0)" onclick="switchAuthTab('login')" style="color: #38bdf8; text-decoration: underline;">Go to Log In 🔑</a></span>`;
+        phoneInput.style.borderColor = '#ef4444';
+        isPhoneAvailable = false;
+      }
+    } catch (e) {}
+  };
+
+  window.debounceCheckUsername = function () {
+    if (usernameCheckTimer) clearTimeout(usernameCheckTimer);
+    usernameCheckTimer = setTimeout(checkUsernameAvailability, 350);
+  };
+
+  window.checkUsernameAvailability = async function () {
+    const usernameInput = document.getElementById('reg-username');
+    const statusEl = document.getElementById('reg-username-status');
+    if (!usernameInput || !statusEl) return;
+    const val = usernameInput.value.trim().toLowerCase();
+    if (!val) {
+      statusEl.innerHTML = '';
+      isUsernameAvailable = false;
+      usernameInput.style.borderColor = '#334155';
+      return;
+    }
+    if (val.length < 3) {
+      statusEl.innerHTML = '<span style="color: #94a3b8;">Min 3 characters</span>';
+      isUsernameAvailable = false;
+      usernameInput.style.borderColor = '#f59e0b';
+      return;
+    }
+    if (!/^[a-zA-Z0-9_.-]+$/.test(val)) {
+      statusEl.innerHTML = '<span style="color: #f87171;">Only letters, numbers, _, -</span>';
+      isUsernameAvailable = false;
+      usernameInput.style.borderColor = '#ef4444';
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/auth/check-username?username=${encodeURIComponent(val)}`);
+      const data = await res.json();
+      if (data.available) {
+        statusEl.innerHTML = '<span style="color: #34d399; font-weight: 600;">✅ Available</span>';
+        isUsernameAvailable = true;
+        usernameInput.style.borderColor = '#10b981';
+      } else {
+        statusEl.innerHTML = `<span style="color: #f87171; font-weight: 600;">❌ ${data.message || 'Already taken'}</span>`;
+        isUsernameAvailable = false;
+        usernameInput.style.borderColor = '#ef4444';
+      }
+    } catch (e) {}
+  };
+
+  window.checkPasswordMatch = function () {
+    const pw = document.getElementById('reg-password');
+    const cpw = document.getElementById('reg-confirm-password');
+    const statusEl = document.getElementById('reg-password-match-status');
+    if (!pw || !cpw || !statusEl) return;
+    const pVal = pw.value;
+    const cpVal = cpw.value;
+    if (!cpVal) {
+      statusEl.innerHTML = '';
+      cpw.style.borderColor = '#334155';
+      return;
+    }
+    if (pVal === cpVal) {
+      statusEl.innerHTML = '<span style="color: #34d399; font-weight: 600;">✅ Passwords match</span>';
+      cpw.style.borderColor = '#10b981';
+    } else {
+      statusEl.innerHTML = '<span style="color: #f87171; font-weight: 600;">❌ Passwords do not match</span>';
+      cpw.style.borderColor = '#ef4444';
+    }
+  };
+
+  window.handleRegisterSubmit = async function (e) {
+    if (e) e.preventDefault();
+    const usernameInput = document.getElementById('reg-username') || document.getElementById('reg-uname');
+    const emailInput = document.getElementById('reg-email');
+    const passwordInput = document.getElementById('reg-password') || document.getElementById('reg-pwd');
+    const confirmInput = document.getElementById('reg-confirm-password');
+    const phoneInput = document.getElementById('reg-phone');
+    const styleInput = document.getElementById('reg-trading-style') || document.getElementById('reg-style');
+    const policyChk = document.getElementById('reg-accept-policy') || document.getElementById('reg-policy');
+    const termsContainer = document.getElementById('reg-terms-container');
     const btn = document.getElementById('btn-submit-register');
 
-    if (!uname || !email || !pwd) {
-      showAuthMsg('Please complete all required fields.', 'error');
+    const username = usernameInput ? usernameInput.value.trim().toLowerCase() : '';
+    const email = emailInput ? emailInput.value.trim() : '';
+    const password = passwordInput ? passwordInput.value : '';
+    const confirmPassword = confirmInput ? confirmInput.value : password;
+    const phone = phoneInput ? phoneInput.value.replace(/\D/g, '') : '';
+    const style = styleInput ? styleInput.value : 'intraday_scalper';
+
+    // 1. Username checks
+    if (!username || username.length < 3) {
+      showAuthError('Please choose a username of at least 3 characters.');
+      usernameInput && usernameInput.focus();
       return;
     }
 
-    const policyEl = document.getElementById('reg-policy');
-    if (policyEl && !policyEl.checked) {
-      showAuthMsg('Please accept the Terms of Service & Privacy Policy to register.', 'error');
+    // 2. Email checks
+    if (!email || !email.includes('@') || !email.includes('.')) {
+      showAuthError('Please enter a valid email address.');
+      emailInput && emailInput.focus();
       return;
     }
 
-    btn.disabled = true;
-    btn.textContent = 'Creating Account...';
+    // 3. Password checks
+    if (!password || password.length < 4) {
+      showAuthError('Password must be at least 4 characters long.');
+      passwordInput && passwordInput.focus();
+      return;
+    }
+
+    // 4. Confirm Password checks
+    if (confirmInput && password !== confirmPassword) {
+      showAuthError('Passwords do not match. Please ensure both password fields match.');
+      confirmInput && confirmInput.focus();
+      return;
+    }
+
+    // 5. Mobile Number checks (optional)
+    if (phone) {
+      if (selectedCountryCode === '+91') {
+        if (phone.length !== 10 || !['6', '7', '8', '9'].includes(phone[0])) {
+          showAuthError('Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9 (or leave blank).');
+          phoneInput && phoneInput.focus();
+          return;
+        }
+      } else {
+        if (phone.length < 6 || phone.length > 14) {
+          showAuthError(`Please enter a valid mobile number (6 to 14 digits) for country code ${selectedCountryCode}.`);
+          phoneInput && phoneInput.focus();
+          return;
+        }
+      }
+      if (isPhoneAvailable === false) {
+        showAuthError('This mobile number is already registered to another account. Please Log In.');
+        phoneInput && phoneInput.focus();
+        return;
+      }
+    }
+
+    // 6. Policy Check
+    if (!policyChk || !policyChk.checked) {
+      showAuthError('Please click and accept the Terms of Service & Privacy Policy checkbox to complete registration.');
+      if (termsContainer) {
+        termsContainer.style.borderColor = '#ef4444';
+        termsContainer.style.boxShadow = '0 0 14px rgba(239, 68, 68, 0.45)';
+        setTimeout(() => {
+          termsContainer.style.borderColor = '#1e293b';
+          termsContainer.style.boxShadow = 'none';
+        }, 4000);
+      }
+      policyChk && policyChk.focus();
+      return;
+    }
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerText = 'Creating Account... ⏳';
+    }
 
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: uname,
+          username: username,
           email: email,
-          phone: phone || '',
-          password: pwd,
-          trading_style: style || 'intraday_scalper',
+          password: password,
+          confirm_password: confirmPassword,
+          country_code: selectedCountryCode,
+          phone: phone,
+          trading_style: style,
           accepted_policy: true
         })
       });
@@ -333,28 +788,47 @@
       if (res.ok && data.token) {
         localStorage.setItem('auth_token', data.token);
         trackFunnelAction('funnel_direct_register_success', 'Created account directly from Terminal 1');
-        showAuthMsg('Account created successfully! Launching Live Terminal...', 'success');
+        showAuthSuccess('Account created successfully! Launching Live Terminal...');
         setTimeout(() => {
           window.location.href = '/terminal';
-        }, 900);
+        }, 800);
       } else {
-        showAuthMsg(data.message || data.error || 'Registration failed. Username or email may already be in use.', 'error');
-        btn.disabled = false;
-        btn.textContent = 'Create 100% Free Account';
+        showAuthError(data.message || data.error || 'Registration failed. Username or email may already be in use.');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerText = 'Register & Create Account 🚀';
+        }
       }
     } catch (err) {
-      showAuthMsg('Network error occurred. Please try again.', 'error');
-      btn.disabled = false;
-      btn.textContent = 'Create 100% Free Account';
+      showAuthError('Network error occurred. Please try again.');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = 'Register & Create Account 🚀';
+      }
     }
   };
+  window.submitRegister = window.handleRegisterSubmit;
 
-  function showAuthMsg(msg, type) {
-    const box = document.getElementById('auth-msg');
+  function showAuthError(msg) {
+    const box = document.getElementById('auth-error-box') || document.getElementById('auth-msg');
     if (!box) return;
-    box.textContent = msg;
-    box.className = 'auth-msg ' + (type === 'success' ? 'success' : 'error');
+    box.innerHTML = msg;
+    box.className = 'auth-msg error';
     box.style.display = 'block';
+    box.style.background = 'rgba(239, 68, 68, 0.12)';
+    box.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+    box.style.color = '#f87171';
+  }
+
+  function showAuthSuccess(msg) {
+    const box = document.getElementById('auth-error-box') || document.getElementById('auth-msg');
+    if (!box) return;
+    box.innerHTML = msg;
+    box.className = 'auth-msg success';
+    box.style.display = 'block';
+    box.style.background = 'rgba(16, 185, 129, 0.15)';
+    box.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+    box.style.color = '#34d399';
   }
 
   // --- 7. Feedback / Contact Form ---
@@ -401,11 +875,15 @@
     }
   };
 
-  // Close modals when clicking outside
+  // Close modals and dropdowns when clicking outside
   document.addEventListener('click', (e) => {
-    const authModal = document.getElementById('auth-modal');
+    const authModal = document.getElementById('auth-modal-overlay') || document.getElementById('auth-modal');
     if (authModal && e.target === authModal) {
       closeAuthModal();
+    }
+    const drop = document.getElementById('reg-country-dropdown');
+    if (drop && drop.style.display === 'block' && !e.target.closest('#reg-country-dropdown') && !e.target.closest('#reg-country-btn')) {
+      drop.style.display = 'none';
     }
     const lbModal = document.getElementById('lightbox-modal');
     if (lbModal && e.target === lbModal) {

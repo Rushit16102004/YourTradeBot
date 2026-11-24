@@ -376,15 +376,15 @@
                     <div class="contact-channels">
                         <a href="https://t.me/Nifty_Signal_Rushit_bot" target="_blank" rel="noopener" class="channel-btn">
                             <span class="icon">✈️</span>
-                            <span>Telegram Bot: @Nifty_Signal_Rushit_bot</span>
+                            <span>Telegram Channel</span>
                         </a>
                         <a href="https://wa.me/918160034453?text=Hi%20Rushit,%20I%20am%20using%20the%20NIFTY%2050%20Terminal%20and%20need%20assistance" target="_blank" rel="noopener" class="channel-btn">
                             <span class="icon">💬</span>
-                            <span>Chat on WhatsApp (+91 8160034453)</span>
+                            <span>Chat on WhatsApp</span>
                         </a>
                         <a href="mailto:bodrarushit@gmail.com" class="channel-btn">
                             <span class="icon">✉️</span>
-                            <span>bodrarushit@gmail.com</span>
+                            <span>Connect with Mail</span>
                         </a>
                     </div>
                 </div>
@@ -437,70 +437,193 @@
         </div>
     </footer>
 
-    <!-- 9. Embedded Auth Modal (Login / Register) -->
-    <div id="auth-modal" class="modal-overlay">
-        <div class="modal-box">
-            <button class="modal-close-btn" onclick="closeAuthModal()" title="Close">✕</button>
-
-            <div class="auth-tabs">
-                <button id="tab-btn-login" class="auth-tab-btn active" onclick="switchAuthTab('login')">Sign In</button>
-                <button id="tab-btn-register" class="auth-tab-btn" onclick="switchAuthTab('register')">Create Free Account</button>
+    <!-- 9. Embedded Auth Modal (Login / Register) Matching Guest Mode -->
+    <div id="auth-modal-overlay" onclick="handleAuthOverlayClick(event)">
+        <div id="auth-modal-card">
+            <!-- Modal Header (Always Pinned at Top) -->
+            <div id="auth-modal-header">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 18px;">🛡️</span>
+                    <span style="font-weight: 700; color: #f8fafc; font-size: 15px;">NIFTY 50 Terminal Account</span>
+                </div>
+                <button type="button" onclick="closeAuthModal()" aria-label="Close" style="background: transparent; border: none; color: #94a3b8; font-size: 20px; cursor: pointer; padding: 4px 8px; line-height: 1; border-radius: 6px; transition: color 0.15s ease;">✕</button>
             </div>
 
-            <div id="auth-msg" class="auth-msg"></div>
-
-            <!-- Login Form -->
-            <form id="form-login" class="auth-form" onsubmit="submitLogin(event)">
-                <div class="form-group">
-                    <label for="login-ident">Username or Email</label>
-                    <input type="text" id="login-ident" class="form-control" placeholder="Enter your username or email" required>
-                </div>
-                <div class="form-group">
-                    <label for="login-pwd">Password</label>
-                    <input type="password" id="login-pwd" class="form-control" placeholder="Enter your password" required>
-                </div>
-                <button type="submit" id="btn-submit-login" class="btn-cta-primary" style="width: 100%; justify-content: center; padding: 12px; margin-top: 6px;">
-                    Sign In to Terminal ➜
+            <!-- Tab Switcher (Pinned at Top: Log In & Register) -->
+            <div id="auth-modal-tabs">
+                <button type="button" id="auth-tab-login" onclick="switchAuthTab('login')" style="flex: 1; padding: 12px 6px; font-weight: 700; font-size: 13px; border: none; background: transparent; color: #38bdf8; border-bottom: 2px solid #38bdf8; cursor: pointer; transition: all 0.2s ease;">
+                    🔑 Log In
                 </button>
-            </form>
-
-            <!-- Register Form -->
-            <form id="form-register" class="auth-form" style="display: none;" onsubmit="submitRegister(event)">
-                <div class="form-group">
-                    <label for="reg-uname">Username</label>
-                    <input type="text" id="reg-uname" class="form-control" placeholder="Choose a username" required>
-                </div>
-                <div class="form-group">
-                    <label for="reg-email">Email Address</label>
-                    <input type="email" id="reg-email" class="form-control" placeholder="yourname@gmail.com" required>
-                </div>
-                <div class="form-group">
-                    <label for="reg-phone">Phone Number (Optional)</label>
-                    <input type="tel" id="reg-phone" class="form-control" placeholder="e.g. 9876543210">
-                </div>
-                <div class="form-group">
-                    <label for="reg-pwd">Password</label>
-                    <input type="password" id="reg-pwd" class="form-control" placeholder="Create a secure password" required minlength="4">
-                </div>
-                <div class="form-group">
-                    <label for="reg-style">Primary Trading Style</label>
-                    <select id="reg-style" class="form-control">
-                        <option value="intraday_scalper">Intraday Scalper (5m - 15m)</option>
-                        <option value="breakout_momentum">Breakout &amp; Confluence Momentum</option>
-                        <option value="mean_reversion">VWAP Mean Reversion Trader</option>
-                        <option value="swing_positional">Positional &amp; Swing Trader</option>
-                    </select>
-                </div>
-                <div class="form-group" style="display: flex; align-items: flex-start; gap: 8px; margin-top: 6px; margin-bottom: 6px;">
-                    <input type="checkbox" id="reg-policy" required checked style="margin-top: 3px; cursor: pointer; accent-color: #38bdf8;">
-                    <label for="reg-policy" style="font-size: 11.5px; color: #94a3b8; line-height: 1.45; cursor: pointer;">
-                        I agree to the <a href="/terminal#sebi" target="_blank" style="color: #38bdf8; text-decoration: underline;">Terms of Service, SEBI Notice &amp; Privacy Policy</a> (Educational analytics software, not financial advice).
-                    </label>
-                </div>
-                <button type="submit" id="btn-submit-register" class="btn-hero-guest" style="width: 100%; justify-content: center; padding: 12px; margin-top: 6px;">
-                    Create 100% Free Account ➜
+                <button type="button" id="auth-tab-register" onclick="switchAuthTab('register')" style="flex: 1; padding: 12px 6px; font-weight: 700; font-size: 13px; border: none; background: transparent; color: #64748b; border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.2s ease;">
+                    ✨ Register
                 </button>
-            </form>
+            </div>
+
+            <!-- Modal Body (Scrollable with Momentum & Containment) -->
+            <div id="auth-modal-body">
+                <!-- Institutional Privileges Highlight Box (Visible exclusively on Registration tab, hidden on Login tab) -->
+                <div id="auth-privileges-box" style="display: none; background: linear-gradient(135deg, rgba(37,99,235,0.18), rgba(16,185,129,0.14)); border: 1px solid rgba(56,189,248,0.35); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 11.5px; line-height: 1.5; color: #cbd5e1;">
+                    <div style="font-weight: 800; color: #38bdf8; margin-bottom: 5px; display: flex; align-items: center; gap: 6px;">
+                        <span>✨ Free Institutional Pro Privileges Included:</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; color: #94a3b8; font-size: 11px;">
+                        <div>🤖 <b style="color: #f1f5f9;">AI Strategy Copilot</b></div>
+                        <div>🏛️ <b style="color: #f1f5f9;">Auto S&R Levels</b></div>
+                        <div>📰 <b style="color: #f1f5f9;">Breaking Macro News</b></div>
+                        <div>🚀 <b style="color: #f1f5f9;">Pre-Flight Confluence</b></div>
+                    </div>
+                </div>
+                <!-- Error / Status Box -->
+                <div id="auth-error-box" style="display: none; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; padding: 10px 12px; border-radius: 8px; font-size: 12px; margin-bottom: 14px; line-height: 1.4;"></div>
+
+                <!-- Form: Log In (Username/Email & Password) -->
+                <form id="form-auth-login" autocomplete="off" onsubmit="handleLoginSubmit(event)" style="display: block;">
+                    <div style="margin-bottom: 14px;">
+                        <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 6px;">Username or Email</label>
+                        <input id="login-identifier" type="text" autocomplete="username" required placeholder="e.g. trader1 or trader@email.com" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 10px 12px; border-radius: 8px; font-size: 13px; outline: none;">
+                    </div>
+                    <div style="margin-bottom: 18px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <label style="font-size: 12px; color: #94a3b8; font-weight: 600;">Password</label>
+                            <a href="javascript:void(0)" onclick="openForgotPasswordView()" style="color: #38bdf8; font-size: 11.5px; text-decoration: underline; font-weight: 600;">Forgot Password? 🔑</a>
+                        </div>
+                        <input id="login-password" type="password" autocomplete="current-password" required placeholder="Enter your password" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 10px 12px; border-radius: 8px; font-size: 13px; outline: none;">
+                    </div>
+                    <button type="submit" id="btn-submit-login" style="width: 100%; padding: 12px; min-height: 44px; background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: #fff; border: 1px solid #60a5fa; font-weight: 700; border-radius: 8px; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(37,99,235,0.4);">
+                        Log In to Terminal
+                    </button>
+                    <div style="margin-top: 14px; text-align: center;">
+                        <button type="button" id="btn-quick-admin-login" onclick="fillAdminLogin()" style="background: rgba(56, 189, 248, 0.12); border: 1px dashed #38bdf8; color: #38bdf8; padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">
+                            🔑 Login as Admin
+                        </button>
+                    </div>
+                    <div style="margin-top: 16px; margin-bottom: 8px; text-align: center; font-size: 12px; color: #64748b;">
+                        Don't have an account? <a href="javascript:void(0)" onclick="switchAuthTab('register')" style="color: #10b981; font-weight: 700; text-decoration: underline;">Create New Account ✨</a>
+                    </div>
+                </form>
+
+                <!-- Form: Register -->
+                <form id="form-auth-register" onsubmit="handleRegisterSubmit(event)" style="display: none; padding-bottom: 10px;">
+                    <!-- 1. Username with Live Availability Check -->
+                    <div style="margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <label style="font-size: 12px; color: #94a3b8; font-weight: 600;">Username <span style="color: #ef4444;">*</span></label>
+                            <span id="reg-username-status" style="font-size: 11px;"></span>
+                        </div>
+                        <input id="reg-username" type="text" autocomplete="username" required placeholder="Choose a unique username" oninput="debounceCheckUsername()" onblur="checkUsernameAvailability()" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none; transition: border-color 0.2s ease;">
+                    </div>
+
+                    <!-- 2. Email Address -->
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 5px;">Email Address <span style="color: #ef4444;">*</span></label>
+                        <input id="reg-email" type="email" required placeholder="your.name@example.com" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none;">
+                    </div>
+
+                    <!-- 3. Password -->
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 5px;">Password <span style="color: #ef4444;">*</span></label>
+                        <input id="reg-password" type="password" autocomplete="new-password" required minlength="6" placeholder="At least 6 characters" oninput="checkPasswordMatch()" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none;">
+                    </div>
+
+                    <!-- 4. Confirm Password -->
+                    <div style="margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <label style="font-size: 12px; color: #94a3b8; font-weight: 600;">Confirm Password <span style="color: #ef4444;">*</span></label>
+                            <span id="reg-password-match-status" style="font-size: 11px;"></span>
+                        </div>
+                        <input id="reg-confirm-password" type="password" autocomplete="new-password" required minlength="6" placeholder="Re-enter your password" oninput="checkPasswordMatch()" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none; transition: border-color 0.2s ease;">
+                    </div>
+
+                    <!-- 5. Worldwide Mobile Number with Searchable Country Code -->
+                    <div style="margin-bottom: 12px; position: relative;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <label style="font-size: 12px; color: #94a3b8; font-weight: 600;">Mobile Number <span style="font-size: 11px; color: #64748b; font-weight: 500;">(Optional)</span></label>
+                            <span id="reg-phone-status" style="font-size: 11px;"></span>
+                        </div>
+                        <div style="display: flex; gap: 8px; position: relative;">
+                            <!-- Searchable Country Code Trigger Button -->
+                            <button type="button" id="reg-country-btn" onclick="toggleCountryCodeDropdown(event)" style="background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: pointer; flex-shrink: 0; outline: none; transition: all 0.2s ease;">
+                                <span id="reg-country-flag">🇮🇳</span> <span id="reg-country-code">+91</span> <span style="font-size: 9px; color: #94a3b8;">▼</span>
+                            </button>
+                            <!-- Searchable Country Code Popup List -->
+                            <div id="reg-country-dropdown" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; width: 280px; max-width: 90vw; background: #0f172a; border: 1px solid #3b82f6; border-radius: 8px; box-shadow: 0 16px 36px rgba(0,0,0,0.9); z-index: 10001; padding: 8px; box-sizing: border-box;">
+                                <input type="text" id="reg-country-search" placeholder="Type country or code (+91, US...)" oninput="filterCountryList(this.value)" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #475569; color: #f8fafc; padding: 7px 10px; border-radius: 6px; font-size: 12px; outline: none; margin-bottom: 6px;">
+                                <div id="reg-country-list" style="max-height: 180px; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 2px;">
+                                    <!-- Populated dynamically by JS -->
+                                </div>
+                            </div>
+                            <input id="reg-phone" type="tel" maxlength="10" placeholder="10-digit mobile number" oninput="handleRegPhoneInput()" onblur="checkPhoneAvailability()" style="flex: 1; min-width: 0; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 14px; outline: none; letter-spacing: 0.5px; transition: border-color 0.2s ease;">
+                        </div>
+                        <div id="reg-phone-hint" style="font-size: 11px; color: #64748b; margin-top: 4px;"></div>
+                    </div>
+
+                    <!-- 6. Trading Style -->
+                    <div style="margin-bottom: 14px;">
+                        <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 5px;">Trading Style (Customizes AI Responses)</label>
+                        <select id="reg-trading-style" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none; cursor: pointer;">
+                            <option value="intraday_scalper">⚡ Intraday Scalper (1m/2m Quick Exits)</option>
+                            <option value="day_trader">📊 Day Trader (5m/15m Trend Breakouts)</option>
+                            <option value="swing_trader">📈 Swing Trader (1h/1d Key S&R Levels)</option>
+                            <option value="options_buyer">🎯 Options Buyer (Momentum & Gamma Surges)</option>
+                        </select>
+                    </div>
+
+                    <!-- 8. Terms & Conditions Checkbox -->
+                    <div id="reg-terms-container" style="margin: 14px 0 16px 0; display: flex; align-items: flex-start; gap: 8px; background: #0f172a; padding: 10px 12px; border-radius: 8px; border: 1px solid #1e293b; transition: all 0.3s ease;">
+                        <input id="reg-accept-policy" type="checkbox" style="margin-top: 2px; accent-color: #2563eb; cursor: pointer; width: 16px; height: 16px; flex-shrink: 0;">
+                        <label for="reg-accept-policy" style="font-size: 11px; color: #94a3b8; line-height: 1.45; cursor: pointer;">
+                            I understand that this is strictly <strong style="color: #fca5a5;">Charting/Analytics Software, NOT Investment Advice</strong>. I accept the
+                            <a href="/terminal#sebi" target="_blank" style="color: #38bdf8; text-decoration: underline; font-weight: 600;">Terms of Service, SEBI Notice & Privacy Policy</a>. I assume full personal financial liability.
+                        </label>
+                    </div>
+
+                    <!-- Submit Button & Login Link -->
+                    <button type="submit" id="btn-submit-register" style="display: block; width: 100%; min-height: 46px; padding: 12px; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #fff; border: 1px solid #34d399; font-weight: 700; border-radius: 8px; font-size: 14px; cursor: pointer; box-shadow: 0 4px 14px rgba(16,185,129,0.4); transition: transform 0.1s ease;">
+                        Register & Create Account 🚀
+                    </button>
+                    <div style="margin-top: 14px; margin-bottom: 12px; text-align: center; font-size: 12px; color: #64748b;">
+                        Already registered? <a href="javascript:void(0)" onclick="switchAuthTab('login')" style="color: #38bdf8; font-weight: 700; text-decoration: underline;">Log In Here 🔑</a>
+                    </div>
+                </form>
+
+                <!-- Form: Forgot / Reset Password -->
+                <form id="form-auth-forgot" onsubmit="handleForgotPasswordSubmit(event)" style="display: none; padding-bottom: 10px;">
+                    <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 11.5px; color: #94a3b8; line-height: 1.4;">
+                        🔑 <b>Self-Service Password Reset:</b><br>
+                        Enter your Username or Email and your Registered Mobile Number to reset your password and log in immediately.
+                    </div>
+
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 5px;">Username or Email <span style="color: #ef4444;">*</span></label>
+                        <input id="reset-identifier" type="text" required placeholder="e.g. trader1 or trader@email.com" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none;">
+                    </div>
+
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 5px;">Registered Mobile Number <span style="color: #ef4444;">*</span></label>
+                        <input id="reset-phone" type="tel" required placeholder="e.g. 9876543210 (or with country code)" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none;">
+                    </div>
+
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 5px;">New Password <span style="color: #ef4444;">*</span></label>
+                        <input id="reset-new-password" type="password" required minlength="6" placeholder="Min 6 characters" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none;">
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 5px;">Confirm New Password <span style="color: #ef4444;">*</span></label>
+                        <input id="reset-confirm-password" type="password" required minlength="6" placeholder="Re-enter new password" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none;">
+                    </div>
+
+                    <button type="submit" id="btn-submit-reset" style="width: 100%; padding: 12px; min-height: 44px; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #fff; border: 1px solid #34d399; font-weight: 700; border-radius: 8px; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(16,185,129,0.3);">
+                        🚀 Reset Password & Log In
+                    </button>
+
+                    <div style="margin-top: 14px; text-align: center;">
+                        <a href="javascript:void(0)" onclick="switchAuthTab('login')" style="color: #38bdf8; font-size: 12px; font-weight: 600; text-decoration: underline;">
+                            ← Back to Login
+                        </a>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 

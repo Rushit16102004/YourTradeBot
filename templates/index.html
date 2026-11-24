@@ -887,9 +887,9 @@
                         </div>
                     </div>
                 </div>
-                <!-- Terminal 1 Showcase Link -->
-                <a href="/" class="btn-action" title="Back to Terminal 1 Showcase & Features" style="background: rgba(15, 23, 42, 0.7); color: #38bdf8; font-weight: 700; border: 1px solid rgba(56, 189, 248, 0.35); padding: 4px 9px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; font-size: 11.5px;">
-                    <span>🏠</span> <span class="hide-on-mobile">Terminal 1</span>
+                <!-- Home Link & Auto-Logout -->
+                <a href="javascript:void(0)" onclick="goHomeAndLogout()" class="btn-action" title="Log out & return to Home" style="background: rgba(15, 23, 42, 0.7); color: #38bdf8; font-weight: 700; border: 1px solid rgba(56, 189, 248, 0.35); padding: 4px 9px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; font-size: 11.5px; cursor: pointer;">
+                    <span>🏠</span> <span>Home</span>
                 </a>
 
                 <!-- Guest Button -->
@@ -13653,15 +13653,6 @@ function showIndicatorLineActionPill(ind, point) {
                     <div style="margin-top: 16px; margin-bottom: 8px; text-align: center; font-size: 12px; color: #64748b;">
                         Don't have an account? <a href="javascript:void(0)" onclick="switchAuthTab('register')" style="color: #10b981; font-weight: 700; text-decoration: underline;">Create New Account ✨</a>
                     </div>
-                    <!-- Connect with Developer or Webpage Provider -->
-                    <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(148, 163, 184, 0.2); text-align: center;">
-                        <button type="button" class="btn-connect-dev" onclick="openDeveloperContactModal()" style="width: 100%; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; padding: 10px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                            <span>💬 Connect with Developer or Webpage Provider</span>
-                        </button>
-                        <div style="font-size: 11px; color: #64748b; margin-top: 6px;">
-                            Facing any login issues? Contact developer directly
-                        </div>
-                    </div>
                 </form>
 
                 <!-- Form: Register -->
@@ -13746,15 +13737,6 @@ function showIndicatorLineActionPill(ind, point) {
                     </button>
                     <div style="margin-top: 14px; margin-bottom: 12px; text-align: center; font-size: 12px; color: #64748b;">
                         Already registered? <a href="javascript:void(0)" onclick="switchAuthTab('login')" style="color: #38bdf8; font-weight: 700; text-decoration: underline;">Log In Here 🔑</a>
-                    </div>
-                    <!-- Connect with Developer or Webpage Provider -->
-                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed rgba(148, 163, 184, 0.2); text-align: center;">
-                        <button type="button" class="btn-connect-dev" onclick="openDeveloperContactModal()" style="width: 100%; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; padding: 10px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                            <span>💬 Connect with Developer or Webpage Provider</span>
-                        </button>
-                        <div style="font-size: 11px; color: #64748b; margin-top: 6px;">
-                            Need help with account creation? Connect with provider
-                        </div>
                     </div>
                 </form>
 
@@ -16200,6 +16182,19 @@ function showIndicatorLineActionPill(ind, point) {
             // Reset all indicators to default OFF for clean guest mode
             resetAllIndicatorsToDefaultOff();
         }
+
+        function goHomeAndLogout() {
+            try {
+                if (typeof trackVisitorAction === 'function') {
+                    trackVisitorAction('user_logout', 'User clicked Home and logged out');
+                }
+                localStorage.removeItem('auth_token');
+                localStorage.removeItem('remember_token');
+                sessionStorage.clear();
+            } catch (e) {}
+            window.location.href = '/';
+        }
+        window.goHomeAndLogout = goHomeAndLogout;
 
         // Close dropdown when clicking outside
         document.addEventListener('click', function(e) {
