@@ -267,9 +267,10 @@ def record_user_psychology_event(user_id: str, event_type: str, details: str) ->
 # 👑 Comprehensive Admin User & Guest Command Center Functions
 # ==============================================================
 
-def add_active_display_time(visitor_id: str, user_id: Optional[str] = None, seconds: int = 15):
+def add_active_display_time(visitor_id: str, user_id: Optional[str] = None, seconds: int = 15, ip: str = ""):
     """Accumulates active on-screen display time (seconds) for user and visitor session."""
     sec = max(1, min(60, int(seconds)))
+    now_utc = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     with _db_lock:
         conn = get_db_connection()
         try:
@@ -284,9 +285,16 @@ def add_active_display_time(visitor_id: str, user_id: Optional[str] = None, seco
             if visitor_id:
                 cursor.execute("""
                     UPDATE visitor_identities 
-                    SET total_active_seconds = COALESCE(total_active_seconds, 0) + ? 
+                    SET total_active_seconds = COALESCE(total_active_seconds, 0) + ?,
+                        last_seen = ?,
+                        ip_address = CASE WHEN ? != '' AND (ip_address IS NULL OR ip_address = '') THEN ? ELSE ip_address END
                     WHERE visitor_id = ?
-                """, (sec, visitor_id))
+                """, (sec, now_utc, ip, ip, visitor_id))
+                if cursor.rowcount == 0:
+                    cursor.execute("""
+                        INSERT INTO visitor_identities (visitor_id, first_seen, last_seen, total_active_seconds, visit_count, has_account, ip_address)
+                        VALUES (?, ?, ?, ?, 1, ?, ?)
+                    """, (visitor_id, now_utc, now_utc, sec, 1 if user_id else 0, ip))
             conn.commit()
         except Exception as e:
             logger.debug("Error adding active display time: %s", e)
@@ -683,8 +691,14 @@ def get_user_timeline_activity_admin(user_id: str) -> List[Dict[str, Any]]:
                     "timeframe_switch": "⏱️",
                     "indicator_toggle": "📊",
                     "sr_toggle": "🛡️",
+                    "signals_toggle": "⚡",
                     "tool_open": "🛠️",
+                    "drawing_tool": "✏️",
+                    "copilot_query": "🤖",
                     "developer_contact_open": "💬",
+                    "pattern_maintenance_view": "⚠️",
+                    "user_login": "🔑",
+                    "user_register": "✨",
                     "page_view": "👁️"
                 }.get(a_row["action_type"], "⚡")
                 timeline.append({
@@ -725,8 +739,14 @@ def get_guest_timeline_activity_admin(visitor_id: str) -> List[Dict[str, Any]]:
                     "timeframe_switch": "⏱️",
                     "indicator_toggle": "📊",
                     "sr_toggle": "🛡️",
+                    "signals_toggle": "⚡",
                     "tool_open": "🛠️",
+                    "drawing_tool": "✏️",
+                    "copilot_query": "🤖",
                     "developer_contact_open": "💬",
+                    "pattern_maintenance_view": "⚠️",
+                    "user_login": "🔑",
+                    "user_register": "✨",
                     "page_view": "👁️"
                 }.get(a_row["action_type"], "⚡")
                 timeline.append({
@@ -3077,6 +3097,24 @@ def get_ip_geo_info(ip: str) -> Dict[str, str]:
     except Exception as e:
         logger.debug("Geo lookup notice for %s: %s", clean_ip, e)
 
+    # Secondary fallback to ip-api if city not found
+    if not geo.get("city"):
+        try:
+            req2 = urllib.request.Request(
+                f"http://ip-api.com/json/{clean_ip}?fields=status,country,regionName,city,zip,isp,org",
+                headers={"User-Agent": "NIFTY-Terminal-Audit/1.0"}
+            )
+            with urllib.request.urlopen(req2, timeout=2.5) as resp2:
+                data2 = json.loads(resp2.read().decode("utf-8"))
+                if data2.get("status") == "success":
+                    geo["city"] = data2.get("city") or ""
+                    geo["region"] = data2.get("regionName") or ""
+                    geo["country"] = data2.get("country") or "IN"
+                    geo["isp"] = data2.get("org") or data2.get("isp") or ""
+                    geo["postal"] = data2.get("zip") or ""
+        except Exception as e2:
+            logger.debug("Secondary geo lookup notice for %s: %s", clean_ip, e2)
+
     with _IP_GEO_LOCK:
         _IP_GEO_CACHE[clean_ip] = geo
 
@@ -3182,7 +3220,18 @@ def record_visitor_action(
             uname = "Guest"
             valid_user_id = None
             if user_id:
-                cursor.execute("SELECT id, username FROM users WHERE id = ?", (user_id,))
+                cursor.execute("SELECT id, username FROM users WHERE id = ? OR username = ?", (user_id, user_id))
+                urow = cursor.fetchone()
+                if urow:
+                    valid_user_id = urow["id"]
+                    uname = urow["username"]
+            elif visitor_id:
+                cursor.execute("""
+                    SELECT u.id, u.username 
+                    FROM visitor_identities v 
+                    JOIN users u ON v.user_id = u.id 
+                    WHERE v.visitor_id = ?
+                """, (visitor_id,))
                 urow = cursor.fetchone()
                 if urow:
                     valid_user_id = urow["id"]
@@ -3240,8 +3289,8 @@ def get_daily_visitor_summary(limit: int = 100) -> List[Dict[str, Any]]:
                 SELECT 
                     DATE(a.created_at) as log_date,
                     a.visitor_id,
-                    a.username,
-                    a.user_id,
+                    COALESCE(NULLIF(a.username, 'Guest'), u.username, a.username) as username,
+                    COALESCE(a.user_id, v.user_id) as user_id,
                     a.ip_address,
                     COALESCE(NULLIF(v.city, ''), a.city) as city,
                     COALESCE(NULLIF(v.region, ''), a.region) as region,
@@ -3250,12 +3299,14 @@ def get_daily_visitor_summary(limit: int = 100) -> List[Dict[str, Any]]:
                     a.device_type,
                     a.os_name,
                     a.browser,
+                    COALESCE(v.total_active_seconds, 0) as total_active_seconds,
                     MIN(a.created_at) as first_action_utc,
                     MAX(a.created_at) as last_action_utc,
                     COUNT(*) as total_actions,
                     GROUP_CONCAT(DISTINCT a.action_type) as action_types
                 FROM visitor_activity_log a
                 LEFT JOIN visitor_identities v ON a.visitor_id = v.visitor_id
+                LEFT JOIN users u ON v.user_id = u.id
                 GROUP BY DATE(a.created_at), a.visitor_id
                 ORDER BY MAX(a.created_at) DESC
                 LIMIT ?
@@ -3271,7 +3322,11 @@ def get_daily_visitor_summary(limit: int = 100) -> List[Dict[str, Any]]:
                     d["first_action_ist"] = f_dt.strftime("%d-%b %I:%M %p")
                     d["last_action_ist"] = l_dt.strftime("%d-%b %I:%M %p")
                     diff_mins = max(1, int(round((l_dt - f_dt).total_seconds() / 60.0)))
-                    d["active_minutes"] = diff_mins
+                    actual_sec = d.get("total_active_seconds")
+                    if actual_sec is not None and actual_sec > 0:
+                        d["active_minutes"] = max(1, int(round(actual_sec / 60.0)))
+                    else:
+                        d["active_minutes"] = diff_mins
                 except Exception:
                     d["first_action_ist"] = str(d.get("first_action_utc", "--"))
                     d["last_action_ist"] = str(d.get("last_action_utc", "--"))
@@ -3418,6 +3473,16 @@ def record_visitor_hit(
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)
                 """, (visitor_id, now_utc, now_utc, valid_user_id, has_acc, device_type, browser, ip, geo.get("city", ""), geo.get("region", ""), geo.get("country", "IN"), geo.get("isp", ""), os_name))
 
+            # Resolve actual human username if registered user is linked
+            uname = "Guest"
+            target_uid = valid_user_id or (row["user_id"] if row and row["user_id"] else None)
+            if target_uid:
+                cursor.execute("SELECT id, username FROM users WHERE id = ? OR username = ?", (target_uid, target_uid))
+                u_row = cursor.fetchone()
+                if u_row:
+                    valid_user_id = u_row["id"]
+                    uname = u_row["username"]
+
             # Also log page_view in visitor_activity_log
             cursor.execute("""
                 INSERT INTO visitor_activity_log (
@@ -3426,7 +3491,7 @@ def record_visitor_hit(
                     device_type, os_name, browser, created_at
                 ) VALUES (?, ?, ?, 'page_view', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                visitor_id, valid_user_id, (row["user_id"] if row and row["user_id"] else "Guest"),
+                visitor_id, valid_user_id, uname,
                 (referrer[:100] if referrer else 'Direct visit'), path[:100], ip,
                 geo.get("city", ""), geo.get("region", ""), geo.get("country", ""), geo.get("isp", ""),
                 device_type, os_name, browser, now_utc

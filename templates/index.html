@@ -1740,6 +1740,9 @@
 
         function toggleVWAP() {
             isVWAPEnabled = !isVWAPEnabled;
+            if (typeof trackVisitorAction === 'function') {
+                trackVisitorAction('indicator_toggle', (isVWAPEnabled ? 'Enabled' : 'Disabled') + ' VWAP');
+            }
             // Both ±2σ boundaries automatically activate/deactivate with VWAP
             isBandsEnabled = isVWAPEnabled;
             if (vwapSeries) vwapSeries.applyOptions({ visible: isVWAPEnabled });
@@ -1752,6 +1755,9 @@
 
         function toggleVWAPBands() {
             isBandsEnabled = !isBandsEnabled;
+            if (typeof trackVisitorAction === 'function') {
+                trackVisitorAction('indicator_toggle', (isBandsEnabled ? 'Enabled' : 'Disabled') + ' VWAP Bands');
+            }
             if (vwapUpper2Series) vwapUpper2Series.applyOptions({ visible: isBandsEnabled });
             if (vwapLower2Series) vwapLower2Series.applyOptions({ visible: isBandsEnabled });
             updateIndicatorButtonsUI();
@@ -1761,6 +1767,9 @@
 
         function toggleSMA() {
             isSMAEnabled = !isSMAEnabled;
+            if (typeof trackVisitorAction === 'function') {
+                trackVisitorAction('indicator_toggle', (isSMAEnabled ? 'Enabled' : 'Disabled') + ' SMA');
+            }
             if (smaSeries) smaSeries.applyOptions({ visible: isSMAEnabled });
             updateIndicatorButtonsUI();
             saveCurrentUserPreferences();
@@ -2004,6 +2013,9 @@
         function toggleSignals() {
             if (!requireAuth('access real-time algorithmic buy/sell strategy signals')) return;
             isSignalsEnabled = !isSignalsEnabled;
+            if (typeof trackVisitorAction === 'function') {
+                trackVisitorAction('signals_toggle', isSignalsEnabled ? 'Enabled Strategy Signals' : 'Disabled Strategy Signals');
+            }
             updateSignalsButtonUI();
             
             // Immediately render or clear markers
@@ -2072,6 +2084,9 @@
 
         async function toggleSRLevels() {
             isSREnabled = !isSREnabled;
+            if (typeof trackVisitorAction === 'function') {
+                trackVisitorAction('sr_toggle', isSREnabled ? 'Enabled S&R' : 'Disabled S&R');
+            }
             updateSRButtonUI();
 
             if (isSREnabled) {
@@ -2085,6 +2100,9 @@
 
         async function setSRPeriod(period) {
             currentSRPeriod = period;
+            if (typeof trackVisitorAction === 'function') {
+                trackVisitorAction('sr_period_change', 'Set S&R period to ' + period);
+            }
             updateSRButtonUI();
             if (isSREnabled) {
                 if (!srLevelsData[period] || srLevelsData[period].length === 0) {
@@ -2102,6 +2120,9 @@
 
         function toggleStructureLevels() {
             isStructureEnabled = !isStructureEnabled;
+            if (typeof trackVisitorAction === 'function') {
+                trackVisitorAction('structure_toggle', isStructureEnabled ? 'Enabled BOS/CHOCH Structure' : 'Disabled BOS/CHOCH Structure');
+            }
             updateSRButtonUI();
             scheduleRenderDrawings();
             saveCurrentUserPreferences();
@@ -3506,6 +3527,9 @@
         function switchTimeframe(tf) {
             currentTimeframe = tf;
             isTimeframeSwitching = true;
+            if (typeof trackVisitorAction === 'function') {
+                trackVisitorAction('timeframe_switch', 'Switched timeframe to ' + tf);
+            }
             document.querySelectorAll('.tf-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.tf === tf);
             });
@@ -5478,6 +5502,9 @@ function showIndicatorLineActionPill(ind, point) {
             type = (type || 'ema').toLowerCase();
             const isOsc = ['rsi', 'macd', 'atr', 'adx', 'stochrsi', 'pct_b'].includes(type);
             const existingIdx = dynamicIndicators.findIndex(d => d.type.toLowerCase() === type);
+            if (typeof trackVisitorAction === 'function') {
+                trackVisitorAction('indicator_toggle', (existingIdx !== -1 ? 'Removed ' : 'Added ') + type.toUpperCase());
+            }
 
             // USER REQUIREMENT: Lock and preserve visible candle logical range to prevent viewport jumping/auto-zooming
             const savedRange = chart && chart.timeScale() ? chart.timeScale().getVisibleLogicalRange() : null;
@@ -7489,6 +7516,9 @@ function showIndicatorLineActionPill(ind, point) {
         function selectTool(toolName) {
             triggerHaptic('light');
             activeTool = toolName;
+            if (typeof trackVisitorAction === 'function') {
+                trackVisitorAction('drawing_tool', 'Selected tool: ' + toolName);
+            }
 
             // Auto-dismiss mobile toolbar when a tool is selected on phone
             const drawToggleBtn = document.getElementById('mobile-draw-toggle');
@@ -9495,29 +9525,51 @@ function showIndicatorLineActionPill(ind, point) {
                         swLine.setAttribute('stroke-dasharray', '5,3');
                         gSw.appendChild(swLine);
 
-                        const swBadgeW = 82;
-                        const swBadgeH = 17;
+                        // Check if an Active Future Level exists at the same price (so we stack vertically)
+                        const hasAfl = Boolean(
+                            latestMarketStructureData.active_future_levels &&
+                            latestMarketStructureData.active_future_levels[k] &&
+                            latestMarketStructureData.active_future_levels[k].price &&
+                            Math.abs(latestMarketStructureData.active_future_levels[k].price - item.price) < 6
+                        );
+
+                        // Stack vertically: If Active target exists above, place Strong/Weak badge below the line
+                        const swBadgeW = 68;
+                        const swBadgeH = hasAfl ? 15 : 17;
                         const swBadgeX = Math.max(0, swEndX - swBadgeW - 6);
+                        const swBadgeY = hasAfl ? (swY + 2) : (swY - (swBadgeH / 2));
+
                         const swPill = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                         swPill.setAttribute('x', swBadgeX);
-                        swPill.setAttribute('y', swY - (swBadgeH / 2));
+                        swPill.setAttribute('y', swBadgeY);
                         swPill.setAttribute('width', swBadgeW);
                         swPill.setAttribute('height', swBadgeH);
                         swPill.setAttribute('rx', '3');
-                        swPill.setAttribute('fill', 'rgba(15, 23, 42, 0.90)');
+                        swPill.setAttribute('fill', 'rgba(15, 23, 42, 0.92)');
                         swPill.setAttribute('stroke', swCol);
                         swPill.setAttribute('stroke-width', '1');
                         gSw.appendChild(swPill);
 
                         const swTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                         swTxt.setAttribute('x', swBadgeX + (swBadgeW / 2));
-                        swTxt.setAttribute('y', swY + 3.5);
+                        swTxt.setAttribute('y', hasAfl ? (swY + 12.5) : (swY + 3.5));
                         swTxt.setAttribute('text-anchor', 'middle');
                         swTxt.setAttribute('fill', swCol);
                         swTxt.setAttribute('font-size', '9.5');
                         swTxt.setAttribute('font-weight', '700');
                         swTxt.textContent = item.label;
                         gSw.appendChild(swTxt);
+
+                        const swTooltipText = `🛡️ [Structure Level]: ${item.label} pivot at ₹${item.price.toFixed(1)}`;
+                        gSw.addEventListener('mouseenter', (e) => {
+                            if (getCandleUnderCursor(e.clientX, e.clientY)) { hideSRTooltip(); return; }
+                            showSRTooltip(e.clientX, e.clientY, swTooltipText);
+                        });
+                        gSw.addEventListener('mousemove', (e) => {
+                            if (getCandleUnderCursor(e.clientX, e.clientY)) { hideSRTooltip(); return; }
+                            moveSRTooltip(e.clientX, e.clientY);
+                        });
+                        gSw.addEventListener('mouseleave', () => { hideSRTooltip(); });
 
                         overlay.appendChild(gSw);
                     });
@@ -9545,54 +9597,61 @@ function showIndicatorLineActionPill(ind, point) {
                         gAfl.setAttribute('class', 'structure-future-target-group');
                         gAfl.style.cursor = 'pointer';
 
-                        // Guide line projecting to future candles
-                        const aflLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                        aflLine.setAttribute('x1', aflStartX);
-                        aflLine.setAttribute('y1', aflY);
-                        aflLine.setAttribute('x2', aflEndX);
-                        aflLine.setAttribute('y2', aflY);
-                        aflLine.setAttribute('stroke', aflCol);
-                        aflLine.setAttribute('stroke-opacity', '0.78');
-                        aflLine.setAttribute('stroke-width', '1.4');
-                        aflLine.setAttribute('stroke-dasharray', '6,3');
-                        aflLine.style.pointerEvents = 'all';
-                        gAfl.appendChild(aflLine);
+                        // Check if Strong/Weak level already drew the line at the same Y
+                        const hasSw = Boolean(
+                            latestMarketStructureData.strong_weak_levels &&
+                            latestMarketStructureData.strong_weak_levels[k] &&
+                            latestMarketStructureData.strong_weak_levels[k].price &&
+                            Math.abs(latestMarketStructureData.strong_weak_levels[k].price - item.price) < 6
+                        );
 
-                        // Pill Badge placed to the right (offset if Strong/Weak badge exists at same Y)
-                        let badgeRightOffset = 6;
-                        if (latestMarketStructureData.strong_weak_levels && latestMarketStructureData.strong_weak_levels[k]) {
-                            const swP = latestMarketStructureData.strong_weak_levels[k].price;
-                            if (Math.abs(swP - item.price) < 5) {
-                                badgeRightOffset = 94; // Avoid overlapping with Strong/Weak label
-                            }
+                        if (!hasSw) {
+                            // Guide line projecting to future candles (only if not already drawn by SW)
+                            const aflLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                            aflLine.setAttribute('x1', aflStartX);
+                            aflLine.setAttribute('y1', aflY);
+                            aflLine.setAttribute('x2', aflEndX);
+                            aflLine.setAttribute('y2', aflY);
+                            aflLine.setAttribute('stroke', aflCol);
+                            aflLine.setAttribute('stroke-opacity', '0.78');
+                            aflLine.setAttribute('stroke-width', '1.4');
+                            aflLine.setAttribute('stroke-dasharray', '6,3');
+                            aflLine.style.pointerEvents = 'all';
+                            gAfl.appendChild(aflLine);
                         }
 
-                        const aflBadgeW = 110;
-                        const aflBadgeH = 17;
-                        const aflBadgeX = Math.max(0, aflEndX - aflBadgeW - badgeRightOffset);
+                        // Compact, professional badge: e.g. "🎯 BOS: ₹25992.6"
+                        const aflTag = item.type || (item.label && item.label.includes('CHOCH') ? 'CHOCH' : 'BOS');
+                        const aflLabelText = `🎯 ${aflTag}: ₹${Number(item.price).toFixed(1)}`;
+                        const aflBadgeW = 90;
+                        const aflBadgeH = hasSw ? 15 : 17;
+                        // Anchored neatly to right edge: stacked vertically above the line if SW exists
+                        const aflBadgeX = Math.max(0, aflEndX - aflBadgeW - 6);
+                        const aflBadgeY = hasSw ? (aflY - 17) : (aflY - (aflBadgeH / 2));
+
                         const aflPill = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                         aflPill.setAttribute('x', aflBadgeX);
-                        aflPill.setAttribute('y', aflY - (aflBadgeH / 2));
+                        aflPill.setAttribute('y', aflBadgeY);
                         aflPill.setAttribute('width', aflBadgeW);
                         aflPill.setAttribute('height', aflBadgeH);
                         aflPill.setAttribute('rx', '3');
-                        aflPill.setAttribute('fill', 'rgba(11, 15, 25, 0.92)');
+                        aflPill.setAttribute('fill', 'rgba(11, 15, 25, 0.94)');
                         aflPill.setAttribute('stroke', aflCol);
                         aflPill.setAttribute('stroke-width', '1.2');
                         gAfl.appendChild(aflPill);
 
                         const aflTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                         aflTxt.setAttribute('x', aflBadgeX + (aflBadgeW / 2));
-                        aflTxt.setAttribute('y', aflY + 3.5);
+                        aflTxt.setAttribute('y', hasSw ? (aflY - 5.5) : (aflY + 3.5));
                         aflTxt.setAttribute('text-anchor', 'middle');
                         aflTxt.setAttribute('fill', aflCol);
                         aflTxt.setAttribute('font-size', '9.5');
                         aflTxt.setAttribute('font-weight', '800');
-                        aflTxt.textContent = `🎯 ${item.label}`;
+                        aflTxt.textContent = aflLabelText;
                         gAfl.appendChild(aflTxt);
 
                         // Tooltip
-                        const aflTooltipText = `🎯 [Future Target]: Candle close ${isBull ? 'above' : 'below'} ₹${item.price.toFixed(1)} triggers ${item.direction} ${item.type}`;
+                        const aflTooltipText = `🎯 [Future Target]: Candle close ${isBull ? 'above' : 'below'} ₹${item.price.toFixed(1)} triggers ${item.direction} ${item.type || aflTag}`;
                         gAfl.addEventListener('mouseenter', (e) => {
                             if (getCandleUnderCursor(e.clientX, e.clientY)) { hideSRTooltip(); return; }
                             showSRTooltip(e.clientX, e.clientY, aflTooltipText);
@@ -13082,6 +13141,10 @@ function showIndicatorLineActionPill(ind, point) {
             const query = promptOverride || input.value.trim();
             if (!query) return;
 
+            if (typeof trackVisitorAction === 'function') {
+                trackVisitorAction('copilot_query', query.slice(0, 150));
+            }
+
             input.value = '';
             isCopilotBusy = true;
             if (sendBtn) sendBtn.disabled = true;
@@ -14712,12 +14775,41 @@ function showIndicatorLineActionPill(ind, point) {
         }
 
         let displayTimerInterval = null;
+        let lastDisplayHeartbeatTime = Date.now();
+
+        function flushDisplayTimeBeacon() {
+            if (document.hidden) return;
+            const now = Date.now();
+            const elapsed = Math.round((now - lastDisplayHeartbeatTime) / 1000);
+            if (elapsed >= 2) {
+                lastDisplayHeartbeatTime = now;
+                const vid = getOrInitVisitorId();
+                const payloadStr = JSON.stringify({ visitor_id: vid, seconds: Math.min(60, elapsed) });
+                if (navigator.sendBeacon) {
+                    const blob = new Blob([payloadStr], { type: 'application/json' });
+                    navigator.sendBeacon('/api/analytics/display-time', blob);
+                } else {
+                    fetch('/api/analytics/display-time', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: payloadStr,
+                        keepalive: true
+                    }).catch(() => {});
+                }
+            }
+        }
+
         function startActiveDisplayTracker() {
             if (displayTimerInterval) clearInterval(displayTimerInterval);
+            lastDisplayHeartbeatTime = Date.now();
             
-            // Only accumulate display active seconds when the tab is actively visible and focused
+            // Accumulate active display seconds every 15s when tab is visible
             const sendDisplayHeartbeat = async () => {
                 if (document.hidden) return; // Tab in background or minimized -> do not count idle time
+                const now = Date.now();
+                const elapsed = Math.max(1, Math.min(60, Math.round((now - lastDisplayHeartbeatTime) / 1000)));
+                lastDisplayHeartbeatTime = now;
+
                 const vid = getOrInitVisitorId();
                 const token = localStorage.getItem('auth_token');
                 try {
@@ -14729,7 +14821,7 @@ function showIndicatorLineActionPill(ind, point) {
                         },
                         body: JSON.stringify({
                             visitor_id: vid,
-                            seconds: 15
+                            seconds: elapsed
                         })
                     });
                     if (res.status === 403) {
@@ -14743,6 +14835,17 @@ function showIndicatorLineActionPill(ind, point) {
 
             displayTimerInterval = setInterval(sendDisplayHeartbeat, 15000);
             sendDisplayHeartbeat();
+
+            // Flush on tab hide or page close
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    flushDisplayTimeBeacon();
+                } else {
+                    lastDisplayHeartbeatTime = Date.now();
+                }
+            });
+            window.addEventListener('pagehide', flushDisplayTimeBeacon);
+            window.addEventListener('beforeunload', flushDisplayTimeBeacon);
         }
 
         function showAccountBlockedModal(msg) {
@@ -15333,6 +15436,9 @@ function showIndicatorLineActionPill(ind, point) {
                 if (res.ok && data.token) {
                     localStorage.setItem('auth_token', data.token);
                     currentUser = data.user;
+                    if (typeof trackVisitorAction === 'function') {
+                        trackVisitorAction('user_login', 'Logged in as ' + (currentUser && currentUser.username ? currentUser.username : identifier));
+                    }
                     closeAuthModal();
                     await checkAuthState();
                     await loadDrawingsFromServer();
@@ -15379,6 +15485,9 @@ function showIndicatorLineActionPill(ind, point) {
                 if (res.ok && data.token) {
                     localStorage.setItem('auth_token', data.token);
                     currentUser = data.user;
+                    if (typeof trackVisitorAction === 'function') {
+                        trackVisitorAction('user_login', 'Logged in as ' + (currentUser && currentUser.username ? currentUser.username : identifier));
+                    }
                     closeAuthModal();
                     await checkAuthState();
                     await loadDrawingsFromServer();
@@ -15836,6 +15945,9 @@ function showIndicatorLineActionPill(ind, point) {
                 if (res.ok && data.token) {
                     localStorage.setItem('auth_token', data.token);
                     currentUser = data.user;
+                    if (typeof trackVisitorAction === 'function') {
+                        trackVisitorAction('user_register', 'Registered new account: ' + username);
+                    }
                     closeAuthModal();
                     await checkAuthState();
                     saveDrawings();
@@ -16063,6 +16175,9 @@ function showIndicatorLineActionPill(ind, point) {
 
         function handleLogout() { logoutUser(); }
         function logoutUser() {
+            if (typeof trackVisitorAction === 'function') {
+                trackVisitorAction('user_logout', 'User logged out');
+            }
             localStorage.removeItem('auth_token');
             currentUser = null;
             const dropdown = document.getElementById('user-dropdown-menu');
@@ -16198,6 +16313,9 @@ function showIndicatorLineActionPill(ind, point) {
                 }
                 openAuthModal('register');
                 return;
+            }
+            if (typeof trackVisitorAction === 'function') {
+                trackVisitorAction('tool_open', 'Opened Macro News');
             }
             const overlay = document.getElementById('news-modal-overlay');
             if (overlay) overlay.style.display = 'flex';
@@ -16443,6 +16561,9 @@ function showIndicatorLineActionPill(ind, point) {
                 return;
             }
             currentPreflightDir = dir;
+            if (typeof trackVisitorAction === 'function') {
+                trackVisitorAction('tool_open', 'Opened Pre-Flight Check' + (dir ? ' (' + dir + ')' : ''));
+            }
             const overlay = document.getElementById('preflight-modal-overlay');
             if (overlay) overlay.style.display = 'flex';
             updatePreflightTabStyles();
@@ -16608,6 +16729,9 @@ function showIndicatorLineActionPill(ind, point) {
         // ==============================================================
         function openTrapRadarModal() {
             if (!requireAuth('access Institutional Smart Money Trap Radar')) return;
+            if (typeof trackVisitorAction === 'function') {
+                trackVisitorAction('tool_open', 'Opened Traps Radar');
+            }
             const overlay = document.getElementById('trap-radar-modal-overlay');
             if (overlay) overlay.style.display = 'flex';
             fetchTrapRadarData();

@@ -95,10 +95,24 @@ class BruteForceShield:
 brute_force_shield = BruteForceShield(max_failures=5, lockout_seconds=900)
 
 def get_client_ip(request: Request) -> str:
-    """Extracts real client IP address respecting X-Forwarded-For reverse proxy header."""
+    """Extracts real client IP address respecting Cloudflare, Nginx X-Real-IP, and X-Forwarded-For headers."""
+    # 1. Cloudflare CDN Header
+    cf_ip = request.headers.get("cf-connecting-ip")
+    if cf_ip and cf_ip.strip():
+        return cf_ip.strip()
+
+    # 2. Standard Nginx Proxy Header
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip and real_ip.strip():
+        return real_ip.strip()
+
+    # 3. Standard Forwarded Chain Header (pick first external IP)
     x_forwarded_for = request.headers.get("x-forwarded-for") or ""
     if x_forwarded_for:
-        return x_forwarded_for.split(",")[0].strip()
+        parts = [p.strip() for p in x_forwarded_for.split(",") if p.strip()]
+        if parts:
+            return parts[0]
+
     return request.client.host if request.client else "127.0.0.1"
 
 def get_current_user_from_request(request: Request) -> Optional[dict]:
@@ -1409,9 +1423,7 @@ async def api_submit_feedback(request: Request, payload: dict = Body(...)):
     if not message:
         return JSONResponse(status_code=400, content={"error": "Message cannot be empty"})
 
-    client_ip = request.headers.get("x-forwarded-for") or (request.client.host if request.client else "127.0.0.1")
-    if "," in client_ip:
-        client_ip = client_ip.split(",")[0].strip()
+    client_ip = get_client_ip(request)
 
     user_id = "guest"
     username = f"Guest ({client_ip})"
@@ -1633,8 +1645,21 @@ async def api_admin_unblock_ip(payload: dict = Body(...)):
 
 
 @app.post("/api/analytics/display-time")
-async def api_track_display_time(request: Request, payload: dict = Body(...)):
+async def api_track_display_time(request: Request):
     """Client telemetry endpoint: records active focused on-screen display seconds."""
+    client_ip = get_client_ip(request)
+
+    # Instant blocking feedback: If IP is blocked, return 403 to trigger front-end modal
+    is_blocked, block_reason = user_db.is_ip_blocked(client_ip)
+    if is_blocked:
+        return JSONResponse(status_code=403, content={"status": "error", "message": f"Blocked: {block_reason}"})
+
+    try:
+        raw_body = await request.body()
+        payload = json.loads(raw_body.decode("utf-8")) if raw_body else {}
+    except Exception:
+        payload = {}
+
     visitor_id = str(payload.get("visitor_id") or "").strip()
     user_id = payload.get("user_id")
     seconds = int(payload.get("seconds") or 15)
@@ -1644,7 +1669,12 @@ async def api_track_display_time(request: Request, payload: dict = Body(...)):
         if u:
             user_id = u.get("sub") or u.get("id")
 
-    user_db.add_active_display_time(visitor_id=visitor_id, user_id=user_id, seconds=seconds)
+    if user_id:
+        is_frozen, freeze_reason = user_db.is_user_frozen(user_id)
+        if is_frozen:
+            return JSONResponse(status_code=403, content={"status": "error", "message": f"Blocked: {freeze_reason}"})
+
+    user_db.add_active_display_time(visitor_id=visitor_id, user_id=user_id, seconds=seconds, ip=client_ip)
     return JSONResponse(content={"status": "ok"})
 
 
@@ -1997,18 +2027,25 @@ async def api_download_visitors_csv(
 # ==============================================================
 
 @app.post("/api/analytics/action")
-async def api_analytics_action(request: Request, payload: dict = Body(...)):
+async def api_analytics_action(request: Request):
     """Logs granular visitor user action (e.g. timeframe switch, indicator toggle, news open)."""
+    client_ip = get_client_ip(request)
+
+    # Check if IP is blocked
+    is_blocked, block_reason = user_db.is_ip_blocked(client_ip)
+    if is_blocked:
+        return JSONResponse(status_code=403, content={"status": "error", "message": f"Blocked: {block_reason}"})
+
+    try:
+        raw_body = await request.body()
+        payload = json.loads(raw_body.decode("utf-8")) if raw_body else {}
+    except Exception:
+        payload = {}
+
     visitor_id = payload.get("visitor_id") or ""
     action_type = payload.get("action_type") or "click"
     action_detail = payload.get("action_detail") or ""
     path = payload.get("path") or "/"
-
-    x_forwarded_for = request.headers.get("x-forwarded-for") or ""
-    if x_forwarded_for:
-        ip = x_forwarded_for.split(",")[0].strip()
-    else:
-        ip = request.client.host if request.client else "127.0.0.1"
 
     ua = request.headers.get("user-agent") or ""
     u = get_current_user_from_request(request)
@@ -2019,7 +2056,7 @@ async def api_analytics_action(request: Request, payload: dict = Body(...)):
         action_type=action_type,
         action_detail=action_detail,
         path=path,
-        ip=ip,
+        ip=client_ip,
         user_agent=ua,
         user_id=user_id
     )
@@ -2027,18 +2064,24 @@ async def api_analytics_action(request: Request, payload: dict = Body(...)):
 
 
 @app.post("/api/analytics/visit")
-async def api_analytics_visit(request: Request, payload: dict = Body(...)):
+async def api_analytics_visit(request: Request):
     """Records a visitor pageview beacon."""
+    client_ip = get_client_ip(request)
+
+    # Check if IP is blocked
+    is_blocked, block_reason = user_db.is_ip_blocked(client_ip)
+    if is_blocked:
+        return JSONResponse(status_code=403, content={"status": "error", "message": f"Blocked: {block_reason}"})
+
+    try:
+        raw_body = await request.body()
+        payload = json.loads(raw_body.decode("utf-8")) if raw_body else {}
+    except Exception:
+        payload = {}
+
     visitor_id = payload.get("visitor_id") or ""
     path = payload.get("path") or "/"
     referrer = payload.get("referrer") or ""
-
-    # Extract real IP (handling reverse proxy headers)
-    x_forwarded_for = request.headers.get("x-forwarded-for") or ""
-    if x_forwarded_for:
-        ip = x_forwarded_for.split(",")[0].strip()
-    else:
-        ip = request.client.host if request.client else "127.0.0.1"
 
     ua = request.headers.get("user-agent") or ""
     u = get_current_user_from_request(request)
@@ -2046,7 +2089,7 @@ async def api_analytics_visit(request: Request, payload: dict = Body(...)):
 
     res = user_db.record_visitor_hit(
         visitor_id=visitor_id,
-        ip=ip,
+        ip=client_ip,
         user_agent=ua,
         path=path,
         referrer=referrer,
@@ -2056,8 +2099,19 @@ async def api_analytics_visit(request: Request, payload: dict = Body(...)):
 
 
 @app.post("/api/analytics/heartbeat")
-async def api_analytics_heartbeat(request: Request, payload: dict = Body(...)):
+async def api_analytics_heartbeat(request: Request):
     """Pulse heartbeat to keep active status fresh and return live active online count."""
+    client_ip = get_client_ip(request)
+    is_blocked, block_reason = user_db.is_ip_blocked(client_ip)
+    if is_blocked:
+        return JSONResponse(status_code=403, content={"status": "error", "message": f"Blocked: {block_reason}"})
+
+    try:
+        raw_body = await request.body()
+        payload = json.loads(raw_body.decode("utf-8")) if raw_body else {}
+    except Exception:
+        payload = {}
+
     visitor_id = payload.get("visitor_id") or ""
     u = get_current_user_from_request(request)
     user_id = u.get("sub") if u else None
@@ -2298,7 +2352,11 @@ async def update_user_psychology_endpoint(request: Request, payload: dict = Body
 async def rag_chat(request: Request, payload: dict = Body(...)):
     """Conversational endpoint querying RAG Vector DB and Gemini 1.5 Flash with rate limiting & user isolation."""
     u = get_current_user_from_request(request)
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_client_ip(request)
+    is_blocked, block_reason = user_db.is_ip_blocked(client_ip)
+    if is_blocked:
+        return JSONResponse(status_code=403, content={"error": "blocked", "message": f"Blocked: {block_reason}"})
+
     rate_key = u["sub"] if u else f"guest_{client_ip}"
 
     # 1. Rate Limiting Protection (Admin has UNLIMITED access, no rate limits)
