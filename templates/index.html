@@ -3944,6 +3944,8 @@
 
                 if (data.market_close_price) {
                     updateMarketClosePriceLine(data.market_close_price);
+                } else {
+                    updateMarketClosePriceLine(null);
                 }
 
                 // Live 24H S&R dynamic update on new candle
@@ -7010,21 +7012,73 @@ function showIndicatorLineActionPill(ind, point) {
         }
 
         // 15:30 Market Close Price Line Helper on Lightweight Chart
+        // Strictly displayed ONLY out of market (after 15:30 IST / weekend / holiday / pre-market). NEVER in live market!
         let _marketClosePriceLine = null;
-        function updateMarketClosePriceLine(price) {
-            if (!candleSeries || !price || price <= 0) return;
+        let _lastEodClosePrice = null;
+
+        function isLiveMarketNow() {
             try {
+                if (typeof getISTDetails === 'function') {
+                    const ist = getISTDetails();
+                    return !!(ist && ist.isLiveMarket);
+                }
+            } catch (e) {}
+            try {
+                const now = new Date();
+                const parts = new Intl.DateTimeFormat('en-US', {
+                    timeZone: 'Asia/Kolkata',
+                    hour12: false,
+                    weekday: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                }).formatToParts(now);
+                let dow = '', h = 0, m = 0, s = 0;
+                for (const p of parts) {
+                    if (p.type === 'weekday') dow = p.value;
+                    if (p.type === 'hour') h = parseInt(p.value, 10);
+                    if (p.type === 'minute') m = parseInt(p.value, 10);
+                    if (p.type === 'second') s = parseInt(p.value, 10);
+                }
+                if (h === 24) h = 0;
+                if (dow === 'Sat' || dow === 'Sun') return false;
+                const tot = h * 3600 + m * 60 + s;
+                return tot >= 9 * 3600 + 15 * 60 && tot < 15 * 3600 + 30 * 60;
+            } catch (err) {
+                return false;
+            }
+        }
+
+        function updateMarketClosePriceLine(price) {
+            if (price && price > 0) _lastEodClosePrice = price;
+            if (!candleSeries) return;
+
+            try {
+                // In LIVE market: EOD price line MUST strictly NOT be displayed!
+                const isLive = isLiveMarketNow();
+                if (isLive) {
+                    if (_marketClosePriceLine) {
+                        try { candleSeries.removePriceLine(_marketClosePriceLine); } catch (err) {}
+                        _marketClosePriceLine = null;
+                    }
+                    return;
+                }
+
+                // In OUT OF MARKET (closed/post-market/weekend/holiday): display EOD line
+                const targetPrice = price || _lastEodClosePrice;
+                if (!targetPrice || targetPrice <= 0) return;
+
                 if (_marketClosePriceLine) {
-                    candleSeries.removePriceLine(_marketClosePriceLine);
+                    try { candleSeries.removePriceLine(_marketClosePriceLine); } catch (err) {}
                     _marketClosePriceLine = null;
                 }
                 _marketClosePriceLine = candleSeries.createPriceLine({
-                    price: Number(price),
+                    price: Number(targetPrice),
                     color: '#06b6d4',
                     lineWidth: 1.5,
                     lineStyle: 2, // Dashed
                     axisLabelVisible: true,
-                    title: `EOD: ₹${Number(price).toFixed(1)}`,
+                    title: `EOD: ₹${Number(targetPrice).toFixed(1)}`,
                 });
             } catch (e) {
                 console.debug('Market close price line note:', e);
@@ -7111,6 +7165,8 @@ function showIndicatorLineActionPill(ind, point) {
 
             if (data.market_close_price) {
                 updateMarketClosePriceLine(data.market_close_price);
+            } else {
+                updateMarketClosePriceLine(null);
             }
 
             // Market Breadth (Constituents Up vs Down - Strictly 50 Stocks & 100%)
@@ -12374,6 +12430,11 @@ function showIndicatorLineActionPill(ind, point) {
                         subDotLive.style.background = '#00e676';
                         subDotLive.style.boxShadow = '0 0 6px #00e676';
                     }
+                    // In LIVE market: strictly remove EOD price line if it was rendered
+                    if (_marketClosePriceLine && candleSeries) {
+                        try { candleSeries.removePriceLine(_marketClosePriceLine); } catch (e) {}
+                        _marketClosePriceLine = null;
+                    }
                 } else if (ist.isPreMarket) {
                     statusPill.classList.add('market-status-pre');
                     if (ist.totalSeconds < 9 * 3600 + 8 * 60) {
@@ -12402,6 +12463,10 @@ function showIndicatorLineActionPill(ind, point) {
                     if (subDotLive) {
                         subDotLive.style.background = '#ff5252';
                         subDotLive.style.boxShadow = 'none';
+                    }
+                    // In OUT OF MARKET: ensure EOD close price line is rendered if known
+                    if (!_marketClosePriceLine && candleSeries && _lastEodClosePrice) {
+                        updateMarketClosePriceLine(_lastEodClosePrice);
                     }
                 }
             }

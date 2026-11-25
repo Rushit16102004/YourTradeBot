@@ -1209,6 +1209,7 @@ class BackgroundTradingEngine:
             "is_authed": authed,
             "vix": self.latest_vix,
             "is_pre_market": sess["is_pre_market"],
+            "is_live_market": sess["is_live_market"],
             "pre_market_phase": sess["phase"],
             "pre_market_price": self.pre_market_price or cur_price,
             "tick_direction": self.last_tick_direction,

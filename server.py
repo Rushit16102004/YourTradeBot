@@ -676,6 +676,8 @@ async def get_market_data(
             return obj.item()
         return obj
 
+    is_live_mkt = bool(snapshot.get("is_live_market", False))
+
     resp_content = {
         "price": round(cur_price, 2),
         "prev_close": round(float(snapshot.get("prev_close", cur_price)), 2),
@@ -690,7 +692,8 @@ async def get_market_data(
             "total": 50,
         }),
         "candles": candles,
-        "market_close_price": round(cur_price, 2),
+        "market_close_price": None if is_live_mkt else round(cur_price, 2),
+        "is_live_market": is_live_mkt,
         "state": state_dict,
         "signals": signals,
         "sr_alert": snapshot.get("sr_alert"),
@@ -784,10 +787,13 @@ async def get_live_candle(
         "exit_reason": state.exit_reason if state else None,
     }
 
+    is_live_mkt = bool(snapshot.get("is_live_market", False))
+
     return JSONResponse(content={
         "status": "ok",
         "price": round(cur_price, 2),
-        "market_close_price": round(cur_price, 2),
+        "market_close_price": None if is_live_mkt else round(cur_price, 2),
+        "is_live_market": is_live_mkt,
         "prev_close": round(float(snapshot.get("prev_close", cur_price)), 2),
         "change": cur_chg,
         "change_pct": round(float(snapshot.get("change_pct", 0.0)), 2),
