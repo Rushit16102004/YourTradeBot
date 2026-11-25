@@ -891,12 +891,40 @@
     }
   });
 
+  // --- 11. Live Telemetry & Social Proof Ticker ---
+  function initLiveTelemetryTicker() {
+    const textEl = document.getElementById('telemetry-text');
+    if (!textEl) return;
+
+    const messages = [
+      '⚡ NIFTY 50 Live • Anchored VWAP ±2σ Engine Active',
+      '🤖 AI Strategy Copilot • Real-Time Order Flow Scanner',
+      '🟢 1,480+ Indian Traders Connected Today',
+      '🎯 Automated S&R Confluence • Zero Repaint Execution',
+      '🛡️ Smart Money Trap Mitigated • Free Guest Mode 1-Click'
+    ];
+    let msgIdx = 0;
+
+    setInterval(() => {
+      textEl.style.opacity = '0';
+      textEl.style.transform = 'translateY(4px)';
+      textEl.style.transition = 'all 0.25s ease';
+      setTimeout(() => {
+        msgIdx = (msgIdx + 1) % messages.length;
+        textEl.textContent = messages[msgIdx];
+        textEl.style.opacity = '1';
+        textEl.style.transform = 'translateY(0)';
+      }, 250);
+    }, 4500);
+  }
+
   // --- Initialize on DOM Load ---
   document.addEventListener('DOMContentLoaded', () => {
     recordInitialVisit();
     checkReturningUser();
     loadSlide(0);
     startSlideAutoTimer();
+    initLiveTelemetryTicker();
 
     // Pause slideshow on hover
     const frame = document.querySelector('.window-frame');
