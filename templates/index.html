@@ -1194,6 +1194,7 @@
                     <defs id="svg-defs"></defs>
                     <g id="sr-overlay-layer"></g>
                     <g id="drawings-overlay-layer"></g>
+                    <g id="live-preview-layer"></g>
                 </svg>
                 <!-- Canvas for Smooth Freehand Pencil Drawing -->
                 <canvas id="pencil-canvas"></canvas>
@@ -1235,6 +1236,7 @@
                 <!-- ✏️ Floating Drawing Shape Action Pill (Click any pencil line or shape to Delete) -->
                 <div id="shape-action-pill" class="indicator-line-pill" style="display: none; z-index: 25;">
                     <div class="line-pill-badge" id="shape-pill-badge">✏️ Pencil Line</div>
+                    <button class="line-pill-btn" onclick="openPropertiesPanel(selectedShapeId)" title="Edit color, label, and coordinates">⚙️ Properties</button>
                     <button class="line-pill-btn line-pill-del" onclick="deleteSelectedShape(); hideShapeActionPill();" title="Delete this drawing from chart">🗑️ Delete</button>
                     <button class="line-pill-close" onclick="hideShapeActionPill(event)">✕</button>
                 </div>
@@ -3745,6 +3747,7 @@
                     });
                     if (activeCandlesMap) activeCandlesMap.set(lastC.time, lastC);
                     updateYAxisCandleTimerPosition();
+                    scheduleRenderDrawings();
 
                     // Dynamic live forming volume bar update
                     if (Array.isArray(dynamicIndicators) && live.volume != null && live.volume > 0) {
@@ -7924,18 +7927,22 @@ function showIndicatorLineActionPill(ind, point) {
                 overlay.classList.remove('candle-priority-active');
             }
 
-            // 🥈 Priority 2: DRAWING
-            const drawingHit = getDrawingUnderCursor(x, y);
-            if (drawingHit) {
-                hideSRTooltip();
-                return;
-            }
+            // Only check drawing / indicator hit-tests if S&R pointer tooltip is currently visible (saves 95% CPU)
+            const srTooltip = document.getElementById('sr-pointer-tooltip');
+            if (srTooltip && srTooltip.style.display !== 'none') {
+                // 🥈 Priority 2: DRAWING
+                const drawingHit = getDrawingUnderCursor(x, y);
+                if (drawingHit) {
+                    hideSRTooltip();
+                    return;
+                }
 
-            // 🥉 Priority 3: INDICATOR
-            const indicatorHit = getIndicatorNearCoords(x, y);
-            if (indicatorHit) {
-                hideSRTooltip();
-                return;
+                // 🥉 Priority 3: INDICATOR
+                const indicatorHit = getIndicatorNearCoords(x, y);
+                if (indicatorHit) {
+                    hideSRTooltip();
+                    return;
+                }
             }
 
             // 🏅 Priority 4: S&R lines/zones in open space
@@ -8273,7 +8280,7 @@ function showIndicatorLineActionPill(ind, point) {
                 if (activeTool === 'select') {
                     if (selectedShapeId) {
                         selectedShapeId = null;
-                        renderAllDrawings();
+                        renderAllDrawings(true);
                     }
                     hideShapeActionPill();
                     return;
@@ -8303,6 +8310,7 @@ function showIndicatorLineActionPill(ind, point) {
                     if (activeTool === 'target_sl') {
                         createTargetSLBox(time, price);
                         isDrawing = false;
+                        drawStartPoint = null;
                         selectTool('select');
                         return;
                     } else if (activeTool === 'ray') {
@@ -8311,8 +8319,11 @@ function showIndicatorLineActionPill(ind, point) {
                         recordCurrentDrawingUndoState();
                         drawings.push(newShape);
                         saveDrawings();
-                        renderAllDrawings();
+                        selectedShapeId = newShape.id;
+                        renderAllDrawings(true);
+                        showShapeActionPill(e.clientX, e.clientY, newShape);
                         isDrawing = false;
+                        drawStartPoint = null;
                         selectTool('select');
                         return;
                     } else if (activeTool === 'vline') {
@@ -8321,8 +8332,11 @@ function showIndicatorLineActionPill(ind, point) {
                         recordCurrentDrawingUndoState();
                         drawings.push(newShape);
                         saveDrawings();
-                        renderAllDrawings();
+                        selectedShapeId = newShape.id;
+                        renderAllDrawings(true);
+                        showShapeActionPill(e.clientX, e.clientY, newShape);
                         isDrawing = false;
+                        drawStartPoint = null;
                         selectTool('select');
                         return;
                     } else if (activeTool === 'text') {
@@ -8333,14 +8347,17 @@ function showIndicatorLineActionPill(ind, point) {
                             recordCurrentDrawingUndoState();
                             drawings.push(newShape);
                             saveDrawings();
-                            renderAllDrawings();
+                            selectedShapeId = newShape.id;
+                            renderAllDrawings(true);
+                            showShapeActionPill(e.clientX, e.clientY, newShape);
                         }
                         isDrawing = false;
+                        drawStartPoint = null;
                         selectTool('select');
                         return;
                     }
                 } else {
-                    // Second click finishes Line, Arrow, Arc, or Rect
+                    // Second click or drag-release finishes Line, Arrow, Arc, Rect, Fib, Channel, Ruler
                     isDrawing = false;
                     const id = 'shape_' + Date.now();
                     let newShape = null;
@@ -8407,10 +8424,14 @@ function showIndicatorLineActionPill(ind, point) {
                         recordCurrentDrawingUndoState();
                         drawings.push(newShape);
                         saveDrawings();
-                        openPropertiesPanel(newShape.id, true);
+                        selectedShapeId = newShape.id;
+                        renderAllDrawings(true);
                         showShapeActionPill(e.clientX, e.clientY, newShape);
-                        renderAllDrawings();
                     }
+                    drawStartPoint = null;
+                    isDrawing = false;
+                    const prevLayer = document.getElementById('live-preview-layer');
+                    if (prevLayer) prevLayer.innerHTML = '';
                     selectTool('select');
                 }
             }
@@ -8437,6 +8458,7 @@ function showIndicatorLineActionPill(ind, point) {
             const finishPencilDrawing = () => {
                 if (activeTool === 'pencil' && isDrawing) {
                     isDrawing = false;
+                    drawStartPoint = null;
                     if (currentPencilPoints && currentPencilPoints.length >= 2) {
                         const newPencilShape = {
                             id: 'shape_' + Date.now(),
@@ -8449,11 +8471,13 @@ function showIndicatorLineActionPill(ind, point) {
                         recordCurrentDrawingUndoState();
                         drawings.push(newPencilShape);
                         saveDrawings();
+                        selectedShapeId = newPencilShape.id;
                     }
                     currentPencilPoints = [];
                     removeLivePencilPreview();
                     hideDrawingCrosshair();
-                    renderAllDrawings();
+                    renderAllDrawings(true);
+                    selectTool('select');
                 }
             };
 
@@ -8509,9 +8533,18 @@ function showIndicatorLineActionPill(ind, point) {
                 }
             });
 
-            overlay.addEventListener('mouseup', () => {
+            overlay.addEventListener('mouseup', (e) => {
                 if (activeTool === 'pencil' && isDrawing) {
                     finishPencilDrawing();
+                } else if (isDrawing && drawStartPoint && activeTool !== 'select') {
+                    const rect = overlay.getBoundingClientRect();
+                    const curX = e.clientX - rect.left;
+                    const curY = e.clientY - rect.top;
+                    const dist = Math.hypot(curX - drawStartPoint.x, curY - drawStartPoint.y);
+                    if (dist >= 10) {
+                        // User dragged and released mouse on big screen desktop: instantly finalize the shape!
+                        handleDrawingPointerDown({ clientX: e.clientX, clientY: e.clientY });
+                    }
                 }
             });
 
@@ -8524,7 +8557,7 @@ function showIndicatorLineActionPill(ind, point) {
                         const curX = lastTouchDrawPos.clientX - rect.left;
                         const curY = lastTouchDrawPos.clientY - rect.top;
                         const dist = Math.hypot(curX - drawStartPoint.x, curY - drawStartPoint.y);
-                        if (dist >= 14) {
+                        if (dist >= 10) {
                             handleDrawingPointerDown({ clientX: lastTouchDrawPos.clientX, clientY: lastTouchDrawPos.clientY });
                             lastTouchDrawPos = null;
                             return;
@@ -8570,11 +8603,12 @@ function showIndicatorLineActionPill(ind, point) {
             drawings.push(box);
             saveDrawings();
             selectedShapeId = box.id;
-            renderAllDrawings();
-            openPropertiesPanel(box.id);
-            if (window.innerWidth <= 768) {
-                showShapeActionPill(0, 0, box);
-            }
+            renderAllDrawings(true);
+            const x1 = (typeof timeToX === 'function' ? timeToX(time) : null) || 120;
+            const yEntry = (typeof priceToY === 'function' ? priceToY(entryPrice) : null) || 120;
+            const wrap = document.getElementById('main-chart-wrapper');
+            const wrapRect = wrap ? wrap.getBoundingClientRect() : { left: 0, top: 0 };
+            showShapeActionPill(wrapRect.left + x1, wrapRect.top + yEntry, box);
         }
 
         function plotTradeSetupOnChart(dir, entry, target, stop) {
@@ -9813,7 +9847,8 @@ function showIndicatorLineActionPill(ind, point) {
 
             const isSel = (d.id === selectedShapeId);
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            g.style.cursor = 'pointer';
+            g.id = 'shape_g_' + d.id;
+            g.style.cursor = 'move';
             g.style.pointerEvents = 'all';
 
             const pathD = buildSmoothBezierPath(screenPts);
@@ -9823,15 +9858,13 @@ function showIndicatorLineActionPill(ind, point) {
             hitPath.setAttribute('d', pathD);
             hitPath.setAttribute('fill', 'none');
             hitPath.setAttribute('stroke', 'transparent');
-            hitPath.setAttribute('stroke-width', '18');
+            hitPath.setAttribute('stroke-width', '20');
             hitPath.setAttribute('stroke-linecap', 'round');
             hitPath.setAttribute('stroke-linejoin', 'round');
-            hitPath.style.cursor = 'pointer';
-            hitPath.onmousedown = (e) => {
-                e.stopPropagation();
-                openPropertiesPanel(d.id);
-                showShapeActionPill(e.clientX, e.clientY, d);
-            };
+            hitPath.style.cursor = 'move';
+            hitPath.style.pointerEvents = 'stroke';
+            hitPath.style.touchAction = 'none';
+            attachRepositionDrag(hitPath, d);
             g.appendChild(hitPath);
 
             // 2. Selection glow if selected
@@ -9869,7 +9902,7 @@ function showIndicatorLineActionPill(ind, point) {
             const pill = document.getElementById('shape-action-pill');
             const badge = document.getElementById('shape-pill-badge');
             const wrapper = document.getElementById('main-chart-wrapper');
-            if (!pill || !wrapper) return;
+            if (!pill || !wrapper || !shape) return;
 
             const wrapRect = wrapper.getBoundingClientRect();
             const x = clientX - wrapRect.left;
@@ -9877,12 +9910,18 @@ function showIndicatorLineActionPill(ind, point) {
 
             selectedShapeId = shape.id;
             if (badge) {
-                if (shape.type === 'pencil') badge.innerText = '✏️ Pencil Line';
+                if (shape.type === 'pencil') badge.innerText = '✏️ Pencil';
                 else if (shape.type === 'line') badge.innerText = '📈 Trendline';
                 else if (shape.type === 'arrow') badge.innerText = '➡️ Arrow';
                 else if (shape.type === 'arc') badge.innerText = '🌙 Arc';
                 else if (shape.type === 'rect') badge.innerText = '📦 Zone Box';
                 else if (shape.type === 'target_sl') badge.innerText = '🎯 Target/SL';
+                else if (shape.type === 'fibonacci') badge.innerText = '📐 Fibonacci';
+                else if (shape.type === 'channel') badge.innerText = '║ Channel';
+                else if (shape.type === 'price_range') badge.innerText = '📏 Ruler';
+                else if (shape.type === 'ray') badge.innerText = '⎯ Ray';
+                else if (shape.type === 'vline') badge.innerText = '│ Time Line';
+                else if (shape.type === 'text') badge.innerText = '📝 Note';
                 else badge.innerText = 'Drawing';
             }
 
@@ -9894,8 +9933,8 @@ function showIndicatorLineActionPill(ind, point) {
                 pill.style.top = '10px';
             } else {
                 pill.style.transform = 'none';
-                pill.style.left = Math.max(10, Math.min(wrapRect.width - 200, x)) + 'px';
-                pill.style.top = Math.max(10, y) + 'px';
+                pill.style.left = Math.max(10, Math.min(wrapRect.width - 240, x)) + 'px';
+                pill.style.top = Math.max(10, Math.min(wrapRect.height - 40, y - 36)) + 'px';
             }
         }
 
@@ -9926,7 +9965,13 @@ function showIndicatorLineActionPill(ind, point) {
             const cHeight = chartContainer ? chartContainer.clientHeight : 600;
             const maxUsableW = Math.max(200, cWidth - 65);
             const maxUsableH = Math.max(100, cHeight - 28);
-            defs.innerHTML = `<clipPath id="chart-plot-clip"><rect x="0" y="0" width="${maxUsableW}" height="${maxUsableH}" /></clipPath>`;
+            let clip = document.getElementById('chart-plot-clip');
+            if (!clip) {
+                clip = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+                clip.id = 'chart-plot-clip';
+                defs.appendChild(clip);
+            }
+            clip.innerHTML = `<rect x="0" y="0" width="${maxUsableW}" height="${maxUsableH}" />`;
             srLayer.setAttribute('clip-path', 'url(#chart-plot-clip)');
             drawingsLayer.setAttribute('clip-path', 'url(#chart-plot-clip)');
 
@@ -10394,6 +10439,7 @@ function showIndicatorLineActionPill(ind, point) {
 
             const isSel = d.id === selectedShapeId;
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.id = 'shape_g_' + d.id;
             g.style.pointerEvents = 'none'; // Container allows pass-through to chart canvas!
 
             const pStart = d.price1;
@@ -10455,11 +10501,11 @@ function showIndicatorLineActionPill(ind, point) {
             diagHit.setAttribute('x1', x1); diagHit.setAttribute('y1', y1);
             diagHit.setAttribute('x2', x2); diagHit.setAttribute('y2', y2);
             diagHit.setAttribute('stroke', 'transparent');
-            diagHit.setAttribute('stroke-width', '16');
+            diagHit.setAttribute('stroke-width', window.innerWidth <= 768 ? '26' : '16');
             diagHit.style.pointerEvents = 'stroke';
             diagHit.style.cursor = 'move';
-            diagHit.onmousedown = (e) => startRepositionDrag(e, d);
-            diagHit.ontouchstart = (e) => startRepositionDrag(e, d);
+            diagHit.style.touchAction = 'none';
+            attachRepositionDrag(diagHit, d);
             g.appendChild(diagHit);
 
             // 3. Horizontal level lines & price labels (Edges/Lines only!)
@@ -10481,11 +10527,11 @@ function showIndicatorLineActionPill(ind, point) {
                     lineHit.setAttribute('x1', minX); lineHit.setAttribute('y1', y);
                     lineHit.setAttribute('x2', maxX); lineHit.setAttribute('y2', y);
                     lineHit.setAttribute('stroke', 'transparent');
-                    lineHit.setAttribute('stroke-width', '14');
+                    lineHit.setAttribute('stroke-width', window.innerWidth <= 768 ? '24' : '14');
                     lineHit.style.pointerEvents = 'stroke';
                     lineHit.style.cursor = 'move';
-                    lineHit.onmousedown = (e) => startRepositionDrag(e, d);
-                    lineHit.ontouchstart = (e) => startRepositionDrag(e, d);
+                    lineHit.style.touchAction = 'none';
+                    attachRepositionDrag(lineHit, d);
                     g.appendChild(lineHit);
 
                     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -10504,11 +10550,11 @@ function showIndicatorLineActionPill(ind, point) {
             if (isSel) {
                 renderResizeHandle(x1, y1, '#38bdf8', g, (curX, curY) => {
                     const t = xToTime(curX), p = yToPrice(curY);
-                    if (t && p) { d.time1 = t; d.price1 = p; }
+                    if (t && p) { d.time1 = t; d.price1 = p; renderAllDrawings(true); return true; }
                 });
                 renderResizeHandle(x2, y2, '#38bdf8', g, (curX, curY) => {
                     const t = xToTime(curX), p = yToPrice(curY);
-                    if (t && p) { d.time2 = t; d.price2 = p; }
+                    if (t && p) { d.time2 = t; d.price2 = p; renderAllDrawings(true); return true; }
                 });
             }
 
@@ -10524,6 +10570,7 @@ function showIndicatorLineActionPill(ind, point) {
             const maxX = Math.max(viewWidth + 3000, 6000);
             const isSel = d.id === selectedShapeId;
             const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            g.id = 'shape_g_' + d.id;
             g.style.cursor = "move";
             g.style.pointerEvents = "all";
 
@@ -10533,6 +10580,9 @@ function showIndicatorLineActionPill(ind, point) {
             hit.setAttribute("x2", maxX); hit.setAttribute("y2", y1);
             hit.setAttribute("stroke", "transparent");
             hit.setAttribute("stroke-width", window.innerWidth <= 768 ? "26" : "16");
+            hit.style.pointerEvents = "stroke";
+            hit.style.cursor = "move";
+            hit.style.touchAction = "none";
             attachRepositionDrag(hit, d);
             g.appendChild(hit);
 
@@ -10556,7 +10606,7 @@ function showIndicatorLineActionPill(ind, point) {
             if (isSel) {
                 renderResizeHandle(x1, y1, d.color || "#f59e0b", g, (curX, curY) => {
                     const t = xToTime(curX), p = yToPrice(curY);
-                    if (t && p) { d.time1 = t; d.price1 = p; }
+                    if (t && p) { d.time1 = t; d.price1 = p; renderAllDrawings(true); return true; }
                 });
             }
 
@@ -10571,6 +10621,7 @@ function showIndicatorLineActionPill(ind, point) {
             const maxY = Math.max(viewHeight + 1500, 3500);
             const isSel = d.id === selectedShapeId;
             const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            g.id = 'shape_g_' + d.id;
             g.style.cursor = "ew-resize";
             g.style.pointerEvents = "all";
 
@@ -10579,6 +10630,9 @@ function showIndicatorLineActionPill(ind, point) {
             hit.setAttribute("x2", x1); hit.setAttribute("y2", maxY);
             hit.setAttribute("stroke", "transparent");
             hit.setAttribute("stroke-width", window.innerWidth <= 768 ? "28" : "18");
+            hit.style.pointerEvents = "stroke";
+            hit.style.cursor = "ew-resize";
+            hit.style.touchAction = "none";
             attachRepositionDrag(hit, d);
             g.appendChild(hit);
 
@@ -10596,7 +10650,7 @@ function showIndicatorLineActionPill(ind, point) {
             if (isSel) {
                 renderResizeHandle(x1, 24, d.color || "#a855f7", g, (curX, curY) => {
                     const t = xToTime(curX);
-                    if (t) d.time1 = t;
+                    if (t) { d.time1 = t; renderAllDrawings(true); return true; }
                 });
             }
 
@@ -10618,6 +10672,7 @@ function showIndicatorLineActionPill(ind, point) {
 
             const isSel = d.id === selectedShapeId;
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.id = 'shape_g_' + d.id;
             g.style.pointerEvents = 'none'; // Container allows pass-through to chart canvas!
 
             // Channel shaded background polygon - Pass-through to candle canvas!
@@ -10644,8 +10699,8 @@ function showIndicatorLineActionPill(ind, point) {
             hitL1.setAttribute('stroke-width', '16');
             hitL1.style.pointerEvents = 'stroke';
             hitL1.style.cursor = 'move';
-            hitL1.onmousedown = (e) => startRepositionDrag(e, d);
-            hitL1.ontouchstart = (e) => startRepositionDrag(e, d);
+            hitL1.style.touchAction = 'none';
+            attachRepositionDrag(hitL1, d);
             g.appendChild(hitL1);
 
             // Top parallel line (Visual)
@@ -10665,8 +10720,8 @@ function showIndicatorLineActionPill(ind, point) {
             hitL2.setAttribute('stroke-width', '16');
             hitL2.style.pointerEvents = 'stroke';
             hitL2.style.cursor = 'move';
-            hitL2.onmousedown = (e) => startRepositionDrag(e, d);
-            hitL2.ontouchstart = (e) => startRepositionDrag(e, d);
+            hitL2.style.touchAction = 'none';
+            attachRepositionDrag(hitL2, d);
             g.appendChild(hitL2);
 
             // Dashed midline (Visual)
@@ -10689,8 +10744,8 @@ function showIndicatorLineActionPill(ind, point) {
             hitLmid.setAttribute('stroke-width', '14');
             hitLmid.style.pointerEvents = 'stroke';
             hitLmid.style.cursor = 'move';
-            hitLmid.onmousedown = (e) => startRepositionDrag(e, d);
-            hitLmid.ontouchstart = (e) => startRepositionDrag(e, d);
+            hitLmid.style.touchAction = 'none';
+            attachRepositionDrag(hitLmid, d);
             g.appendChild(hitLmid);
 
             // Handles matching Image 3: P1, P2, mid1, P3, P4, mid2
@@ -10698,27 +10753,27 @@ function showIndicatorLineActionPill(ind, point) {
                 // Line 1: Circle P1, Square center, Circle P2
                 renderResizeHandle(x1, y1, '#3b82f6', g, (curX, curY) => {
                     const t = xToTime(curX), p = yToPrice(curY);
-                    if (t && p) { d.time1 = t; d.price1 = p; }
+                    if (t && p) { d.time1 = t; d.price1 = p; renderAllDrawings(true); return true; }
                 });
                 renderResizeHandle(x2, y2, '#3b82f6', g, (curX, curY) => {
                     const t = xToTime(curX), p = yToPrice(curY);
-                    if (t && p) { d.time2 = t; d.price2 = p; }
+                    if (t && p) { d.time2 = t; d.price2 = p; renderAllDrawings(true); return true; }
                 });
                 // Line 2: Circle P3, Square center, Circle P4
                 renderResizeHandle(x1, y1_off, '#3b82f6', g, (curX, curY) => {
                     const p = yToPrice(curY);
-                    if (p) d.channelWidth = (p - d.price1);
+                    if (p) { d.channelWidth = (p - d.price1); renderAllDrawings(true); return true; }
                 });
                 renderResizeHandle(x2, y2_off, '#3b82f6', g, (curX, curY) => {
                     const p = yToPrice(curY);
-                    if (p) d.channelWidth = (p - d.price2);
+                    if (p) { d.channelWidth = (p - d.price2); renderAllDrawings(true); return true; }
                 });
                 // Center square handle on top line to adjust width
                 const midX = (x1 + x2) / 2;
                 renderResizeSquareHandle(midX, (y1_off + y2_off) / 2, '#3b82f6', g, (curX, curY) => {
                     const p = yToPrice(curY);
                     const baseMidP = (d.price1 + d.price2) / 2;
-                    if (p) d.channelWidth = (p - baseMidP);
+                    if (p) { d.channelWidth = (p - baseMidP); renderAllDrawings(true); return true; }
                 });
             }
 
@@ -10735,6 +10790,7 @@ function showIndicatorLineActionPill(ind, point) {
 
             const isSel = d.id === selectedShapeId;
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.id = 'shape_g_' + d.id;
             g.style.pointerEvents = 'none'; // Container allows pass-through to chart canvas!
 
             const minX = Math.min(x1, x2);
@@ -10772,8 +10828,8 @@ function showIndicatorLineActionPill(ind, point) {
             hitBorder.setAttribute('stroke-width', '16');
             hitBorder.style.pointerEvents = 'stroke';
             hitBorder.style.cursor = 'move';
-            hitBorder.onmousedown = (e) => startRepositionDrag(e, d);
-            hitBorder.ontouchstart = (e) => startRepositionDrag(e, d);
+            hitBorder.style.touchAction = 'none';
+            attachRepositionDrag(hitBorder, d);
             g.appendChild(hitBorder);
 
             // Vertical & Horizontal central arrows (Visual)
@@ -10828,8 +10884,8 @@ function showIndicatorLineActionPill(ind, point) {
             badgeRect.setAttribute('stroke-width', '1');
             badgeRect.style.pointerEvents = 'all';
             badgeRect.style.cursor = 'move';
-            badgeRect.onmousedown = (e) => startRepositionDrag(e, d);
-            badgeRect.ontouchstart = (e) => startRepositionDrag(e, d);
+            badgeRect.style.touchAction = 'none';
+            attachRepositionDrag(badgeRect, d);
             g.appendChild(badgeRect);
 
             const txt1 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -10852,19 +10908,19 @@ function showIndicatorLineActionPill(ind, point) {
             if (isSel) {
                 renderResizeHandle(x1, y1, '#3b82f6', g, (curX, curY) => {
                     const t = xToTime(curX), p = yToPrice(curY);
-                    if (t && p) { d.time1 = t; d.price1 = p; }
+                    if (t && p) { d.time1 = t; d.price1 = p; renderAllDrawings(true); return true; }
                 }, 'nwse-resize');
                 renderResizeHandle(x2, y2, '#3b82f6', g, (curX, curY) => {
                     const t = xToTime(curX), p = yToPrice(curY);
-                    if (t && p) { d.time2 = t; d.price2 = p; }
+                    if (t && p) { d.time2 = t; d.price2 = p; renderAllDrawings(true); return true; }
                 }, 'nwse-resize');
                 renderResizeHandle(x1, y2, '#3b82f6', g, (curX, curY) => {
                     const t = xToTime(curX), p = yToPrice(curY);
-                    if (t && p) { d.time1 = t; d.price2 = p; }
+                    if (t && p) { d.time1 = t; d.price2 = p; renderAllDrawings(true); return true; }
                 }, 'nesw-resize');
                 renderResizeHandle(x2, y1, '#3b82f6', g, (curX, curY) => {
                     const t = xToTime(curX), p = yToPrice(curY);
-                    if (t && p) { d.time2 = t; d.price1 = p; }
+                    if (t && p) { d.time2 = t; d.price1 = p; renderAllDrawings(true); return true; }
                 }, 'nesw-resize');
             }
 
@@ -10878,6 +10934,7 @@ function showIndicatorLineActionPill(ind, point) {
 
             const isSel = d.id === selectedShapeId;
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.id = 'shape_g_' + d.id;
             g.style.cursor = 'move';
             g.style.pointerEvents = 'all';
 
@@ -10891,6 +10948,8 @@ function showIndicatorLineActionPill(ind, point) {
             card.setAttribute('fill', '#0f172a');
             card.setAttribute('stroke', isSel ? '#38bdf8' : (d.color || '#334155'));
             card.setAttribute('stroke-width', isSel ? '2' : '1.2');
+            card.style.pointerEvents = 'all';
+            card.style.cursor = 'move';
             attachRepositionDrag(card, d);
             g.appendChild(card);
 
@@ -10954,6 +11013,8 @@ function showIndicatorLineActionPill(ind, point) {
             hitLine.setAttribute('stroke', 'transparent');
             hitLine.setAttribute('stroke-width', '16');
             hitLine.setAttribute('data-role', 'hitLine');
+            hitLine.style.pointerEvents = 'stroke';
+            hitLine.style.cursor = 'move';
             attachRepositionDrag(hitLine, d);
             g.appendChild(hitLine);
 
@@ -11039,6 +11100,8 @@ function showIndicatorLineActionPill(ind, point) {
             hitLine.setAttribute('stroke', 'transparent');
             hitLine.setAttribute('stroke-width', '16');
             hitLine.setAttribute('data-role', 'hitLine');
+            hitLine.style.pointerEvents = 'stroke';
+            hitLine.style.cursor = 'move';
             attachRepositionDrag(hitLine, d);
             g.appendChild(hitLine);
 
@@ -11105,6 +11168,8 @@ function showIndicatorLineActionPill(ind, point) {
             hitPath.setAttribute('stroke', 'transparent');
             hitPath.setAttribute('stroke-width', '22');
             hitPath.setAttribute('data-role', 'hitPath');
+            hitPath.style.pointerEvents = 'stroke';
+            hitPath.style.cursor = 'move';
             attachRepositionDrag(hitPath, d);
             g.appendChild(hitPath);
 
@@ -11224,9 +11289,6 @@ function showIndicatorLineActionPill(ind, point) {
                 e.stopPropagation();
 
                 selectedShapeId = d.id;
-                if (window.innerWidth > 768) {
-                    openPropertiesPanel(d.id);
-                }
                 showShapeActionPill(px, py, d);
                 startRepositionDrag(e, d);
             };
@@ -11670,11 +11732,8 @@ function showIndicatorLineActionPill(ind, point) {
                             }
                         }
                     } else {
-                        // User clicked or tapped without dragging: show properties modal & action pill!
+                        // User clicked or tapped without dragging: show action pill!
                         if (selectedShapeId) {
-                            if (window.innerWidth > 768) {
-                                openPropertiesPanel(selectedShapeId);
-                            }
                             const clickX = draggingState.clickClientX || (e && e.clientX) || 150;
                             const clickY = draggingState.clickClientY || (e && e.clientY) || 150;
                             const s = drawings.find(x => x.id === selectedShapeId);
@@ -11692,7 +11751,7 @@ function showIndicatorLineActionPill(ind, point) {
                     if (activeTool === 'select') {
                         hideDrawingCrosshair();
                     }
-                    renderAllDrawings();
+                    renderAllDrawings(true);
                 }
             };
 
@@ -11733,10 +11792,11 @@ function showIndicatorLineActionPill(ind, point) {
 
         // Preview Line / Arrow / Arc / Rect while dragging
         function renderDrawingPreview(x1, y1, x2, y2) {
-            renderAllDrawings(true);
+            const targetLayer = document.getElementById('live-preview-layer');
+            if (!targetLayer) return;
+            targetLayer.innerHTML = '';
             const overlay = document.getElementById('drawing-overlay');
             if (!overlay) return;
-            const targetLayer = document.getElementById('drawings-overlay-layer') || overlay;
             if (activeTool === 'line' || activeTool === 'arrow') {
                 const pLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                 pLine.setAttribute('x1', x1); pLine.setAttribute('y1', y1);

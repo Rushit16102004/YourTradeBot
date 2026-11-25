@@ -123,8 +123,13 @@
 
         /* 🛡️ Strict Chart Area Clipping: Never cover bottom X-axis time bar or right Y-axis price bar */
         #sr-overlay-layer,
-        #drawings-overlay-layer {
+        #drawings-overlay-layer,
+        #live-preview-layer {
             clip-path: url(#chart-plot-clip);
+        }
+
+        #live-preview-layer {
+            pointer-events: none;
         }
 
         #drawing-overlay.drawing-active {
