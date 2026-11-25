@@ -216,23 +216,35 @@
             .mobile-line-3-right {
                 display: flex !important;
                 align-items: center !important;
-                gap: 6px !important;
+                gap: 4px !important;
+                overflow-x: auto !important;
+                scrollbar-width: none !important;
+            }
+            .mobile-line-3-left::-webkit-scrollbar,
+            .mobile-line-3-right::-webkit-scrollbar {
+                display: none !important;
             }
 
             .mobile-nav-btn {
                 height: 26px !important;
-                padding: 2px 8px !important;
+                padding: 2px 7px !important;
                 font-size: 11px !important;
                 font-weight: 700 !important;
                 border-radius: 6px !important;
-                display: inline-flex !important;
+                display: inline-flex;
                 align-items: center !important;
-                gap: 4px !important;
+                gap: 3px !important;
                 cursor: pointer !important;
                 text-decoration: none !important;
                 white-space: nowrap !important;
                 transition: all 0.15s ease !important;
                 box-sizing: border-box !important;
+            }
+
+            .mobile-nav-btn.is-hidden,
+            .mobile-nav-btn[style*="display: none"],
+            #btn-mobile-guest-login.is-hidden {
+                display: none !important;
             }
 
             .mobile-home-btn {
@@ -241,10 +253,28 @@
                 border: 1px solid rgba(56, 189, 248, 0.35) !important;
             }
 
+            .mobile-hist-btn {
+                background: rgba(30, 41, 59, 0.8) !important;
+                color: #cbd5e1 !important;
+                border: 1px solid rgba(148, 163, 184, 0.35) !important;
+            }
+
+            .mobile-sync-btn {
+                background: rgba(30, 41, 59, 0.8) !important;
+                color: #38bdf8 !important;
+                border: 1px solid rgba(56, 189, 248, 0.35) !important;
+            }
+
             .mobile-settings-btn {
                 background: rgba(56, 189, 248, 0.12) !important;
                 color: #38bdf8 !important;
                 border: 1px solid rgba(56, 189, 248, 0.4) !important;
+            }
+
+            .mobile-admin-btn {
+                background: rgba(147, 51, 234, 0.2) !important;
+                color: #d8b4fe !important;
+                border: 1px solid rgba(168, 85, 247, 0.55) !important;
             }
 
             .mobile-login-btn {
@@ -470,19 +500,20 @@
                 display: none !important;
             }
 
-            /* Admin Traffic Center Tooltip / Modal: Fix display on mobile */
+            /* Admin Traffic Center Tooltip / Modal: Centered Modal on mobile */
             #admin-stats-tooltip {
                 position: fixed !important;
-                top: 76px !important;
-                right: 8px !important;
-                left: auto !important;
-                width: 320px !important;
-                max-width: calc(100vw - 16px) !important;
-                max-height: calc(100dvh - 86px) !important;
+                top: 50% !important;
+                left: 50% !important;
+                transform: translate(-50%, -50%) !important;
+                right: auto !important;
+                width: min(340px, calc(100vw - 20px)) !important;
+                max-width: calc(100vw - 20px) !important;
+                max-height: 82dvh !important;
                 overflow-y: auto !important;
                 -webkit-overflow-scrolling: touch !important;
-                z-index: 99999 !important;
-                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(124, 58, 237, 0.4) !important;
+                z-index: 999999 !important;
+                box-shadow: 0 24px 70px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(168, 85, 247, 0.5) !important;
             }
 
             /* Mobile Jump to Latest Candle Button - Positioned above dock on right */

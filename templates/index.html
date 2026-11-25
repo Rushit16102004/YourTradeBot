@@ -148,12 +148,12 @@
         <!-- ════════ LINE 1: LIVE UPDATE VALUES & MARKET INTELLIGENCE TICKER ════════ -->
         <div class="header-line header-line-top">
             <div class="header-line-left">
-                <div class="brand-badge">🇮🇳 NIFTY <span class="hide-on-mobile">50 PRO</span></div>
+                <div class="brand-badge"><span class="hide-on-mobile">🇮🇳 </span>NIFTY <span class="hide-on-mobile">50 PRO</span></div>
                 <div class="ltp-main-column">
                     <div class="ltp-badge" id="ltp-container">
                         <span id="ltp-display" class="ltp-price">₹--,--</span>
                         <span id="ltp-change-badge" class="ltp-change-badge" title="NIFTY 50 Points & Percentage Change vs Previous Day Close">
-                            <span id="ltp-change-icon">▲</span>
+                            <span id="ltp-change-icon" class="hide-on-mobile">▲</span>
                             <span id="ltp-change-pts">+0.00</span>
                             <span id="ltp-change-pct">(+0.00%)</span>
                         </span>
@@ -162,9 +162,9 @@
                             <span id="premarket-live-label">PRE-MARKET</span>
                         </span>
                         <div id="nifty-breadth-badge" class="nifty-breadth-badge" title="NIFTY 50 Market Breadth: 50 Constituent Stocks Up vs Down">
-                            <span class="breadth-item breadth-up" id="breadth-up" title="Advancing Stocks (Up)">▲ <span id="breadth-up-count">--</span><span class="hide-on-mobile"> (<span id="breadth-up-pct">--%</span>)</span></span>
+                            <span class="breadth-item breadth-up" id="breadth-up" title="Advancing Stocks (Up)"><span class="hide-on-mobile">▲ </span><span id="breadth-up-count">--</span><span class="hide-on-mobile"> (<span id="breadth-up-pct">--%</span>)</span></span>
                             <span class="breadth-sep">/</span>
-                            <span class="breadth-item breadth-down" id="breadth-down" title="Declining Stocks (Down)">▼ <span id="breadth-down-count">--</span><span class="hide-on-mobile"> (<span id="breadth-down-pct">--%</span>)</span></span>
+                            <span class="breadth-item breadth-down" id="breadth-down" title="Declining Stocks (Down)"><span class="hide-on-mobile">▼ </span><span id="breadth-down-count">--</span><span class="hide-on-mobile"> (<span id="breadth-down-pct">--%</span>)</span></span>
                         </div>
                         <!-- 📊 Macro Derivatives Intelligence Badge (VIX, PCR, OI - Updates every 10s) -->
                         <div id="macro-metrics-badge" class="macro-metrics-badge" title="Macro Derivatives Intelligence (Updates every 10s): India VIX, PCR, and Total Open Interest">
@@ -176,7 +176,7 @@
                         </div>
                         <!-- ⚡ Heavyweight Fuel Mini-Ticker (Top 5 Stocks Net Impact - Updates every 10s) -->
                         <div id="heavyweights-badge" class="macro-metrics-badge" title="Top 5 Heavyweights Point Contribution to NIFTY 50" style="border-color: rgba(99, 102, 241, 0.35); background: rgba(30, 27, 75, 0.4);">
-                            <span class="macro-item" style="color: #a5b4fc;">⚡ Top 5: <b id="hw-net-val" style="color: #cbd5e1;">-- pts</b></span>
+                            <span class="macro-item" style="color: #a5b4fc;"><span class="hide-on-mobile">⚡ </span>Top 5: <b id="hw-net-val" style="color: #cbd5e1;">-- pts</b></span>
                             <span class="macro-sep">•</span>
                             <span class="macro-item" id="hw-leaders-ticker" style="font-size: 10.5px; color: #94a3b8;">HDFC -- | REL -- | ICICI -- | INFY -- | TCS --</span>
                         </div>
@@ -190,8 +190,8 @@
                     <span class="status-dot"></span>
                     <span id="market-status-text">Market Closed</span>
                 </div>
-                <!-- ⚙️ Platform Settings & Preferences (Colors, Profile, Developer Support) -->
-                <button class="btn-action" id="btn-open-terminal-settings" onclick="openTerminalSettingsModal()" title="Platform Settings & Customization (Colors, Profile, Developer Support)" style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-weight: 700; padding: 4px 10px;">
+                <!-- ⚙️ Platform Settings & Preferences (Colors, Profile, Developer Support - Hidden on mobile because it is available in Line 3) -->
+                <button class="btn-action hide-on-mobile" id="btn-open-terminal-settings" onclick="openTerminalSettingsModal()" title="Platform Settings & Customization (Colors, Profile, Developer Support)" style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-weight: 700; padding: 4px 10px;">
                     ⚙️ <span class="hide-on-mobile">Settings</span>
                 </button>
             </div>
@@ -203,7 +203,7 @@
                 <!-- ⏱ Timeframe Dropdown (TradingView Style) -->
                 <div class="custom-dropdown" id="dropdown-timeframe">
                     <button class="dropdown-trigger-btn" id="btn-tf-dropdown" onclick="toggleDropdown('dropdown-timeframe')" title="Select Active Chart Timeframe">
-                        <span id="active-tf-label">⏱ 5m</span> <span class="arrow-down">▾</span>
+                        <span id="active-tf-label"><span class="hide-on-mobile">⏱ </span>5m</span> <span class="arrow-down">▾</span>
                     </button>
                     <div class="dropdown-menu-panel" id="panel-tf-dropdown">
                         <div class="dropdown-header">Chart Timeframe</div>
@@ -240,7 +240,7 @@
                 <div class="custom-dropdown" id="dropdown-patterns" style="display: inline-block; margin-left: 8px;">
                     <button class="dropdown-trigger-btn" id="btn-patterns-dropdown" onclick="toggleDropdown('dropdown-patterns')" title="Multi-Timeframe Chart Patterns & Breakout Detector" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95)); border: 1.5px solid rgba(56, 189, 248, 0.4); border-radius: 6px; padding: 4px 10px; font-size: 11.5px; font-weight: 700; color: #e2e8f0; display: inline-flex; align-items: center; gap: 7px; transition: all 0.2s ease;">
                         <span class="pattern-pulse-dot" id="patterns-pulse-dot" style="background: #38bdf8; box-shadow: 0 0 6px #38bdf8;"></span>
-                        <span id="patterns-btn-label">✨ Patterns</span>
+                        <span id="patterns-btn-label"><span class="hide-on-mobile">✨ </span>Patterns</span>
                         <span id="patterns-breakout-badge" class="pattern-badge-action" style="display: none;"></span>
                         <span class="arrow-down">▾</span>
                     </button>
@@ -282,7 +282,7 @@
                 <!-- 📊 Indicators Dropdown Menu -->
                 <div class="custom-dropdown" id="dropdown-indicators">
                 <button class="dropdown-trigger-btn" id="btn-indicators-dropdown" onclick="toggleDropdown('dropdown-indicators')" title="Manage Chart Indicators (VWAP, Bands, SMA, Signals)">
-                    <span>📊 <span class="hide-on-mobile">Indicators</span><span class="show-on-mobile">Ind</span></span> <span class="ind-count-badge" id="ind-active-count">0</span> <span class="arrow-down">▾</span>
+                    <span><span class="hide-on-mobile">📊 </span><span class="hide-on-mobile">Indicators</span><span class="show-on-mobile">Ind</span></span> <span class="ind-count-badge" id="ind-active-count">0</span> <span class="arrow-down">▾</span>
                 </button>
                                                 <div class="dropdown-menu-panel dropdown-align-right" style="min-width: 320px; max-height: 82vh; overflow-y: auto;" id="panel-indicators-dropdown">
                     <!-- Header (Clean, without Add New) -->
@@ -695,7 +695,7 @@
                 <!-- 🛡️ S&R Dropdown Menu -->
                 <div class="custom-dropdown" id="dropdown-sr">
                 <button class="dropdown-trigger-btn active-sr-head" id="btn-sr-dropdown" onclick="toggleDropdown('dropdown-sr')" title="Support & Resistance Levels & Multi-Month Confluence">
-                    <span id="sr-dropdown-label">🛡️ S&R (All 4M): <b>ON</b></span> <span class="arrow-down">▾</span>
+                    <span id="sr-dropdown-label"><span class="hide-on-mobile">🛡️ </span>S&R (All 4M): <b>ON</b></span> <span class="arrow-down">▾</span>
                 </button>
                 <div class="dropdown-menu-panel dropdown-align-right" style="min-width: 290px;" id="panel-sr-dropdown">
                     <div class="dropdown-header">Support & Resistance Engine</div>
@@ -780,11 +780,11 @@
 
                 <div class="header-divider"></div>
 
-                <!-- Action Buttons: History, Sync -->
-                <button class="btn-action" onclick="openSignalHistoryModal()" title="View Structured Signal History: Main Strategy vs S&R Breakout & Reversal">
+                <!-- Action Buttons: History, Sync (Hidden on mobile because moved to Line 3) -->
+                <button class="btn-action hide-on-mobile" onclick="openSignalHistoryModal()" title="View Structured Signal History: Main Strategy vs S&R Breakout & Reversal">
                     📜 <span class="hide-on-mobile">History</span><span class="show-on-mobile">Hist</span>
                 </button>
-                <button class="btn-action" id="btn-sync-action" onclick="triggerManualSync()" title="Force live sync with NSE feed">
+                <button class="btn-action hide-on-mobile" id="btn-sync-action" onclick="triggerManualSync()" title="Force live sync with NSE feed">
                     <span id="sync-icon" style="display: inline-block;">🔄</span><span class="hide-on-mobile"> Sync</span>
                 </button>
 
@@ -811,81 +811,6 @@
                         <span>📥</span>
                         <span class="hide-on-mobile">Users CSV</span>
                     </button>
-
-                    <!-- Interactive Traffic Card (Toggled on click or hover) -->
-                    <div id="admin-stats-tooltip" style="display: none; position: absolute; right: 0; top: 36px; width: 295px; background: #0b1329; border: 1px solid #7c3aed; border-radius: 10px; box-shadow: 0 16px 40px rgba(0,0,0,0.9); z-index: 10000; padding: 14px; font-size: 11.5px; text-align: left;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 8px; margin-bottom: 10px;">
-                            <span style="font-size: 12.5px; font-weight: 800; color: #c084fc;">👑 Admin Traffic Center</span>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <span style="font-size: 10px; font-weight: 700; color: #22c55e; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); padding: 1px 6px; border-radius: 4px;">● Live Now</span>
-                                <button onclick="closeAdminStatsModal(event)" style="background: transparent; border: none; color: #94a3b8; font-size: 13px; cursor: pointer; padding: 0 4px;" title="Close">✕</button>
-                            </div>
-                        </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
-                            <div style="background: #131d37; padding: 9px; border-radius: 7px; border: 1px solid #1e293b;">
-                                <div style="color: #94a3b8; font-size: 10px;">👥 Total Unique Visitors</div>
-                                <div id="stat-unique-visitors" style="font-size: 16px; font-weight: 800; color: #38bdf8; margin-top: 2px;">--</div>
-                            </div>
-                            <div style="background: #131d37; padding: 9px; border-radius: 7px; border: 1px solid #1e293b;">
-                                <div style="color: #94a3b8; font-size: 10px;">🟢 Active Right Now</div>
-                                <div id="stat-active-online" style="font-size: 16px; font-weight: 800; color: #22c55e; margin-top: 2px;">--</div>
-                            </div>
-                            <div style="background: #131d37; padding: 9px; border-radius: 7px; border: 1px solid #1e293b;">
-                                <div style="color: #94a3b8; font-size: 10px;">👤 Registered Users</div>
-                                <div id="stat-reg-visitors" style="font-size: 14px; font-weight: 800; color: #a78bfa; margin-top: 2px;">--</div>
-                            </div>
-                            <div style="background: #131d37; padding: 9px; border-radius: 7px; border: 1px solid #1e293b;">
-                                <div style="color: #94a3b8; font-size: 10px;">🕵️ Guest Visitors</div>
-                                <div id="stat-guest-visitors" style="font-size: 14px; font-weight: 800; color: #94a3b8; margin-top: 2px;">--</div>
-                            </div>
-                        </div>
-                        <div style="background: rgba(30, 41, 59, 0.5); padding: 7px 10px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                            <span style="color: #94a3b8; font-size: 10.5px;">Signup Conversion:</span>
-                            <span id="stat-conv-rate" style="font-weight: 800; color: #f59e0b; font-size: 11.5px;">--%</span>
-                        </div>
-                        <div style="background: rgba(30, 41, 59, 0.5); padding: 7px 10px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-                            <span style="color: #94a3b8; font-size: 10.5px;">Device Split:</span>
-                            <span id="stat-device-split" style="font-weight: 700; color: #cbd5e1; font-size: 11px;">📱 --% / 💻 --%</span>
-                        </div>
-                        <a href="/api/admin/users?admin_key=Rushit@Admin2026MasterKey" target="_blank" style="text-decoration: none; width: 100%; margin-bottom: 8px; background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%); border: 1px solid #60a5fa; color: #ffffff; padding: 8px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);">
-                            <span>👑 User & Guest Command Center</span>
-                        </a>
-                        <button onclick="downloadUsersCSV(event)" style="width: 100%; background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); border: 1px solid #a855f7; color: #ffffff; padding: 8px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s ease;">
-                            <span>📥 Download Registered Users CSV</span>
-                        </button>
-                        <div style="display: flex; gap: 6px; margin-top: 8px;">
-                            <button onclick="openCopilotQueriesAdmin(event)" style="flex: 1; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; padding: 7px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s ease;" title="View all user Copilot questions and AI responses in Admin Dashboard">
-                                <span>💬 View Copilot Queries</span>
-                            </button>
-                            <button onclick="downloadCopilotQueriesCSV(event)" style="background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); color: #4ade80; padding: 7px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s ease;" title="Download Copilot Chat Queries CSV">
-                                <span>📥 CSV</span>
-                            </button>
-                        </div>
-                        <div style="display: flex; gap: 6px; margin-top: 6px;">
-                            <button onclick="openVisitorAdminDashboard(event)" style="flex: 1; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.4); color: #c084fc; padding: 7px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s ease;" title="View Live Visitor IP Intelligence & Daily Activity Dashboard">
-                                <span>🌐 Visitor Activity & IPs</span>
-                            </button>
-                            <button onclick="downloadVisitorActivityCSV(event)" style="background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.4); color: #c084fc; padding: 7px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s ease;" title="Download Full Visitor Daily Activity CSV">
-                                <span>📥 CSV</span>
-                            </button>
-                        </div>
-
-                        <!-- 🛠️ Pattern Engine Admin Command (Exclusive to Admin Dashboard) -->
-                        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #1e293b;">
-                            <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 7px; padding: 8px 10px; display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <div style="font-weight: 800; color: #fbbf24; font-size: 11px; display: flex; align-items: center; gap: 4px;">
-                                        <span>🛠️ Pattern Lab</span>
-                                        <span style="font-size: 9px; background: rgba(34, 197, 94, 0.2); color: #4ade80; padding: 0 4px; border-radius: 3px; font-weight: 700;">Admin Active</span>
-                                    </div>
-                                    <div style="font-size: 9.5px; color: #94a3b8; margin-top: 2px;">Stopped for users • Test & debug patterns</div>
-                                </div>
-                                <button onclick="openAdminPatternLab(event)" style="background: linear-gradient(135deg, #0284c7, #0369a1); border: 1px solid #38bdf8; color: #ffffff; padding: 5px 10px; border-radius: 5px; font-size: 10.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 3px; box-shadow: 0 2px 6px rgba(2, 132, 199, 0.4);" title="Open Pattern Detector for Admin Testing">
-                                    <span>✨ Test</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
                 </div>
                 <!-- Home Link & Auto-Logout -->
                 <a href="javascript:void(0)" onclick="goHomeAndLogout()" class="btn-action" title="Log out & return to Home" style="background: rgba(15, 23, 42, 0.7); color: #38bdf8; font-weight: 700; border: 1px solid rgba(56, 189, 248, 0.35); padding: 4px 9px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; font-size: 11.5px; cursor: pointer;">
@@ -932,6 +857,65 @@
             </div>
         </div>
 
+        <!-- 👑 Admin Traffic Center Modal / Tooltip (Top-level container so it opens reliably on desktop & mobile) -->
+        <div id="admin-stats-tooltip" style="display: none; position: fixed; right: 16px; top: 76px; width: 310px; background: #0b1329; border: 1px solid #7c3aed; border-radius: 12px; box-shadow: 0 16px 45px rgba(0,0,0,0.95); z-index: 100000; padding: 14px; font-size: 11.5px; text-align: left;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 8px; margin-bottom: 10px;">
+                <span style="font-size: 13px; font-weight: 800; color: #c084fc; display: flex; align-items: center; gap: 5px;">👑 Admin Traffic Center</span>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 10px; font-weight: 700; color: #22c55e; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); padding: 1px 6px; border-radius: 4px;">● Live Now</span>
+                    <button onclick="closeAdminStatsModal(event)" style="background: transparent; border: none; color: #94a3b8; font-size: 14px; cursor: pointer; padding: 0 4px;" title="Close">✕</button>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                <div style="background: #131d37; padding: 9px; border-radius: 7px; border: 1px solid #1e293b;">
+                    <div style="color: #94a3b8; font-size: 10px;">👥 Total Unique Visitors</div>
+                    <div id="stat-unique-visitors" style="font-size: 16px; font-weight: 800; color: #38bdf8; margin-top: 2px;">--</div>
+                </div>
+                <div style="background: #131d37; padding: 9px; border-radius: 7px; border: 1px solid #1e293b;">
+                    <div style="color: #94a3b8; font-size: 10px;">🟢 Active Right Now</div>
+                    <div id="stat-active-online" style="font-size: 16px; font-weight: 800; color: #22c55e; margin-top: 2px;">--</div>
+                </div>
+                <div style="background: #131d37; padding: 9px; border-radius: 7px; border: 1px solid #1e293b;">
+                    <div style="color: #94a3b8; font-size: 10px;">👤 Registered Users</div>
+                    <div id="stat-reg-visitors" style="font-size: 14px; font-weight: 800; color: #a78bfa; margin-top: 2px;">--</div>
+                </div>
+                <div style="background: #131d37; padding: 9px; border-radius: 7px; border: 1px solid #1e293b;">
+                    <div style="color: #94a3b8; font-size: 10px;">🕵️ Guest Visitors</div>
+                    <div id="stat-guest-visitors" style="font-size: 14px; font-weight: 800; color: #94a3b8; margin-top: 2px;">--</div>
+                </div>
+            </div>
+            <div style="background: rgba(30, 41, 59, 0.5); padding: 7px 10px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #94a3b8; font-size: 10.5px;">Signup Conversion:</span>
+                <span id="stat-conv-rate" style="font-weight: 800; color: #f59e0b; font-size: 11.5px;">--%</span>
+            </div>
+            <div style="background: rgba(30, 41, 59, 0.5); padding: 7px 10px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #94a3b8; font-size: 10.5px;">Device Split:</span>
+                <span id="stat-device-split" style="font-weight: 700; color: #cbd5e1; font-size: 11px;">📱 --% / 💻 --%</span>
+            </div>
+            <a href="/api/admin/users?admin_key=Rushit@Admin2026MasterKey" target="_blank" style="text-decoration: none; width: 100%; margin-bottom: 8px; background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%); border: 1px solid #60a5fa; color: #ffffff; padding: 8px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);">
+                <span>👑 User & Guest Command Center</span>
+            </a>
+            <button onclick="downloadUsersCSV(event)" style="width: 100%; background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); border: 1px solid #a855f7; color: #ffffff; padding: 8px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s ease;">
+                <span>📥 Download Registered Users CSV</span>
+            </button>
+            <div style="display: flex; gap: 6px; margin-top: 8px;">
+                <button onclick="openCopilotQueriesAdmin(event)" style="flex: 1; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; padding: 7px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s ease;" title="View all user Copilot questions and AI responses in Admin Dashboard">
+                    <span>💬 View Copilot Queries</span>
+                </button>
+                <button onclick="downloadCopilotQueriesCSV(event)" style="background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); color: #4ade80; padding: 7px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s ease;" title="Download Copilot Chat Queries CSV">
+                    <span>📥 CSV</span>
+                </button>
+            </div>
+            <div style="display: flex; gap: 6px; margin-top: 6px;">
+                <button onclick="openVisitorAdminDashboard(event)" style="flex: 1; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.4); color: #c084fc; padding: 7px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s ease;" title="View Live Visitor IP Intelligence & Daily Activity Dashboard">
+                    <span>🌐 Visitor Activity & IPs</span>
+                </button>
+                <button onclick="downloadVisitorActivityCSV(event)" style="background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.4); color: #c084fc; padding: 7px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s ease;" title="Download Full Visitor Daily Activity CSV">
+                    <span>📥 CSV</span>
+                </button>
+            </div>
+        </div>
+
         <!-- ════════ LINE 3: MOBILE ACTION BAR (ONLY ON MOBILE DISPLAYS < 768px) ════════ -->
         <div class="header-line header-line-mobile-3" id="header-line-mobile-3">
             <div class="mobile-line-3-left">
@@ -942,9 +926,24 @@
             </div>
 
             <div class="mobile-line-3-right">
+                <!-- 📜 Signal History Button for Mobile -->
+                <button type="button" class="mobile-nav-btn mobile-hist-btn" onclick="openSignalHistoryModal()" title="Signal History & Trade Log">
+                    <span>📜</span> <span>Hist</span>
+                </button>
+
+                <!-- 🔄 Sync Button for Mobile -->
+                <button type="button" class="mobile-nav-btn mobile-sync-btn" onclick="triggerManualSync()" title="Force live sync with NSE feed">
+                    <span id="mobile-sync-icon" style="display: inline-block;">🔄</span> <span>Sync</span>
+                </button>
+
                 <!-- ⚙️ Settings Button for Mobile (Added to 3rd line per user instruction) -->
                 <button type="button" class="mobile-nav-btn mobile-settings-btn" onclick="openTerminalSettingsModal()" title="Platform Settings & Customization">
                     <span>⚙️</span> <span>Settings</span>
+                </button>
+
+                <!-- 👑 Admin Traffic Center Button for Mobile (Only visible if Admin) -->
+                <button type="button" id="btn-mobile-admin-stats" class="mobile-nav-btn mobile-admin-btn" onclick="toggleAdminStatsModal(event)" title="Admin Traffic Center" style="display: none; background: rgba(168, 85, 247, 0.2); border: 1px solid rgba(168, 85, 247, 0.6); color: #d8b4fe;">
+                    <span>👑</span> <span>Admin</span>
                 </button>
 
                 <!-- 👤 Mobile Guest Log In Button -->
@@ -990,15 +989,15 @@
         <div class="guest-vip-content">
             <span class="guest-vip-badge">✨ 100% FREE</span>
             <div class="guest-vip-text">
-                <span class="hide-on-mobile">Create a Free Account to unlock <b>Real-Time AI Strategy Copilot</b> (Instant CE/PE Setups & Institutional Bias), <b>Algorithmic Auto S&R Levels</b> (Automatic Major High-Probability Swing Zones) & <b>Macro Catalysts</b>.</span>
-                <span class="show-on-mobile" style="display: none;">Unlock <b>AI Strategy Copilot & Auto S&R</b></span>
-                <span class="guest-vip-subtext hide-on-mobile">• 100% Free Forever • Instant 10s Setup • Precision VWAP & Auto S&R Confluence Engine</span>
+                <span class="hide-on-mobile">Log In or Create a Free Account for <b>24/7 Free AI Strategy Copilot</b> and <b>Full Indicator & Quant Access</b>.</span>
+                <span class="show-on-mobile" style="display: none;">Log in for <b>24/7 Free AI & Indicator Access</b></span>
+                <span class="guest-vip-subtext hide-on-mobile">• 100% Free Forever • Instant 10s Setup • Institutional VWAP & Auto S&R Access</span>
             </div>
         </div>
         <div class="guest-vip-actions">
             <button class="guest-vip-btn" onclick="openAuthModal('register')">
-                <span class="hide-on-mobile">Unlock AI Copilot & Auto S&R 🚀</span>
-                <span class="show-on-mobile">Register 🚀</span>
+                <span class="hide-on-mobile">Log In / Free Access 🚀</span>
+                <span class="show-on-mobile">Free Access 🚀</span>
             </button>
             <button type="button" class="guest-vip-close" onclick="dismissGuestVipBanner(event)" title="Dismiss banner">✕</button>
         </div>
@@ -2214,13 +2213,13 @@
             if (srDropLabel) {
                 const srActive = isSREnabled;
                 if (srActive && isStructureEnabled) {
-                    srDropLabel.innerHTML = `🛡️ S&R (${activeSRLabel}) • ⚡ BoS: <b>ON</b>`;
+                    srDropLabel.innerHTML = `<span class="hide-on-mobile">🛡️ </span>S&R (${activeSRLabel}) • <span class="hide-on-mobile">⚡ </span>BoS: <b>ON</b>`;
                 } else if (srActive) {
-                    srDropLabel.innerHTML = `🛡️ S&R (${activeSRLabel}): <b>ON</b>`;
+                    srDropLabel.innerHTML = `<span class="hide-on-mobile">🛡️ </span>S&R (${activeSRLabel}): <b>ON</b>`;
                 } else if (isStructureEnabled) {
-                    srDropLabel.innerHTML = `⚡ BoS/CHoCH (${currentStructureTimeframe.toUpperCase()}): <b>ON</b>`;
+                    srDropLabel.innerHTML = `<span class="hide-on-mobile">⚡ </span>BoS/CHoCH (${currentStructureTimeframe.toUpperCase()}): <b>ON</b>`;
                 } else {
-                    srDropLabel.innerHTML = `🛡️ S&R / BoS: <b>OFF</b>`;
+                    srDropLabel.innerHTML = `<span class="hide-on-mobile">🛡️ </span>S&R / BoS: <b>OFF</b>`;
                 }
             }
             if (srDropBtn) {
@@ -3551,8 +3550,8 @@
             });
             const activeTfEl = document.getElementById('active-tf-label');
             if (activeTfEl) {
-                const tfLabels = { '5m': '⏱ 5m', '15m': '⏱ 15m', '1h': '⏱ 1H', '1d': '⏱ 1D' };
-                activeTfEl.innerText = tfLabels[tf] || `⏱ ${tf.toUpperCase()}`;
+                const tfLabels = { '5m': '<span class="hide-on-mobile">⏱ </span>5m', '15m': '<span class="hide-on-mobile">⏱ </span>15m', '1h': '<span class="hide-on-mobile">⏱ </span>1H', '1d': '<span class="hide-on-mobile">⏱ </span>1D' };
+                activeTfEl.innerHTML = tfLabels[tf] || `<span class="hide-on-mobile">⏱ </span>${tf.toUpperCase()}`;
             }
             document.querySelectorAll('#panel-tf-dropdown .dropdown-item').forEach(item => {
                 item.classList.toggle('active', item.dataset.tf === tf);
@@ -3615,10 +3614,16 @@
             if (isSyncingManual) return;
             isSyncingManual = true;
             const icon = document.getElementById('sync-icon');
+            const mIcon = document.getElementById('mobile-sync-icon');
             if (icon) {
                 icon.style.display = 'inline-block';
                 icon.style.transition = 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)';
                 icon.style.transform = 'rotate(720deg)';
+            }
+            if (mIcon) {
+                mIcon.style.display = 'inline-block';
+                mIcon.style.transition = 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)';
+                mIcon.style.transform = 'rotate(720deg)';
             }
             showDrawingToast('🔄 Syncing live candles & indicators with NSE feed...');
             try {
@@ -3636,6 +3641,10 @@
                     if (icon) {
                         icon.style.transition = 'none';
                         icon.style.transform = 'none';
+                    }
+                    if (mIcon) {
+                        mIcon.style.transition = 'none';
+                        mIcon.style.transform = 'none';
                     }
                     isSyncingManual = false;
                 }, 850);
@@ -8715,7 +8724,7 @@ function showIndicatorLineActionPill(ind, point) {
                 }
 
                 if (breakoutCount > 0) {
-                    if (btnLabel) btnLabel.textContent = `⚡ Patterns (${totalActive})`;
+                    if (btnLabel) btnLabel.innerHTML = `<span class="hide-on-mobile">⚡ </span>Patterns (${totalActive})`;
                     if (breakoutBadge) {
                         breakoutBadge.style.display = 'inline-block';
                         breakoutBadge.textContent = `⚡ ${breakoutCount} BREAKOUT`;
@@ -12726,6 +12735,19 @@ function showIndicatorLineActionPill(ind, point) {
         }
 
         function openKeySettingsModal() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                const errBox = document.getElementById('auth-error-box');
+                if (errBox) {
+                    errBox.innerHTML = `🔒 <strong>Member Access Required</strong><br>Log In or Create a Free Account to configure dedicated AI Strategy Copilot models and personal keys.`;
+                    errBox.style.display = 'block';
+                    errBox.style.background = 'rgba(56, 189, 248, 0.12)';
+                    errBox.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                    errBox.style.color = '#38bdf8';
+                }
+                openAuthModal('login');
+                return;
+            }
             const modal = document.getElementById('rag-key-modal');
             const statusMsg = document.getElementById('ai-engine-key-status-msg');
             if (modal) modal.style.display = 'flex';
@@ -14974,7 +14996,20 @@ function showIndicatorLineActionPill(ind, point) {
             if (tooltip) {
                 const isOpen = tooltip.style.display === 'block';
                 tooltip.style.display = isOpen ? 'none' : 'block';
-                if (!isOpen) fetchAdminVisitorStats();
+                if (!isOpen) {
+                    if (window.innerWidth <= 768) {
+                        tooltip.style.top = '50%';
+                        tooltip.style.left = '50%';
+                        tooltip.style.transform = 'translate(-50%, -50%)';
+                        tooltip.style.right = 'auto';
+                    } else {
+                        tooltip.style.top = '76px';
+                        tooltip.style.right = '16px';
+                        tooltip.style.left = 'auto';
+                        tooltip.style.transform = 'none';
+                    }
+                    fetchAdminVisitorStats();
+                }
             }
         }
 
@@ -14987,8 +15022,12 @@ function showIndicatorLineActionPill(ind, point) {
         // Close admin tooltip when clicking outside
         document.addEventListener('click', (e) => {
             const badge = document.getElementById('admin-analytics-badge');
+            const mobileBtn = document.getElementById('btn-mobile-admin-stats');
             const tooltip = document.getElementById('admin-stats-tooltip');
-            if (tooltip && tooltip.style.display === 'block' && badge && !badge.contains(e.target)) {
+            if (tooltip && tooltip.style.display === 'block') {
+                if (badge && badge.contains(e.target)) return;
+                if (mobileBtn && mobileBtn.contains(e.target)) return;
+                if (tooltip.contains(e.target)) return;
                 tooltip.style.display = 'none';
             }
         });
@@ -15113,15 +15152,15 @@ function showIndicatorLineActionPill(ind, point) {
             const menuStyle = document.getElementById('menu-user-style');
 
             const adminBadge = document.getElementById('admin-analytics-badge');
+            const mobileAdminBtn = document.getElementById('btn-mobile-admin-stats');
             if (!token) {
                 currentUser = null;
-                if (guestBtn) guestBtn.style.display = 'inline-flex';
-                if (userBadge) userBadge.style.display = 'none';
-                if (mobileGuestBtn) mobileGuestBtn.style.display = 'inline-flex';
-                if (mobileUserBadge) mobileUserBadge.style.display = 'none';
-                if (mobileGuestBtn) mobileGuestBtn.style.display = 'inline-flex';
-                if (mobileUserBadge) mobileUserBadge.style.display = 'none';
+                if (guestBtn) { guestBtn.style.setProperty('display', 'inline-flex', 'important'); guestBtn.classList.remove('is-hidden'); }
+                if (userBadge) { userBadge.style.setProperty('display', 'none', 'important'); userBadge.classList.add('is-hidden'); }
+                if (mobileGuestBtn) { mobileGuestBtn.style.setProperty('display', 'inline-flex', 'important'); mobileGuestBtn.classList.remove('is-hidden'); }
+                if (mobileUserBadge) { mobileUserBadge.style.setProperty('display', 'none', 'important'); mobileUserBadge.classList.add('is-hidden'); }
                 if (adminBadge) adminBadge.style.display = 'none';
+                if (mobileAdminBtn) mobileAdminBtn.style.display = 'none';
                 if (adminStatsTimer) { clearInterval(adminStatsTimer); adminStatsTimer = null; }
                 const patBtn = document.getElementById('btn-patterns-dropdown');
                 if (patBtn) {
@@ -15142,18 +15181,20 @@ function showIndicatorLineActionPill(ind, point) {
                     const data = await res.json();
                     if (data && data.is_authenticated && data.user) {
                         currentUser = data.user;
-                        if (guestBtn) guestBtn.style.display = 'none';
-                        if (userBadge) userBadge.style.display = 'inline-flex';
-                        if (mobileGuestBtn) mobileGuestBtn.style.display = 'none';
-                        if (mobileUserBadge) mobileUserBadge.style.display = 'inline-flex';
+                        if (guestBtn) { guestBtn.style.setProperty('display', 'none', 'important'); guestBtn.classList.add('is-hidden'); }
+                        if (userBadge) { userBadge.style.setProperty('display', 'inline-flex', 'important'); userBadge.classList.remove('is-hidden'); }
+                        if (mobileGuestBtn) { mobileGuestBtn.style.setProperty('display', 'none', 'important'); mobileGuestBtn.classList.add('is-hidden'); }
+                        if (mobileUserBadge) { mobileUserBadge.style.setProperty('display', 'inline-flex', 'important'); mobileUserBadge.classList.remove('is-hidden'); }
                         const vipBanner = document.getElementById('guest-vip-banner');
                         if (vipBanner) vipBanner.style.display = 'none';
                         if (currentUser.role === 'admin') {
                             if (adminBadge) adminBadge.style.display = 'inline-flex';
+                            if (mobileAdminBtn) mobileAdminBtn.style.display = 'inline-flex';
                             fetchAdminVisitorStats();
                             if (!adminStatsTimer) adminStatsTimer = setInterval(fetchAdminVisitorStats, 30000);
                         } else {
                             if (adminBadge) adminBadge.style.display = 'none';
+                            if (mobileAdminBtn) mobileAdminBtn.style.display = 'none';
                             if (adminStatsTimer) { clearInterval(adminStatsTimer); adminStatsTimer = null; }
                         }
                         const patBtn = document.getElementById('btn-patterns-dropdown');
@@ -15324,7 +15365,7 @@ function showIndicatorLineActionPill(ind, point) {
             const btn = document.getElementById('btn-patterns-dropdown');
             const countTag = document.getElementById('patterns-active-count-tag');
 
-            if (btnLabel) btnLabel.textContent = '🛠️ Patterns';
+            if (btnLabel) btnLabel.innerHTML = '<span class="hide-on-mobile">🛠️ </span>Patterns';
             if (breakoutBadge) {
                 breakoutBadge.style.display = 'inline-block';
                 breakoutBadge.textContent = '🛠️ MAINTENANCE';
@@ -16220,8 +16261,8 @@ function showIndicatorLineActionPill(ind, point) {
                     currentTimeframe = prefs.timeframe;
                     const activeTfEl = document.getElementById('active-tf-label');
                     if (activeTfEl) {
-                        const tfLabels = { '5m': '⏱ 5m', '15m': '⏱ 15m', '1h': '⏱ 1H', '1d': '⏱ 1D' };
-                        activeTfEl.innerText = tfLabels[currentTimeframe] || `⏱ ${currentTimeframe.toUpperCase()}`;
+                        const tfLabels = { '5m': '<span class="hide-on-mobile">⏱ </span>5m', '15m': '<span class="hide-on-mobile">⏱ </span>15m', '1h': '<span class="hide-on-mobile">⏱ </span>1H', '1d': '<span class="hide-on-mobile">⏱ </span>1D' };
+                        activeTfEl.innerHTML = tfLabels[currentTimeframe] || `<span class="hide-on-mobile">⏱ </span>${currentTimeframe.toUpperCase()}`;
                     }
                     document.querySelectorAll('#panel-tf-dropdown .dropdown-item').forEach(item => {
                         item.classList.toggle('active', item.dataset.tf === currentTimeframe);
