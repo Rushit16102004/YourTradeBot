@@ -265,8 +265,6 @@
                 transition: all 0.15s ease !important;
                 box-sizing: border-box !important;
             }
-                box-sizing: border-box !important;
-            }
 
             .mobile-nav-btn.is-hidden,
             .mobile-nav-btn[style*="display: none"],

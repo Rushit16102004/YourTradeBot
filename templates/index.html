@@ -148,12 +148,12 @@
         <!-- ════════ LINE 1: LIVE UPDATE VALUES & MARKET INTELLIGENCE TICKER ════════ -->
         <div class="header-line header-line-top">
             <div class="header-line-left">
-                <div class="brand-badge"><span class="hide-on-mobile">🇮🇳 </span>NIFTY <span class="hide-on-mobile">50 PRO</span></div>
+                <div class="brand-badge">🇮🇳 NIFTY <span class="hide-on-mobile">50 PRO</span></div>
                 <div class="ltp-main-column">
                     <div class="ltp-badge" id="ltp-container">
                         <span id="ltp-display" class="ltp-price">₹--,--</span>
                         <span id="ltp-change-badge" class="ltp-change-badge" title="NIFTY 50 Points & Percentage Change vs Previous Day Close">
-                            <span id="ltp-change-icon" class="hide-on-mobile">▲</span>
+                            <span id="ltp-change-icon">▲</span>
                             <span id="ltp-change-pts">+0.00</span>
                             <span id="ltp-change-pct">(+0.00%)</span>
                         </span>
@@ -162,9 +162,9 @@
                             <span id="premarket-live-label">PRE-MARKET</span>
                         </span>
                         <div id="nifty-breadth-badge" class="nifty-breadth-badge" title="NIFTY 50 Market Breadth: 50 Constituent Stocks Up vs Down">
-                            <span class="breadth-item breadth-up" id="breadth-up" title="Advancing Stocks (Up)"><span class="hide-on-mobile">▲ </span><span id="breadth-up-count">--</span><span class="hide-on-mobile"> (<span id="breadth-up-pct">--%</span>)</span></span>
+                            <span class="breadth-item breadth-up" id="breadth-up" title="Advancing Stocks (Up)">▲ <span id="breadth-up-count">--</span><span class="hide-on-mobile"> (<span id="breadth-up-pct">--%</span>)</span></span>
                             <span class="breadth-sep">/</span>
-                            <span class="breadth-item breadth-down" id="breadth-down" title="Declining Stocks (Down)"><span class="hide-on-mobile">▼ </span><span id="breadth-down-count">--</span><span class="hide-on-mobile"> (<span id="breadth-down-pct">--%</span>)</span></span>
+                            <span class="breadth-item breadth-down" id="breadth-down" title="Declining Stocks (Down)">▼ <span id="breadth-down-count">--</span><span class="hide-on-mobile"> (<span id="breadth-down-pct">--%</span>)</span></span>
                         </div>
                         <!-- 📊 Macro Derivatives Intelligence Badge (VIX, PCR, OI - Updates every 10s) -->
                         <div id="macro-metrics-badge" class="macro-metrics-badge" title="Macro Derivatives Intelligence (Updates every 10s): India VIX, PCR, and Total Open Interest">
@@ -176,7 +176,7 @@
                         </div>
                         <!-- ⚡ Heavyweight Fuel Mini-Ticker (Top 5 Stocks Net Impact - Updates every 10s) -->
                         <div id="heavyweights-badge" class="macro-metrics-badge" title="Top 5 Heavyweights Point Contribution to NIFTY 50" style="border-color: rgba(99, 102, 241, 0.35); background: rgba(30, 27, 75, 0.4);">
-                            <span class="macro-item" style="color: #a5b4fc;"><span class="hide-on-mobile">⚡ </span>Top 5: <b id="hw-net-val" style="color: #cbd5e1;">-- pts</b></span>
+                            <span class="macro-item" style="color: #a5b4fc;">⚡ Top 5: <b id="hw-net-val" style="color: #cbd5e1;">-- pts</b></span>
                             <span class="macro-sep hide-on-mobile">•</span>
                             <span class="macro-item hide-on-mobile" id="hw-leaders-ticker" style="font-size: 10.5px; color: #94a3b8;">HDFC -- | REL -- | ICICI -- | INFY -- | TCS --</span>
                         </div>
@@ -203,7 +203,7 @@
                 <!-- ⏱ Timeframe Dropdown (TradingView Style) -->
                 <div class="custom-dropdown" id="dropdown-timeframe">
                     <button class="dropdown-trigger-btn" id="btn-tf-dropdown" onclick="toggleDropdown('dropdown-timeframe')" title="Select Active Chart Timeframe">
-                        <span id="active-tf-label"><span class="hide-on-mobile">⏱ </span>5m</span> <span class="arrow-down">▾</span>
+                        <span id="active-tf-label">⏱ 5m</span> <span class="arrow-down">▾</span>
                     </button>
                     <div class="dropdown-menu-panel" id="panel-tf-dropdown">
                         <div class="dropdown-header">Chart Timeframe</div>
@@ -240,7 +240,7 @@
                 <div class="custom-dropdown" id="dropdown-patterns" style="display: inline-block; margin-left: 8px;">
                     <button class="dropdown-trigger-btn" id="btn-patterns-dropdown" onclick="toggleDropdown('dropdown-patterns')" title="Multi-Timeframe Chart Patterns & Breakout Detector" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95)); border: 1.5px solid rgba(56, 189, 248, 0.4); border-radius: 6px; padding: 4px 10px; font-size: 11.5px; font-weight: 700; color: #e2e8f0; display: inline-flex; align-items: center; gap: 7px; transition: all 0.2s ease;">
                         <span class="pattern-pulse-dot" id="patterns-pulse-dot" style="background: #38bdf8; box-shadow: 0 0 6px #38bdf8;"></span>
-                        <span id="patterns-btn-label"><span class="hide-on-mobile">✨ </span>Patterns</span>
+                        <span id="patterns-btn-label">✨ Patterns</span>
                         <span id="patterns-breakout-badge" class="pattern-badge-action" style="display: none;"></span>
                         <span class="arrow-down">▾</span>
                     </button>
@@ -282,7 +282,7 @@
                 <!-- 📊 Indicators Dropdown Menu -->
                 <div class="custom-dropdown" id="dropdown-indicators">
                 <button class="dropdown-trigger-btn" id="btn-indicators-dropdown" onclick="toggleDropdown('dropdown-indicators')" title="Manage Chart Indicators (VWAP, Bands, SMA, Signals)">
-                    <span><span class="hide-on-mobile">📊 </span><span class="hide-on-mobile">Indicators</span><span class="show-on-mobile">Ind</span></span> <span class="ind-count-badge" id="ind-active-count">0</span> <span class="arrow-down">▾</span>
+                    <span>📊 <span class="hide-on-mobile">Indicators</span><span class="show-on-mobile">Ind</span></span> <span class="ind-count-badge" id="ind-active-count">0</span> <span class="arrow-down">▾</span>
                 </button>
                                                 <div class="dropdown-menu-panel dropdown-align-right" style="min-width: 320px; max-height: 82vh; overflow-y: auto;" id="panel-indicators-dropdown">
                     <!-- Header (Clean, without Add New) -->
@@ -695,7 +695,7 @@
                 <!-- 🛡️ S&R Dropdown Menu -->
                 <div class="custom-dropdown" id="dropdown-sr">
                 <button class="dropdown-trigger-btn active-sr-head" id="btn-sr-dropdown" onclick="toggleDropdown('dropdown-sr')" title="Support & Resistance Levels & Multi-Month Confluence">
-                    <span id="sr-dropdown-label"><span class="hide-on-mobile">🛡️ </span>S&R (All 4M): <b>ON</b></span> <span class="arrow-down">▾</span>
+                    <span id="sr-dropdown-label">🛡️ S&R (All 4M): <b>ON</b></span> <span class="arrow-down">▾</span>
                 </button>
                 <div class="dropdown-menu-panel dropdown-align-right" style="min-width: 290px;" id="panel-sr-dropdown">
                     <div class="dropdown-header">Support & Resistance Engine</div>
@@ -921,35 +921,35 @@
             <div class="mobile-line-3-left">
                 <!-- 🏠 Home Link & Auto-Logout -->
                 <a href="javascript:void(0)" onclick="goHomeAndLogout()" class="mobile-nav-btn mobile-home-btn" title="Log out & return to Home">
-                    <span>Home</span>
+                    <span>🏠</span> <span>Home</span>
                 </a>
             </div>
 
             <div class="mobile-line-3-right">
                 <!-- 📜 Signal History Button for Mobile -->
                 <button type="button" class="mobile-nav-btn mobile-hist-btn" onclick="openSignalHistoryModal()" title="Signal History & Trade Log">
-                    <span>Hist</span>
+                    <span>📜</span> <span>Hist</span>
                 </button>
 
                 <!-- 🔄 Sync Button for Mobile -->
                 <button type="button" class="mobile-nav-btn mobile-sync-btn" onclick="triggerManualSync()" title="Force live sync with NSE feed">
-                    <span id="mobile-sync-icon" style="display: none;"></span>
+                    <span id="mobile-sync-icon" style="display: inline-block;">🔄</span>
                     <span>Sync</span>
                 </button>
 
                 <!-- ⚙️ Settings Button for Mobile (Added to 3rd line per user instruction) -->
                 <button type="button" class="mobile-nav-btn mobile-settings-btn" onclick="openTerminalSettingsModal()" title="Platform Settings & Customization">
-                    <span>Settings</span>
+                    <span>⚙️</span> <span>Settings</span>
                 </button>
 
                 <!-- 👑 Admin Traffic Center Button for Mobile (Only visible if Admin) -->
                 <button type="button" id="btn-mobile-admin-stats" class="mobile-nav-btn mobile-admin-btn" onclick="toggleAdminStatsModal(event)" title="Admin Traffic Center" style="display: none; background: rgba(168, 85, 247, 0.2); border: 1px solid rgba(168, 85, 247, 0.6); color: #d8b4fe;">
-                    <span>Admin</span>
+                    <span>👑</span> <span>Admin</span>
                 </button>
 
                 <!-- 👤 Mobile Guest Log In Button -->
                 <button type="button" id="btn-mobile-guest-login" class="mobile-nav-btn mobile-login-btn" onclick="openAuthModal('login')" title="Log In or Register">
-                    <span>Log In</span>
+                    <span>👤</span> <span>Log In</span>
                 </button>
 
                 <!-- 🟢 Mobile Logged-In User Profile Button -->
@@ -2216,13 +2216,13 @@
             if (srDropLabel) {
                 const srActive = isSREnabled;
                 if (srActive && isStructureEnabled) {
-                    srDropLabel.innerHTML = `<span class="hide-on-mobile">🛡️ </span>S&R (${activeSRLabel}) • <span class="hide-on-mobile">⚡ </span>BoS: <b>ON</b>`;
+                    srDropLabel.innerHTML = `🛡️ S&R (${activeSRLabel}) • ⚡ BoS: <b>ON</b>`;
                 } else if (srActive) {
-                    srDropLabel.innerHTML = `<span class="hide-on-mobile">🛡️ </span>S&R (${activeSRLabel}): <b>ON</b>`;
+                    srDropLabel.innerHTML = `🛡️ S&R (${activeSRLabel}): <b>ON</b>`;
                 } else if (isStructureEnabled) {
-                    srDropLabel.innerHTML = `<span class="hide-on-mobile">⚡ </span>BoS/CHoCH (${currentStructureTimeframe.toUpperCase()}): <b>ON</b>`;
+                    srDropLabel.innerHTML = `⚡ BoS/CHoCH (${currentStructureTimeframe.toUpperCase()}): <b>ON</b>`;
                 } else {
-                    srDropLabel.innerHTML = `<span class="hide-on-mobile">🛡️ </span>S&R / BoS: <b>OFF</b>`;
+                    srDropLabel.innerHTML = `🛡️ S&R / BoS: <b>OFF</b>`;
                 }
             }
             if (srDropBtn) {
@@ -3553,8 +3553,8 @@
             });
             const activeTfEl = document.getElementById('active-tf-label');
             if (activeTfEl) {
-                const tfLabels = { '5m': '<span class="hide-on-mobile">⏱ </span>5m', '15m': '<span class="hide-on-mobile">⏱ </span>15m', '1h': '<span class="hide-on-mobile">⏱ </span>1H', '1d': '<span class="hide-on-mobile">⏱ </span>1D' };
-                activeTfEl.innerHTML = tfLabels[tf] || `<span class="hide-on-mobile">⏱ </span>${tf.toUpperCase()}`;
+                const tfLabels = { '5m': '⏱ 5m', '15m': '⏱ 15m', '1h': '⏱ 1H', '1d': '⏱ 1D' };
+                activeTfEl.textContent = tfLabels[tf] || `⏱ ${tf.toUpperCase()}`;
             }
             document.querySelectorAll('#panel-tf-dropdown .dropdown-item').forEach(item => {
                 item.classList.toggle('active', item.dataset.tf === tf);
@@ -8759,7 +8759,7 @@ function showIndicatorLineActionPill(ind, point) {
                 }
 
                 if (breakoutCount > 0) {
-                    if (btnLabel) btnLabel.innerHTML = `<span class="hide-on-mobile">⚡ </span>Patterns (${totalActive})`;
+                    if (btnLabel) btnLabel.textContent = `⚡ Patterns (${totalActive})`;
                     if (breakoutBadge) {
                         breakoutBadge.style.display = 'inline-block';
                         breakoutBadge.textContent = `⚡ ${breakoutCount} BREAKOUT`;
@@ -8776,7 +8776,7 @@ function showIndicatorLineActionPill(ind, point) {
                         btn.style.color = '#e2e8f0';
                     }
                 } else if (totalActive > 0) {
-                    if (btnLabel) btnLabel.innerHTML = `<span class="hide-on-mobile">✨ </span>Patterns (${totalActive})`;
+                    if (btnLabel) btnLabel.textContent = `✨ Patterns (${totalActive})`;
                     if (breakoutBadge) breakoutBadge.style.display = 'none';
                     if (pulseDot) {
                         pulseDot.style.background = '#38bdf8';
@@ -8787,7 +8787,7 @@ function showIndicatorLineActionPill(ind, point) {
                         btn.style.color = '#e2e8f0';
                     }
                 } else {
-                    if (btnLabel) btnLabel.innerHTML = `<span class="hide-on-mobile">✨ </span>Patterns`;
+                    if (btnLabel) btnLabel.textContent = `✨ Patterns`;
                     if (breakoutBadge) breakoutBadge.style.display = 'none';
                     if (pulseDot) {
                         pulseDot.style.background = '#64748b';
@@ -15426,7 +15426,7 @@ function showIndicatorLineActionPill(ind, point) {
             const btn = document.getElementById('btn-patterns-dropdown');
             const countTag = document.getElementById('patterns-active-count-tag');
 
-            if (btnLabel) btnLabel.innerHTML = '<span class="hide-on-mobile">🛠️ </span>Patterns';
+            if (btnLabel) btnLabel.textContent = '🛠️ Patterns';
             if (breakoutBadge) {
                 breakoutBadge.style.display = 'inline-block';
                 breakoutBadge.textContent = '🛠️ MAINTENANCE';
@@ -16322,8 +16322,8 @@ function showIndicatorLineActionPill(ind, point) {
                     currentTimeframe = prefs.timeframe;
                     const activeTfEl = document.getElementById('active-tf-label');
                     if (activeTfEl) {
-                        const tfLabels = { '5m': '<span class="hide-on-mobile">⏱ </span>5m', '15m': '<span class="hide-on-mobile">⏱ </span>15m', '1h': '<span class="hide-on-mobile">⏱ </span>1H', '1d': '<span class="hide-on-mobile">⏱ </span>1D' };
-                        activeTfEl.innerHTML = tfLabels[currentTimeframe] || `<span class="hide-on-mobile">⏱ </span>${currentTimeframe.toUpperCase()}`;
+                        const tfLabels = { '5m': '⏱ 5m', '15m': '⏱ 15m', '1h': '⏱ 1H', '1d': '⏱ 1D' };
+                        activeTfEl.textContent = tfLabels[currentTimeframe] || `⏱ ${currentTimeframe.toUpperCase()}`;
                     }
                     document.querySelectorAll('#panel-tf-dropdown .dropdown-item').forEach(item => {
                         item.classList.toggle('active', item.dataset.tf === currentTimeframe);
