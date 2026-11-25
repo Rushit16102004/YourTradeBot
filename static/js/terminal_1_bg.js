@@ -87,10 +87,10 @@
 
         const open = prevClose;
         const close = open + change;
-        const wickSpread = Math.random() * (this.volatility * 0.75) + 1.5;
+        const wickSpread = Math.random() * (this.volatility * 0.85) + 3.0;
         const high = Math.max(open, close) + wickSpread;
         const low = Math.min(open, close) - wickSpread;
-        const volume = Math.floor(25 + Math.random() * 85 + (Math.abs(change) / this.volatility) * 60);
+        const volume = Math.floor(30 + Math.random() * 90 + (Math.abs(change) / this.volatility) * 70);
 
         return {
           open,
@@ -290,13 +290,13 @@
           const lowY = this.priceToY(c.low, minP, maxP, canvasHeight);
 
           const bodyTop = Math.min(openY, closeY);
-          const bodyHeight = Math.max(Math.abs(closeY - openY), 2.2);
+          const bodyHeight = Math.max(Math.abs(closeY - openY), 4.0);
           const centerX = c.x + this.candleWidth / 2;
 
           // Illumination when hit by AI laser beam
           const distToScan = Math.abs(c.x - scanX);
-          const isScanned = scanActive && distToScan < 85;
-          const scanGlow = isScanned ? (1 - distToScan / 85) : 0;
+          const isScanned = scanActive && distToScan < 95;
+          const scanGlow = isScanned ? (1 - distToScan / 95) : 0;
 
           // Interactive touch/pointer proximity glow
           let pointerGlow = 0;
@@ -311,13 +311,13 @@
 
           if (c.isBullish) {
             // Emerald Bullish
-            const alphaFill = (0.22 + totalGlow * 0.55) * this.alphaMod;
-            const alphaStroke = (0.55 + totalGlow * 0.45) * this.alphaMod;
+            const alphaFill = (0.24 + totalGlow * 0.55) * this.alphaMod;
+            const alphaStroke = (0.60 + totalGlow * 0.40) * this.alphaMod;
 
             ctx.strokeStyle = `rgba(16, 185, 129, ${alphaStroke})`;
             ctx.fillStyle = `rgba(16, 185, 129, ${alphaFill})`;
 
-            ctx.lineWidth = 1.15;
+            ctx.lineWidth = 2.0;
             ctx.beginPath();
             ctx.moveTo(centerX, highY);
             ctx.lineTo(centerX, lowY);
@@ -327,13 +327,13 @@
             ctx.strokeRect(c.x, bodyTop, this.candleWidth, bodyHeight);
           } else {
             // Crimson Bearish
-            const alphaFill = (0.20 + totalGlow * 0.55) * this.alphaMod;
-            const alphaStroke = (0.50 + totalGlow * 0.45) * this.alphaMod;
+            const alphaFill = (0.22 + totalGlow * 0.55) * this.alphaMod;
+            const alphaStroke = (0.55 + totalGlow * 0.40) * this.alphaMod;
 
             ctx.strokeStyle = `rgba(239, 68, 68, ${alphaStroke})`;
             ctx.fillStyle = `rgba(239, 68, 68, ${alphaFill})`;
 
-            ctx.lineWidth = 1.15;
+            ctx.lineWidth = 2.0;
             ctx.beginPath();
             ctx.moveTo(centerX, highY);
             ctx.lineTo(centerX, lowY);
@@ -346,46 +346,46 @@
       }
     }
 
-    // Configure 3 complementary institutional tracks
+    // Configure 3 complementary institutional tracks with enlarged, prominent candles
     const streams = [
-      // Track 1: Upper High-Speed Scalp Stream (kinetic, 34 px/s)
+      // Track 1: Upper High-Speed Scalp Stream (kinetic, enlarged 12px)
       new CandleStream({
         name: 'scalp',
         yMinPct: 0.05,
         yMaxPct: 0.32,
-        candleWidth: 6,
-        candleSpacing: 9,
-        speed: 34,
+        candleWidth: 12,
+        candleSpacing: 16,
+        speed: 28,
         basePrice: 25440,
-        volatility: 9,
-        alphaMod: 0.85
+        volatility: 16,
+        alphaMod: 0.90
       }),
-      // Track 2: Center Institutional Anchor Engine (VWAP ±2σ Bands + AI Neural Constellation)
+      // Track 2: Center Institutional Anchor Engine (VWAP ±2σ Bands + AI Neural Constellation, enlarged 18px)
       new CandleStream({
         name: 'institutional',
         yMinPct: 0.28,
         yMaxPct: 0.72,
-        candleWidth: 10,
-        candleSpacing: 16,
-        speed: 21,
+        candleWidth: 18,
+        candleSpacing: 25,
+        speed: 18,
         basePrice: 25370,
-        volatility: 14,
+        volatility: 24,
         hasVWAP: true,
         hasNeuralNodes: true,
-        alphaMod: 1.15
+        alphaMod: 1.20
       }),
-      // Track 3: Lower Macro Liquidity & Depth Stream (volume pillars, slow parallax 12 px/s)
+      // Track 3: Lower Macro Liquidity & Depth Stream (volume pillars, macro width 26px)
       new CandleStream({
         name: 'macro',
         yMinPct: 0.64,
         yMaxPct: 0.94,
-        candleWidth: 14,
-        candleSpacing: 20,
-        speed: 12,
+        candleWidth: 26,
+        candleSpacing: 36,
+        speed: 11,
         basePrice: 25310,
-        volatility: 18,
+        volatility: 32,
         hasVolume: true,
-        alphaMod: 0.75
+        alphaMod: 0.80
       })
     ];
 
