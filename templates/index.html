@@ -168,8 +168,8 @@
                         </div>
                         <!-- 📊 Macro Derivatives Intelligence Badge (VIX, PCR, OI - Updates every 10s) -->
                         <div id="macro-metrics-badge" class="macro-metrics-badge" title="Macro Derivatives Intelligence (Updates every 10s): India VIX, PCR, and Total Open Interest">
-                            <span class="macro-item">VIX <b id="macro-vix-val">--.--</b></span>
-                            <span class="macro-sep">•</span>
+                            <span class="macro-item hide-on-mobile">VIX <b id="macro-vix-val">--.--</b></span>
+                            <span class="macro-sep hide-on-mobile">•</span>
                             <span class="macro-item">PCR <b id="macro-pcr-val">--.--</b></span>
                             <span class="macro-sep hide-on-mobile">•</span>
                             <span class="macro-item hide-on-mobile">OI <b id="macro-oi-val">--</b></span>
@@ -177,8 +177,8 @@
                         <!-- ⚡ Heavyweight Fuel Mini-Ticker (Top 5 Stocks Net Impact - Updates every 10s) -->
                         <div id="heavyweights-badge" class="macro-metrics-badge" title="Top 5 Heavyweights Point Contribution to NIFTY 50" style="border-color: rgba(99, 102, 241, 0.35); background: rgba(30, 27, 75, 0.4);">
                             <span class="macro-item" style="color: #a5b4fc;"><span class="hide-on-mobile">⚡ </span>Top 5: <b id="hw-net-val" style="color: #cbd5e1;">-- pts</b></span>
-                            <span class="macro-sep">•</span>
-                            <span class="macro-item" id="hw-leaders-ticker" style="font-size: 10.5px; color: #94a3b8;">HDFC -- | REL -- | ICICI -- | INFY -- | TCS --</span>
+                            <span class="macro-sep hide-on-mobile">•</span>
+                            <span class="macro-item hide-on-mobile" id="hw-leaders-ticker" style="font-size: 10.5px; color: #94a3b8;">HDFC -- | REL -- | ICICI -- | INFY -- | TCS --</span>
                         </div>
                     </div>
                 </div>
@@ -921,34 +921,35 @@
             <div class="mobile-line-3-left">
                 <!-- 🏠 Home Link & Auto-Logout -->
                 <a href="javascript:void(0)" onclick="goHomeAndLogout()" class="mobile-nav-btn mobile-home-btn" title="Log out & return to Home">
-                    <span>🏠</span> <span>Home</span>
+                    <span>Home</span>
                 </a>
             </div>
 
             <div class="mobile-line-3-right">
                 <!-- 📜 Signal History Button for Mobile -->
                 <button type="button" class="mobile-nav-btn mobile-hist-btn" onclick="openSignalHistoryModal()" title="Signal History & Trade Log">
-                    <span>📜</span> <span>Hist</span>
+                    <span>Hist</span>
                 </button>
 
                 <!-- 🔄 Sync Button for Mobile -->
                 <button type="button" class="mobile-nav-btn mobile-sync-btn" onclick="triggerManualSync()" title="Force live sync with NSE feed">
-                    <span id="mobile-sync-icon" style="display: inline-block;">🔄</span> <span>Sync</span>
+                    <span id="mobile-sync-icon" style="display: none;"></span>
+                    <span>Sync</span>
                 </button>
 
                 <!-- ⚙️ Settings Button for Mobile (Added to 3rd line per user instruction) -->
                 <button type="button" class="mobile-nav-btn mobile-settings-btn" onclick="openTerminalSettingsModal()" title="Platform Settings & Customization">
-                    <span>⚙️</span> <span>Settings</span>
+                    <span>Settings</span>
                 </button>
 
                 <!-- 👑 Admin Traffic Center Button for Mobile (Only visible if Admin) -->
                 <button type="button" id="btn-mobile-admin-stats" class="mobile-nav-btn mobile-admin-btn" onclick="toggleAdminStatsModal(event)" title="Admin Traffic Center" style="display: none; background: rgba(168, 85, 247, 0.2); border: 1px solid rgba(168, 85, 247, 0.6); color: #d8b4fe;">
-                    <span>👑</span> <span>Admin</span>
+                    <span>Admin</span>
                 </button>
 
                 <!-- 👤 Mobile Guest Log In Button -->
                 <button type="button" id="btn-mobile-guest-login" class="mobile-nav-btn mobile-login-btn" onclick="openAuthModal('login')" title="Log In or Register">
-                    <span>👤</span> <span>Log In</span>
+                    <span>Log In</span>
                 </button>
 
                 <!-- 🟢 Mobile Logged-In User Profile Button -->
@@ -8741,7 +8742,7 @@ function showIndicatorLineActionPill(ind, point) {
                         btn.style.color = '#e2e8f0';
                     }
                 } else if (totalActive > 0) {
-                    if (btnLabel) btnLabel.textContent = `✨ Patterns (${totalActive})`;
+                    if (btnLabel) btnLabel.innerHTML = `<span class="hide-on-mobile">✨ </span>Patterns (${totalActive})`;
                     if (breakoutBadge) breakoutBadge.style.display = 'none';
                     if (pulseDot) {
                         pulseDot.style.background = '#38bdf8';
@@ -8752,7 +8753,7 @@ function showIndicatorLineActionPill(ind, point) {
                         btn.style.color = '#e2e8f0';
                     }
                 } else {
-                    if (btnLabel) btnLabel.textContent = `✨ Patterns`;
+                    if (btnLabel) btnLabel.innerHTML = `<span class="hide-on-mobile">✨ </span>Patterns`;
                     if (breakoutBadge) breakoutBadge.style.display = 'none';
                     if (pulseDot) {
                         pulseDot.style.background = '#64748b';
