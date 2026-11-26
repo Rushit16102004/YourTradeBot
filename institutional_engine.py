@@ -359,7 +359,11 @@ class InstitutionalEngine:
     ) -> Dict[str, Any]:
         """
         Synthesizes Engine 1 (Fuel), Engine 2 (Anchor/S&R), and Engine 3 (Flow/Radar)
-        into the 6-scenario decision structure.
+        into the institutional decision structure.
+        Strict Rules:
+        - If market is closed: No live signals or RR boxes generated.
+        - If only 1 engine is active and other 2 are neutral: Not good to enter (no signal/RR box).
+        - Requires a MINIMUM of 2 engines to agree on the same direction (CALL or PUT) to generate a trade setup.
         """
         matrix = self.get_latest_matrix()
         e1 = matrix.get("engine_1_fuel", {})
@@ -367,6 +371,34 @@ class InstitutionalEngine:
 
         e1_state = e1.get("state", "NEUTRAL")
         e3_state = e3.get("state", "NEUTRAL")
+
+        # Check market session state (Stop signals & RR box during closed market)
+        is_live = True
+        try:
+            from engine.background_engine import get_market_session_info
+            sess_info = get_market_session_info()
+            is_live = sess_info.get("is_live_market", False)
+        except Exception:
+            pass
+
+        if not is_live:
+            return {
+                "scenario": "MARKET_CLOSED",
+                "verdict": "MARKET_CLOSED_STAND_DOWN",
+                "conviction": "CLOSED",
+                "trade_mode": "MARKET_CLOSED",
+                "risk_alert": False,
+                "allowed_lots": 0,
+                "suggested_direction": "STAND DOWN (MARKET CLOSED)",
+                "actionable_directive": "Market is currently closed. No live trade signals or RR boxes generated. Regular session resumes at 09:15 AM IST.",
+                "is_signal_allowed": False,
+                "engine_1_fuel": e1,
+                "engine_2_anchor": {
+                    "state": engine_2_state,
+                    "reason": e2_reason,
+                },
+                "engine_3_flow": e3,
+            }
 
         states = [e1_state, engine_2_state, e3_state]
         call_count = states.count("CALL")
@@ -378,10 +410,12 @@ class InstitutionalEngine:
         conviction = "NEUTRAL"
         trade_mode = "STAND_DOWN"
         risk_alert = False
-        allowed_lots = 1
+        allowed_lots = 0
         suggested_dir = "STAND DOWN"
+        is_signal_allowed = False
+        actionable_directive = ""
 
-        # 1. 2 or 3 Agree on CALL
+        # 1. Minimum 2 Engines Agree on CALL (2/3 or 3/3)
         if call_count >= 2:
             scenario = "3_OF_3_CALL" if call_count == 3 else "2_OF_3_CALL"
             verdict = "HIGH_CONVICTION_BUY"
@@ -389,8 +423,10 @@ class InstitutionalEngine:
             trade_mode = "MOMENTUM_RUNNER"
             suggested_dir = "BUY (CALL)"
             allowed_lots = 2
+            is_signal_allowed = True
+            actionable_directive = f"Minimum {call_count}/3 engines agree on BUY (CALL). Valid institutional confluence setup."
 
-        # 2. 2 or 3 Agree on PUT
+        # 2. Minimum 2 Engines Agree on PUT (2/3 or 3/3)
         elif put_count >= 2:
             scenario = "3_OF_3_PUT" if put_count == 3 else "2_OF_3_PUT"
             verdict = "HIGH_CONVICTION_SELL"
@@ -398,35 +434,34 @@ class InstitutionalEngine:
             trade_mode = "MOMENTUM_RUNNER"
             suggested_dir = "SELL (PUT)"
             allowed_lots = 2
+            is_signal_allowed = True
+            actionable_directive = f"Minimum {put_count}/3 engines agree on SELL (PUT). Valid institutional confluence setup."
 
         # 3. Direct Deadlock: 1 CALL vs 1 PUT
         elif call_count == 1 and put_count == 1:
             scenario = "DEADLOCK_1_CALL_1_PUT"
             verdict = "STAND_DOWN_TUG_OF_WAR"
             conviction = "DEADLOCK"
-            trade_mode = "CONDITIONAL_TRIGGER"
+            trade_mode = "STAND_DOWN"
             suggested_dir = "STAND DOWN"
             risk_alert = True
             allowed_lots = 0
+            is_signal_allowed = False
+            actionable_directive = "Direct deadlock between engines (1 CALL vs 1 PUT). This time is not good to enter. Stand down."
 
-        # 4. Only 1 Engine Active (2 Neutral)
-        elif call_count == 1 and neutral_count == 2:
-            scenario = "1_ENGINE_ACTIVE_CALL"
-            verdict = "TACTICAL_SCALP_CALL"
-            conviction = "MODERATE_ELEVATED_RISK"
-            trade_mode = "TACTICAL_SCALP"
-            suggested_dir = "BUY (CALL)"
+        # 4. Only 1 Engine Active (2 Neutral) - Lacks institutional confluence: NO TRADE / NOT GOOD TO ENTER
+        elif (call_count == 1 or put_count == 1) and neutral_count == 2:
+            active_dir = "CALL" if call_count == 1 else "PUT"
+            active_engine_name = "Engine 1 (Heavyweights)" if e1_state in ("CALL", "PUT") else ("Engine 2 (VWAP / Structure)" if engine_2_state in ("CALL", "PUT") else "Engine 3 (Flow & Macro)")
+            scenario = f"1_ENGINE_ACTIVE_{active_dir}_LACKS_CONFLUENCE"
+            verdict = "STAND_DOWN_NOT_GOOD_TO_ENTER"
+            conviction = "INSUFFICIENT_CONFLUENCE"
+            trade_mode = "STAND_DOWN"
+            suggested_dir = "STAND DOWN"
             risk_alert = True
-            allowed_lots = 1
-
-        elif put_count == 1 and neutral_count == 2:
-            scenario = "1_ENGINE_ACTIVE_PUT"
-            verdict = "TACTICAL_SCALP_PUT"
-            conviction = "MODERATE_ELEVATED_RISK"
-            trade_mode = "TACTICAL_SCALP"
-            suggested_dir = "SELL (PUT)"
-            risk_alert = True
-            allowed_lots = 1
+            allowed_lots = 0
+            is_signal_allowed = False
+            actionable_directive = f"Only 1 engine ({active_engine_name}: {active_dir}) active; other 2 engines are neutral. Market lacks broad institutional backing. This time is NOT good to enter. Minimum 2 engines must give the same signal before entering."
 
         # 5. All 3 Neutral
         else:
@@ -436,6 +471,8 @@ class InstitutionalEngine:
             trade_mode = "NO_TRADE"
             suggested_dir = "STAND DOWN"
             allowed_lots = 0
+            is_signal_allowed = False
+            actionable_directive = "All 3 engines are neutral. This time is not good to enter. Wait for expansion and multi-engine alignment."
 
         return {
             "scenario": scenario,
@@ -445,6 +482,8 @@ class InstitutionalEngine:
             "risk_alert": risk_alert,
             "allowed_lots": allowed_lots,
             "suggested_direction": suggested_dir,
+            "actionable_directive": actionable_directive,
+            "is_signal_allowed": is_signal_allowed,
             "engine_1_fuel": e1,
             "engine_2_anchor": {
                 "state": engine_2_state,

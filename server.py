@@ -2730,6 +2730,19 @@ async def rag_chat(request: Request, payload: dict = Body(...)):
 
         # ⚖️ Persistent SEBI Disclaimer: Automatically attach short, permanent disclaimer to every AI trade suggestion
         reply_text = str(res.get("reply") or res.get("response") or "")
+
+        # Strict 2-Engine Confluence & Market Hours Enforcement:
+        three_dec = market_state.get("three_engine_decision", {})
+        if not three_dec.get("is_signal_allowed", True):
+            if re.search(r'(?:QUICK\s*)?TRADE\s*EXECUTION\s*SUMMARY|Entry\s*Price|Exit/Target|Stop\s*Loss|Risk:Reward', reply_text, re.IGNORECASE):
+                reply_text = re.sub(r"━+\s*🎯\s*QUICK TRADE EXECUTION SUMMARY[\s\S]*?(?:━+|$)", "", reply_text).strip()
+                reply_text = re.sub(r"🎯\s*QUICK TRADE EXECUTION SUMMARY[\s\S]*$", "", reply_text).strip()
+                directive_msg = three_dec.get("actionable_directive", "")
+                if directive_msg and "not good to enter" not in reply_text.lower() and "market is closed" not in reply_text.lower():
+                    reply_text += f"\n\n⚠️ **{directive_msg}**"
+                res["reply"] = reply_text
+                res["response"] = reply_text
+
         is_trade_suggestion = bool(
             re.search(r'(?:QUICK\s*)?TRADE\s*EXECUTION\s*SUMMARY|Entry\s*Price|Exit/Target|Stop\s*Loss|Risk:Reward', reply_text, re.IGNORECASE)
         )

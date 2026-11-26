@@ -8613,6 +8613,16 @@ function showIndicatorLineActionPill(ind, point) {
 
         function plotTradeSetupOnChart(dir, entry, target, stop) {
             try {
+                if (typeof getISTDetails === 'function') {
+                    const ist = getISTDetails();
+                    if (!ist.isLiveMarket) {
+                        if (typeof showDrawingToast === 'function') {
+                            showDrawingToast('🛑 Market is closed! Live Risk-Reward setups cannot be plotted during closed market hours.');
+                        }
+                        alert('Market is currently closed! Live Risk-Reward boxes cannot be plotted during closed market hours (Session resumes at 09:15 AM IST).');
+                        return;
+                    }
+                }
                 const curCandle = (typeof activeCandles !== 'undefined' && activeCandles && activeCandles.length > 0)
                     ? activeCandles[activeCandles.length - 1]
                     : null;
@@ -13127,12 +13137,20 @@ function showIndicatorLineActionPill(ind, point) {
                     if (slNum <= 0) slNum = isBuy ? (entryNum - 25.0) : (entryNum + 25.0);
                     const plotDir = isBuy ? 'CALL' : 'PUT';
 
-                    const plotBtnHtml = `
+                    const istDetails = (typeof getISTDetails === 'function') ? getISTDetails() : null;
+                    const isMktLive = istDetails ? istDetails.isLiveMarket : true;
+
+                    const plotBtnHtml = isMktLive ? `
                         <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed rgba(56, 189, 248, 0.25); display: flex; justify-content: space-between; align-items: center; gap: 8px;">
                             <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">1-Click Chart Action:</span>
                             <button class="btn-plot-trade-chart" onclick="plotTradeSetupOnChart('${plotDir}', ${entryNum}, ${tgtNum}, ${slNum})" title="Plot Risk:Reward Box with Entry, Target, and SL on Chart" style="background: linear-gradient(135deg, #0284c7, #2563eb); color: #ffffff; border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; padding: 6px 14px; font-size: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 10px rgba(2,132,199,0.45); transition: all 0.15s ease;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 14px rgba(37,99,235,0.6)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 2px 10px rgba(2,132,199,0.45)';">
                                 <span>🎯</span> Add RR to Chart
                             </button>
+                        </div>
+                    ` : `
+                        <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed rgba(239, 68, 68, 0.25); display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                            <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">Status:</span>
+                            <span style="font-size: 11px; color: #f87171; font-weight: 700; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); padding: 3px 8px; border-radius: 4px;">🛑 Market Closed (Next Session 09:15 AM IST)</span>
                         </div>
                     `;
 

@@ -876,11 +876,16 @@ class GeminiLLMClient:
             f"     - Engine 1: Heavyweight Fuel (Top 5 point contribution: HDFC Bank, Reliance, ICICI Bank, Infosys, TCS)\n"
             f"     - Engine 2: Structural Anchor (Session VWAP corridor, Multi-Month S&R clusters > 5 touches, rejection wicks)\n"
             f"     - Engine 3: Flow & Macro Radar (Nifty Futures Basis premium/discount, NSE FII Long/Short Ratio, Max Call/Put OI walls)\n"
-            f"   • CONVICTION SCENARIOS:\n"
-            f"     1. [2 or 3 Engines Agree on CALL or PUT]: Declare HIGH CONVICTION SETUP. Target runway +50 to +75 pts. Position size: up to 2 Lots (130 Qty).\n"
-            f"     2. [Only 1 Engine Active (Other 2 are Neutral)]: Declare TACTICAL SCALP ONLY. You MUST include this explicit bold warning: '**⚠️ Risk Alert: Only 1 engine active; market lacks broad institutional backing. Scalp only with quick 25–35 pt target and strict 1 Lot (65 Qty) limit.**'\n"
-            f"     3. [Direct Deadlock (1 CALL vs 1 PUT)]: Declare STAND DOWN (INSTITUTIONAL DEADLOCK). Do NOT enter immediately. Explain the institutional tug-of-war (e.g. Heavyweights pushing up, but Futures discount and Call OI wall blocking). Provide a CONDITIONAL BREAKOUT TRIGGER (e.g., 'Wait for price to decisively breach and hold above ₹... before entering'). Position size: 0 Lots.\n"
-            f"     4. [All 3 Neutral]: Declare STAND DOWN (DORMANT CONSOLIDATION). Advise waiting for the opening bell or volume expansion.\n"
+            f"   • CONVICTION SCENARIOS (STRICT SIGNAL & RR BOX RULES):\n"
+            f"     1. [2 or 3 Engines Agree on SAME Direction (CALL or PUT)]: HIGH CONVICTION SETUP. You may provide a concrete trade signal and Quick Trade Execution Summary / RR box. Target runway +40 to +65 pts. Position size: up to 2 Lots (130 Qty).\n"
+            f"     2. [Only 1 Engine Active (Other 2 are Neutral) - NO TRADE / NOT GOOD TO ENTER]:\n"
+            f"        -> STRICT RULE: DO NOT provide any trade setup, entry/target/SL levels, or Quick Trade Execution Summary / RR box!\n"
+            f"        -> State clearly: '**⚠️ Risk Alert: Only 1 engine active; other 2 engines are neutral. Market lacks broad institutional backing. This time is NOT good to enter.** We strictly require a minimum of 2 engines/models to give the same signal (confluence) before entering. Stand down and wait for confluence.'\n"
+            f"     3. [Direct Deadlock (1 CALL vs 1 PUT) - STAND DOWN]: DO NOT give a trade signal or RR box. Explain the institutional tug-of-war. Position size: 0 Lots.\n"
+            f"     4. [All 3 Neutral - NO TRADE]: DO NOT give a trade signal or RR box. Market is in dormant consolidation. Position size: 0 Lots.\n"
+            f"     5. [Market Closed (Outside 09:15–15:30 IST, Weekend or Holiday) - NO SIGNALS / NO RR BOX]:\n"
+            f"        -> STRICT MANDATE: NEVER output the 🎯 QUICK TRADE EXECUTION SUMMARY or RR box while the market is closed!\n"
+            f"        -> State clearly: '**🛑 Market is Closed:** Regular live trading hours are 09:15 to 15:30 IST. No live trade signals or Risk-Reward boxes are generated while the market is closed.' Analyze previous close / EOD levels and key levels to watch for next session.\n"
             f"   • HUMAN-LIKE FUSION WITH USER ON-CHART DRAWINGS:\n"
             f"     When {uname} asks about their drawn Risk-Reward (TARGET_SL) box or trendlines, critically cross-examine it against the 3 Engines:\n"
             f"     - Is Stop Loss protected behind Engine 2's S&R cluster / VWAP?\n"
@@ -981,6 +986,28 @@ class GeminiLLMClient:
             )
             return txt.replace(card_text, new_card)
 
+        # Check market session state (Stop signals & RR box during closed market)
+        is_live_market = True
+        try:
+            from engine.background_engine import get_market_session_info
+            sess_info = get_market_session_info()
+            is_live_market = bool(sess_info.get("is_live_market", False))
+        except Exception:
+            pass
+
+        # Check 3 engines consensus (Minimum 2 engines must agree)
+        call_count = 0
+        put_count = 0
+        if three_eng:
+            e1_s = (three_eng.get("engine_1_fuel") or {}).get("state", "NEUTRAL")
+            e2_s = (three_eng.get("engine_2_anchor") or {}).get("state", "NEUTRAL")
+            e3_s = (three_eng.get("engine_3_flow") or {}).get("state", "NEUTRAL")
+            eng_states = [e1_s, e2_s, e3_s]
+            call_count = eng_states.count("CALL")
+            put_count = eng_states.count("PUT")
+
+        has_min_two_engines = (call_count >= 2 or put_count >= 2)
+
         def _clean_reply(raw_text: str) -> str:
             txt = raw_text.strip()
             # Strip robotic conversational openers like 'Regarding your question "how to decide target", here is...'
@@ -992,10 +1019,29 @@ class GeminiLLMClient:
             ).strip()
             # Strip canned AI intros
             txt = re.sub(r"^(?:As\s+an\s+AI|As\s+a\s+language\s+model|Here\s+is\s+the\s+institutional\s+framework)[^\n]*\n*", "", txt, flags=re.IGNORECASE).strip()
-            # If user asked for logic / why / how, strictly strip any execution summary card
-            if is_logic_query:
+
+            # RULE 1: If market is closed, strictly strip any execution summary / RR box
+            if not is_live_market:
+                has_card = bool(re.search(r"🎯\s*QUICK TRADE EXECUTION SUMMARY", txt))
                 txt = re.sub(r"━+\s*🎯\s*QUICK TRADE EXECUTION SUMMARY[\s\S]*?(?:━+|$)", "", txt).strip()
                 txt = re.sub(r"🎯\s*QUICK TRADE EXECUTION SUMMARY[\s\S]*$", "", txt).strip()
+                if has_card or any(w in user_query.lower() for w in ["trade", "setup", "entry", "call", "put", "buy", "sell"]):
+                    if "market is closed" not in txt.lower():
+                        txt += "\n\n🛑 **Market is Closed:** The live market is closed (Regular trading resumes at 09:15 AM IST). No live trade signals or Risk-Reward boxes are generated while the market is closed. You can review EOD levels and key S&R zones for the upcoming session."
+
+            # RULE 2: If user asked for logic / why / how, strictly strip any execution summary card
+            elif is_logic_query:
+                txt = re.sub(r"━+\s*🎯\s*QUICK TRADE EXECUTION SUMMARY[\s\S]*?(?:━+|$)", "", txt).strip()
+                txt = re.sub(r"🎯\s*QUICK TRADE EXECUTION SUMMARY[\s\S]*$", "", txt).strip()
+
+            # RULE 3: If only 1 engine active or less than 2 engines agree, strictly strip any execution summary / RR box
+            elif not has_min_two_engines:
+                has_card = bool(re.search(r"🎯\s*QUICK TRADE EXECUTION SUMMARY", txt))
+                txt = re.sub(r"━+\s*🎯\s*QUICK TRADE EXECUTION SUMMARY[\s\S]*?(?:━+|$)", "", txt).strip()
+                txt = re.sub(r"🎯\s*QUICK TRADE EXECUTION SUMMARY[\s\S]*$", "", txt).strip()
+                if has_card or any(w in user_query.lower() for w in ["trade", "setup", "entry", "call", "put", "buy", "sell"]):
+                    if "not good to enter" not in txt.lower() and "stand down" not in txt.lower():
+                        txt += "\n\n⚠️ **Risk Alert (No Trade):** Only 1 engine active; other engines are neutral. Market lacks broad institutional backing. **This time is NOT good to enter.** We strictly require a minimum of 2 engines/models to give the same signal before entering. Stand down and wait for multi-engine confluence."
             else:
                 txt = _sanitize_card(txt)
             return txt
@@ -2258,49 +2304,91 @@ class GeminiLLMClient:
 
         reply = synthesis.strip()
         is_explicit_entry_ask = (asks_call or asks_put or asks_timing or asks_setup) and not (is_target_logic or is_sl_logic)
-        if is_explicit_entry_ask and ("CALL SETUP" in reply or "PUT SETUP" in reply or "MOMENTUM SCALP" in reply or "BREAKDOWN SCALP" in reply) and "QUICK TRADE EXECUTION SUMMARY" not in reply:
-            is_call = "CALL" in reply or "BULLISH" in reply or "DIP" in reply
-            dir_str = "BUY (CALL)" if is_call else "SELL (PUT)"
-            comb_sr = market_state.get("comb_sr_levels", []) if market_state else []
-            if is_call:
-                sups = [l for l in comb_sr if float(l.get("price", 0)) < cur_p]
-                near_s = max(sups, key=lambda x: float(x.get("price", 0))) if sups else None
-                sl_ref = float(near_s.get("price", cur_p - 20.0)) if near_s else (cur_p - 20.0)
-                sl_val = round(min(sl_ref - 4.0, cur_p - 14.0), 1)
-                sl_dist = round(cur_p - sl_val, 1)
-                resses = [l for l in comb_sr if float(l.get("price", 0)) > cur_p]
-                near_r = min(resses, key=lambda x: float(x.get("price", 0))) if resses else None
-                tgt_ref = float(near_r.get("price", cur_p + 45.0)) if near_r else (cur_p + 45.0)
-                tgt_val = round(max(tgt_ref - 3.0, cur_p + 30.0), 1)
-                tgt_dist = round(tgt_val - cur_p, 1)
-            else:
-                resses = [l for l in comb_sr if float(l.get("price", 0)) > cur_p]
-                near_r = min(resses, key=lambda x: float(x.get("price", 0))) if resses else None
-                sl_ref = float(near_r.get("price", cur_p + 20.0)) if near_r else (cur_p + 20.0)
-                sl_val = round(max(sl_ref + 4.0, cur_p + 14.0), 1)
-                sl_dist = round(sl_val - cur_p, 1)
-                sups = [l for l in comb_sr if float(l.get("price", 0)) < cur_p]
-                near_s = max(sups, key=lambda x: float(x.get("price", 0))) if sups else None
-                tgt_ref = float(near_s.get("price", cur_p - 45.0)) if near_s else (cur_p - 45.0)
-                tgt_val = round(min(tgt_ref + 3.0, cur_p - 30.0), 1)
-                tgt_dist = round(cur_p - tgt_val, 1)
 
-            rr_ratio = round(tgt_dist / max(sl_dist, 1.0), 1)
-            m_agree = "2/3 Models Agree: BUY (CALL) 🟢" if is_call else "2/3 Models Agree: SELL (PUT) 🔴"
-            reply += (
-                f"\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"🎯 QUICK TRADE EXECUTION SUMMARY\n"
-                f"• Consensus   -> [{m_agree}]\n"
-                f"  - Model 1 (Price Action & Structure/BoS/CHoCH): {'Bullish Structure' if is_call else 'Bearish Breakdown'}\n"
-                f"  - Model 2 (Derivatives OI & PCR): PCR {pcr:.2f}\n"
-                f"  - Model 3 (Momentum & Volatility): {'Bullish' if is_call else 'Bearish'} Momentum, VIX {vix:.1f}\n"
-                f"• Direction   -> {dir_str}\n"
-                f"• Entry Price -> ₹{cur_p:,.1f}\n"
-                f"• Exit/Target -> ₹{tgt_val:,.1f} (+{tgt_dist:.1f} pts / +{round(tgt_dist/cur_p*100, 2)}%)\n"
-                f"• Stop Loss   -> ₹{sl_val:,.1f} (-{sl_dist:.1f} pts / -{round(sl_dist/cur_p*100, 2)}%)\n"
-                f"• Risk:Reward -> 1 : {rr_ratio}\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            )
+        # Check market session state
+        is_live_mkt = True
+        try:
+            from engine.background_engine import get_market_session_info
+            is_live_mkt = bool(get_market_session_info().get("is_live_market", False))
+        except Exception:
+            pass
+
+        # Check 3 engines consensus in fallback
+        e_call_cnt = 0
+        e_put_cnt = 0
+        try:
+            from institutional_engine import InstitutionalEngine
+            th_eng = InstitutionalEngine.get_instance().evaluate_three_engines()
+            e1_s = (th_eng.get("engine_1_fuel") or {}).get("state", "NEUTRAL")
+            e2_s = (th_eng.get("engine_2_anchor") or {}).get("state", "NEUTRAL")
+            e3_s = (th_eng.get("engine_3_flow") or {}).get("state", "NEUTRAL")
+            st_list = [e1_s, e2_s, e3_s]
+            e_call_cnt = st_list.count("CALL")
+            e_put_cnt = st_list.count("PUT")
+        except Exception:
+            pass
+
+        has_min_two = (e_call_cnt >= 2 or e_put_cnt >= 2)
+
+        if is_explicit_entry_ask:
+            if not is_live_mkt:
+                if "market is closed" not in reply.lower():
+                    reply += (
+                        f"\n\n🛑 **Market is Closed:** The live market is closed (Regular live trading resumes at 09:15 AM IST). "
+                        f"No live trade signals or Risk-Reward boxes are generated while the market is closed. "
+                        f"You can review EOD levels and key S&R zones for the upcoming session."
+                    )
+            elif not has_min_two:
+                if "not good to enter" not in reply.lower() and "stand down" not in reply.lower():
+                    reply += (
+                        f"\n\n⚠️ **Risk Alert (No Trade):** Only 1 engine active; other engines are neutral. "
+                        f"Market lacks broad institutional backing. **This time is NOT good to enter.** "
+                        f"We strictly require a minimum of 2 engines/models to agree on the same signal before entering. "
+                        f"Stand down and wait for multi-engine confluence."
+                    )
+            elif ("CALL SETUP" in reply or "PUT SETUP" in reply or "MOMENTUM SCALP" in reply or "BREAKDOWN SCALP" in reply) and "QUICK TRADE EXECUTION SUMMARY" not in reply:
+                is_call = "CALL" in reply or "BULLISH" in reply or "DIP" in reply
+                dir_str = "BUY (CALL)" if is_call else "SELL (PUT)"
+                comb_sr = market_state.get("comb_sr_levels", []) if market_state else []
+                if is_call:
+                    sups = [l for l in comb_sr if float(l.get("price", 0)) < cur_p]
+                    near_s = max(sups, key=lambda x: float(x.get("price", 0))) if sups else None
+                    sl_ref = float(near_s.get("price", cur_p - 20.0)) if near_s else (cur_p - 20.0)
+                    sl_val = round(min(sl_ref - 4.0, cur_p - 14.0), 1)
+                    sl_dist = round(cur_p - sl_val, 1)
+                    resses = [l for l in comb_sr if float(l.get("price", 0)) > cur_p]
+                    near_r = min(resses, key=lambda x: float(x.get("price", 0))) if resses else None
+                    tgt_ref = float(near_r.get("price", cur_p + 45.0)) if near_r else (cur_p + 45.0)
+                    tgt_val = round(max(tgt_ref - 3.0, cur_p + 30.0), 1)
+                    tgt_dist = round(tgt_val - cur_p, 1)
+                else:
+                    resses = [l for l in comb_sr if float(l.get("price", 0)) > cur_p]
+                    near_r = min(resses, key=lambda x: float(x.get("price", 0))) if resses else None
+                    sl_ref = float(near_r.get("price", cur_p + 20.0)) if near_r else (cur_p + 20.0)
+                    sl_val = round(max(sl_ref + 4.0, cur_p + 14.0), 1)
+                    sl_dist = round(sl_val - cur_p, 1)
+                    sups = [l for l in comb_sr if float(l.get("price", 0)) < cur_p]
+                    near_s = max(sups, key=lambda x: float(x.get("price", 0))) if sups else None
+                    tgt_ref = float(near_s.get("price", cur_p - 45.0)) if near_s else (cur_p - 45.0)
+                    tgt_val = round(min(tgt_ref + 3.0, cur_p - 30.0), 1)
+                    tgt_dist = round(cur_p - tgt_val, 1)
+
+                rr_ratio = round(tgt_dist / max(sl_dist, 1.0), 1)
+                m_agree = "2/3 Models Agree: BUY (CALL) 🟢" if is_call else "2/3 Models Agree: SELL (PUT) 🔴"
+                reply += (
+                    f"\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"🎯 QUICK TRADE EXECUTION SUMMARY\n"
+                    f"• Consensus   -> [{m_agree}]\n"
+                    f"  - Model 1 (Price Action & Structure/BoS/CHoCH): {'Bullish Structure' if is_call else 'Bearish Breakdown'}\n"
+                    f"  - Model 2 (Derivatives OI & PCR): PCR {pcr:.2f}\n"
+                    f"  - Model 3 (Momentum & Volatility): {'Bullish' if is_call else 'Bearish'} Momentum, VIX {vix:.1f}\n"
+                    f"• Direction   -> {dir_str}\n"
+                    f"• Entry Price -> ₹{cur_p:,.1f}\n"
+                    f"• Exit/Target -> ₹{tgt_val:,.1f} (+{tgt_dist:.1f} pts / +{round(tgt_dist/cur_p*100, 2)}%)\n"
+                    f"• Stop Loss   -> ₹{sl_val:,.1f} (-{sl_dist:.1f} pts / -{round(sl_dist/cur_p*100, 2)}%)\n"
+                    f"• Risk:Reward -> 1 : {rr_ratio}\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                )
 
         return {
             "reply": reply,

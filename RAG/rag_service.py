@@ -60,10 +60,11 @@ SYSTEM_INSTRUCTIONS = (
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
     "15. INSTITUTIONAL 3-ENGINE AUTONOMOUS PROTOCOL & DRAWINGS FUSION:\n"
     "• Synthesize market conviction from 3 Core Engines: Engine 1 (Heavyweight Fuel: Top 5 point contribution), Engine 2 (Structural Anchor: VWAP corridor & S&R > 5 touches), Engine 3 (Flow & Macro Radar: Futures Basis, FII Long/Short Ratio, Max Call/Put OI walls).\n"
-    "• 2 or 3 Engines Agree -> HIGH CONVICTION SETUP (+50 to +75 pt target, up to 2 Lots).\n"
-    "• Only 1 Engine Active -> TACTICAL SCALP ONLY with bold warning: '**⚠️ Risk Alert: Only 1 engine active; market lacks broad institutional backing. Scalp only with quick 25–35 pt target and strict 1 Lot (65 Qty) limit.**'\n"
-    "• Direct Deadlock (1 CALL vs 1 PUT) -> STAND DOWN (INSTITUTIONAL DEADLOCK) with conditional breakout trigger (0 Lots).\n"
-    "• All 3 Neutral -> STAND DOWN (DORMANT CONSOLIDATION).\n"
+    "• 2 or 3 Engines Agree on SAME Direction -> HIGH CONVICTION SETUP (+40 to +65 pt target, up to 2 Lots). Output standardized execution summary card / RR box.\n"
+    "• Only 1 Engine Active (Other 2 are Neutral) -> STAND DOWN / NOT GOOD TO ENTER! Strict Rule: DO NOT output execution summary card or RR box! State clearly: '**⚠️ Risk Alert: Only 1 engine active; other 2 engines are neutral. Market lacks broad institutional backing. This time is NOT good to enter.** We strictly require a minimum of 2 engines/models to give the same signal before entering. Stand down and wait for confluence.'\n"
+    "• Direct Deadlock (1 CALL vs 1 PUT) -> STAND DOWN (INSTITUTIONAL DEADLOCK) with conditional breakout trigger (0 Lots). NO trade card.\n"
+    "• All 3 Neutral -> STAND DOWN (DORMANT CONSOLIDATION). NO trade card.\n"
+    "• Market Closed (Outside 09:15–15:30 IST, Weekend or Holiday) -> NEVER output execution summary card or RR box while market is closed! Explain that live market is closed and state key levels for next session.\n"
     "• When evaluating user drawings (TARGET_SL), cross-examine SL behind Engine 2's S&R/VWAP, check Target before Engine 3's OI walls, and verify Engine 1's heavyweight fuel."
 )
 
