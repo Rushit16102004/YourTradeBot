@@ -19,6 +19,9 @@
             user-select: none;
             width: auto;
             max-width: max-content;
+            will-change: transform;
+            transform: translateZ(0);
+            backface-visibility: hidden;
             transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .dock-drag-handle {
@@ -623,6 +626,9 @@
             cursor: pointer;
             user-select: none;
             pointer-events: auto;
+            will-change: transform;
+            transform: translateZ(0);
+            backface-visibility: hidden;
             transform: translate(-50%, -125%);
             animation: aiPillBounce 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             backdrop-filter: blur(8px);

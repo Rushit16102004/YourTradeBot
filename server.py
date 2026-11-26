@@ -11,6 +11,7 @@ Features:
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -558,7 +559,7 @@ async def get_market_data(
 
     if force:
         logger.info("Manual force sync requested from UI")
-        engine.sync_and_evaluate(force_alert=False)
+        await asyncio.to_thread(engine.sync_and_evaluate, force_alert=False)
 
     snapshot = engine.get_snapshot(timeframe=timeframe)
     df: pd.DataFrame = snapshot.get("df", pd.DataFrame())
@@ -1002,7 +1003,7 @@ async def send_telegram_test():
 @app.post("/api/sync")
 async def trigger_manual_sync():
     """Forces immediate 2-month historical candle sync and strategy re-evaluation."""
-    engine.sync_and_evaluate(force_alert=False)
+    await asyncio.to_thread(engine.sync_and_evaluate, force_alert=False)
     return JSONResponse(
         content={
             "status": "ok",
@@ -2725,8 +2726,8 @@ async def rag_chat(request: Request, payload: dict = Body(...)):
             ],
         }
 
-        # Ask RAG service with user_id drawing context isolation
-        res = service.ask(query=user_message, market_state=market_state, user_id=user_id)
+        # Ask RAG service with user_id drawing context isolation (Offloaded from main async event loop)
+        res = await asyncio.to_thread(service.ask, query=user_message, market_state=market_state, user_id=user_id)
 
         # ⚖️ Persistent SEBI Disclaimer: Automatically attach short, permanent disclaimer to every AI trade suggestion
         reply_text = str(res.get("reply") or res.get("response") or "")

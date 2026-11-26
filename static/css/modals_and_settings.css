@@ -909,7 +909,10 @@
             color: #38bdf8;
             pointer-events: none;
             white-space: nowrap;
-            transition: top 0.08s ease-out;
+            transition: none;
+            will-change: top, transform;
+            transform: translateZ(0);
+            backface-visibility: hidden;
             backdrop-filter: blur(4px);
             -webkit-backdrop-filter: blur(4px);
             box-sizing: border-box;
