@@ -2896,6 +2896,7 @@
 
             // Crosshair inspection for OHLCV legend & haptic phone vibration on candle scrub
             let _lastVibratedCandleTime = null;
+            let isCrosshairHovering = false;
             chart.subscribeCrosshairMove(param => {
                 if (param && param.time && param.point !== undefined) {
                     if (param.time !== _lastVibratedCandleTime) {
@@ -2906,6 +2907,7 @@
                     }
                 }
                 if (!param || !param.time || !param.seriesData) {
+                    isCrosshairHovering = false;
                     updateIndicatorPointerValues(null);
                     if (activeCandles && activeCandles.length > 0) {
                         const lc = activeCandles[activeCandles.length - 1];
@@ -2925,6 +2927,7 @@
                     }
                     return;
                 }
+                isCrosshairHovering = true;
                 const candle = param.seriesData.get(candleSeries);
                 if (candle) {
                     const cData = activeCandlesMap.get(param.time) || candle;
@@ -2953,6 +2956,26 @@
                 updateSubPaneLiveVals(param);
                 updateIndicatorPointerValues(param);
             });
+
+            const chartDomElem = document.getElementById('chart-container');
+            if (chartDomElem) {
+                chartDomElem.addEventListener('mouseleave', () => {
+                    isCrosshairHovering = false;
+                    if (activeCandles && activeCandles.length > 0) {
+                        updateOHLCVLegend(activeCandles[activeCandles.length - 1]);
+                        updateIndicatorPointerValues(null);
+                    }
+                });
+                chartDomElem.addEventListener('touchend', () => {
+                    setTimeout(() => {
+                        isCrosshairHovering = false;
+                        if (activeCandles && activeCandles.length > 0) {
+                            updateOHLCVLegend(activeCandles[activeCandles.length - 1]);
+                            updateIndicatorPointerValues(null);
+                        }
+                    }, 400);
+                });
+            }
 
             // 🤖 Click Any Candle or Signal to show "Explain with AI" floating pill
             chart.subscribeClick(param => {
@@ -3730,6 +3753,7 @@
                     lastC.low = Math.min(lastC.low, live.low);
                     lastC.close = live.close;
                     lastC.volume = live.volume;
+                    lastC.volume_ma = live.volume_ma;
                     lastC.mean = live.mean;
                     lastC.vwap = live.vwap;
                     lastC.vwap_upper_2 = live.vwap_upper_2;
@@ -3772,6 +3796,12 @@
                         });
                     }
 
+                    // Real-time OHLCV legend update on every 1-second live tick
+                    if (!isCrosshairHovering) {
+                        updateOHLCVLegend(lastC);
+                        updateIndicatorPointerValues(null);
+                    }
+
                     // ⚠️ LOCKED ON CANDLE CLOSE: Indicators do NOT update every 1 second while candle forms!
                     // All indicator values (VWAP, Bands, SMA) only update after the 5m candle officially closes.
                 } else if (lastC && live.time > lastC.time) {
@@ -3783,6 +3813,7 @@
                         low: live.low,
                         close: live.close,
                         volume: live.volume,
+                        volume_ma: live.volume_ma,
                         mean: live.mean,
                         vwap: live.vwap,
                         vwap_upper_2: live.vwap_upper_2,
@@ -3836,6 +3867,7 @@
                     }
 
                     if (typeof updateIndicatorPointerValues === 'function') updateIndicatorPointerValues(null);
+                    if (!isCrosshairHovering) updateOHLCVLegend(newBar);
 
                     const ccEl = document.getElementById('candle-count');
                     if (ccEl) ccEl.innerText = activeCandles.length;
@@ -3971,6 +4003,10 @@
                     scheduleRenderDrawings();
                     setTimeout(scheduleRenderDrawings, 80);
                 });
+                if (activeCandles && activeCandles.length > 0) {
+                    updateOHLCVLegend(activeCandles[activeCandles.length - 1]);
+                    updateIndicatorPointerValues(null);
+                }
             } else {
                 // Smooth Tick / New Candle Update (does NOT touch timeScale, does NOT disturb zoom or pan!)
                 const lastCandle = activeCandles[activeCandles.length - 1];
@@ -4538,8 +4574,16 @@ function showIndicatorLineActionPill(ind, point) {
                             else if (vObj && vObj.close != null) volVal = vObj.close;
                             if (maObj && maObj.value != null) maVal = maObj.value;
                         }
-                        if (volVal == null && candle.volume != null) volVal = candle.volume;
-                        if (maVal == null && ind.lastMaValue != null) maVal = ind.lastMaValue;
+                        if (volVal == null) {
+                            const formingBar = (activeCandles && activeCandles.length > 0) ? activeCandles[activeCandles.length - 1] : null;
+                            if (formingBar && formingBar.volume != null) volVal = formingBar.volume;
+                            else if (candle && candle.volume != null) volVal = candle.volume;
+                        }
+                        if (maVal == null) {
+                            const formingBar = (activeCandles && activeCandles.length > 0) ? activeCandles[activeCandles.length - 1] : null;
+                            if (formingBar && formingBar.volume_ma != null) maVal = formingBar.volume_ma;
+                            else if (ind.lastMaValue != null) maVal = ind.lastMaValue;
+                        }
                         const vStr = volVal != null ? Number(volVal).toLocaleString('en-IN') : '--';
                         const mStr = maVal != null ? ` (MA: ${Number(maVal).toLocaleString('en-IN')})` : '';
                         el.innerText = `${vStr}${mStr}`;

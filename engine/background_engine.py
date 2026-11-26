@@ -329,9 +329,11 @@ class BackgroundTradingEngine:
                     elif vol > 0:
                         self.latest_df_5m.at[last_idx, "volume"] += vol
 
-                if "volume_ma_20" in self.latest_df_5m.columns and len(self.latest_df_5m) >= 20:
+                # Recalculate 20-period Volume Moving Average on live forming candle
+                if "volume" in self.latest_df_5m.columns and len(self.latest_df_5m) > 0:
+                    v_slice = self.latest_df_5m["volume"].iloc[-20:]
                     self.latest_df_5m.at[last_idx, "volume_ma_20"] = round(
-                        float(self.latest_df_5m["volume"].iloc[-20:].mean()), 2
+                        float(v_slice.mean()), 2
                     )
 
             # Fast live tick prediction evaluation (MAE, MFE, Target, SL)
