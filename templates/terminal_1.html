@@ -26,7 +26,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
     
     <!-- Terminal 1 Master Stylesheet (World's Best Animated UI/UX) -->
-    <link rel="stylesheet" href="/static/css/terminal_1.css?v=20261127_10">
+    <link rel="stylesheet" href="/static/css/terminal_1.css?v=20261127_11">
 </head>
 <body>
 
@@ -402,61 +402,64 @@
                         </div>
 
                         <div class="mtf-cards-list">
-                            <!-- 5M Pattern Card -->
-                            <div class="mtf-pattern-item active-pattern">
-                                <div class="mtf-pattern-top">
-                                    <span class="mtf-tf-tag">5M</span>
-                                    <div class="mtf-pattern-title">
-                                        <strong>Bullish Butterfly Harmonic</strong>
-                                        <span class="mtf-action-badge action-buy">BUY (CALL)</span>
+                            <!-- Active Patterns Row: 5M and 15M side-by-side -->
+                            <div class="mtf-active-grid">
+                                <!-- 5M Pattern Card -->
+                                <div class="mtf-pattern-item active-pattern">
+                                    <div class="mtf-pattern-top">
+                                        <span class="mtf-tf-tag">5M</span>
+                                        <div class="mtf-pattern-title">
+                                            <strong>Bullish Butterfly</strong>
+                                            <span class="mtf-action-badge action-buy">BUY</span>
+                                        </div>
+                                        <span class="mtf-state-pill">FORMING</span>
                                     </div>
-                                    <span class="mtf-state-pill">FORMING</span>
+                                    <div class="mtf-metrics-grid">
+                                        <div><span class="m-k">Entry:</span> <strong class="m-v">₹25,696.5</strong></div>
+                                        <div><span class="m-k">Target:</span> <strong class="m-v text-emerald">₹25,806.7</strong></div>
+                                        <div><span class="m-k">SL:</span> <strong class="m-v text-red">₹25,622.7</strong></div>
+                                        <div><span class="m-k">R:R:</span> <strong class="m-v text-amber">1:2.5</strong></div>
+                                    </div>
                                 </div>
-                                <div class="mtf-metrics-grid">
-                                    <div><span class="m-k">Entry:</span> <strong class="m-v">₹25,696.5</strong></div>
-                                    <div><span class="m-k">Target:</span> <strong class="m-v text-emerald">₹25,806.7</strong></div>
-                                    <div><span class="m-k">SL:</span> <strong class="m-v text-red">₹25,622.7</strong></div>
-                                    <div><span class="m-k">R:R:</span> <strong class="m-v text-amber">1 : 2.5</strong></div>
+
+                                <!-- 15M Pattern Card -->
+                                <div class="mtf-pattern-item active-pattern">
+                                    <div class="mtf-pattern-top">
+                                        <span class="mtf-tf-tag">15M</span>
+                                        <div class="mtf-pattern-title">
+                                            <strong>Bullish Gartley</strong>
+                                            <span class="mtf-action-badge action-buy">BUY</span>
+                                        </div>
+                                        <span class="mtf-state-pill">FORMING</span>
+                                    </div>
+                                    <div class="mtf-metrics-grid">
+                                        <div><span class="m-k">Entry:</span> <strong class="m-v">₹25,696.5</strong></div>
+                                        <div><span class="m-k">Target:</span> <strong class="m-v text-emerald">₹25,831.3</strong></div>
+                                        <div><span class="m-k">SL:</span> <strong class="m-v text-red">₹25,612.8</strong></div>
+                                        <div><span class="m-k">R:R:</span> <strong class="m-v text-amber">1:2.5</strong></div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- 15M Pattern Card -->
-                            <div class="mtf-pattern-item active-pattern">
-                                <div class="mtf-pattern-top">
-                                    <span class="mtf-tf-tag">15M</span>
-                                    <div class="mtf-pattern-title">
-                                        <strong>Bullish Gartley Harmonic</strong>
-                                        <span class="mtf-action-badge action-buy">BUY (CALL)</span>
+                            <!-- Passive Filters Compact Row: 1H and 1D side-by-side -->
+                            <div class="mtf-passive-strip">
+                                <div class="mtf-pattern-item passive-pattern">
+                                    <div class="mtf-pattern-top">
+                                        <span class="mtf-tf-tag tf-passive">1H</span>
+                                        <div class="mtf-pattern-title">
+                                            <span>Rangebound Consolidation</span>
+                                        </div>
+                                        <span class="mtf-passive-pill">Filter Active</span>
                                     </div>
-                                    <span class="mtf-state-pill">FORMING</span>
                                 </div>
-                                <div class="mtf-metrics-grid">
-                                    <div><span class="m-k">Entry:</span> <strong class="m-v">₹25,696.5</strong></div>
-                                    <div><span class="m-k">Target:</span> <strong class="m-v text-emerald">₹25,831.3</strong></div>
-                                    <div><span class="m-k">SL:</span> <strong class="m-v text-red">₹25,612.8</strong></div>
-                                    <div><span class="m-k">R:R:</span> <strong class="m-v text-amber">1 : 2.5</strong></div>
-                                </div>
-                            </div>
-
-                            <!-- 1H Filter Card -->
-                            <div class="mtf-pattern-item passive-pattern">
-                                <div class="mtf-pattern-top">
-                                    <span class="mtf-tf-tag tf-passive">1H</span>
-                                    <div class="mtf-pattern-title">
-                                        <span>Rangebound Consolidation</span>
+                                <div class="mtf-pattern-item passive-pattern">
+                                    <div class="mtf-pattern-top">
+                                        <span class="mtf-tf-tag tf-passive">1D</span>
+                                        <div class="mtf-pattern-title">
+                                            <span>Macro Range Equilibrium</span>
+                                        </div>
+                                        <span class="mtf-passive-pill">Orbit Hold</span>
                                     </div>
-                                    <span class="mtf-passive-pill">Natural Filter Active</span>
-                                </div>
-                            </div>
-
-                            <!-- 1D Filter Card -->
-                            <div class="mtf-pattern-item passive-pattern">
-                                <div class="mtf-pattern-top">
-                                    <span class="mtf-tf-tag tf-passive">1D</span>
-                                    <div class="mtf-pattern-title">
-                                        <span>Macro Range Equilibrium</span>
-                                    </div>
-                                    <span class="mtf-passive-pill">Orbit Boundary Hold</span>
                                 </div>
                             </div>
                         </div>
@@ -1016,7 +1019,7 @@
     </div>
 
     <!-- Master Interactive Scripts -->
-    <script src="/static/js/terminal_1_bg.js?v=20261127_10"></script>
-    <script src="/static/js/terminal_1.js?v=20261127_10"></script>
+    <script src="/static/js/terminal_1_bg.js?v=20261127_11"></script>
+    <script src="/static/js/terminal_1.js?v=20261127_11"></script>
 </body>
 </html>

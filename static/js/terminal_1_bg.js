@@ -350,22 +350,22 @@
 
           const totalGlow = Math.min(scanGlow + pointerGlow, 1.0);
           const isBull = c.isBullish;
-          const alphaStroke = Math.min((0.85 + totalGlow * 0.15), 1.0) * this.alphaMod;
-          const wickColor = isBull
-            ? `rgba(52, 211, 153, ${alphaStroke})`
-            : `rgba(248, 113, 113, ${alphaStroke})`;
-          const strokeColor = isBull
-            ? `rgba(52, 211, 153, ${alphaStroke})`
-            : `rgba(248, 113, 113, ${alphaStroke})`;
+          const alphaFill = (0.24 + totalGlow * 0.48) * this.alphaMod;
+          const alphaStroke = (0.60 + totalGlow * 0.40) * this.alphaMod;
 
-          // Solid, rich, non-transparent fill colors (No hollow transparency, No line cutting through)
+          const wickColor = isBull
+            ? `rgba(16, 185, 129, ${alphaStroke})`
+            : `rgba(239, 68, 68, ${alphaStroke})`;
+          const strokeColor = isBull
+            ? `rgba(16, 185, 129, ${alphaStroke})`
+            : `rgba(239, 68, 68, ${alphaStroke})`;
           const fillColor = isBull
-            ? (totalGlow > 0.25 ? '#10b981' : '#059669')
-            : (totalGlow > 0.25 ? '#ef4444' : '#dc2626');
+            ? `rgba(16, 185, 129, ${alphaFill})`
+            : `rgba(239, 68, 68, ${alphaFill})`;
 
           // 1. Draw Upper Wick (STRICTLY ABOVE BODY: highY to bodyTop - NEVER cuts through body)
           ctx.strokeStyle = wickColor;
-          ctx.lineWidth = this.candleWidth >= 24 ? 2.2 : 1.8;
+          ctx.lineWidth = this.candleWidth >= 24 ? 2.0 : 1.6;
           if (highY < bodyTop - 0.5) {
             ctx.beginPath();
             ctx.moveTo(centerX, highY);
@@ -381,10 +381,10 @@
             ctx.stroke();
           }
 
-          // 3. Draw Solid Opaque Candle Body (Rich Color, Zero Middle Line Display Problem)
+          // 3. Draw Transparent Translucent Candle Body (Subtle Ambient Aesthetic, Zero Middle Line)
           ctx.fillStyle = fillColor;
           ctx.strokeStyle = strokeColor;
-          ctx.lineWidth = 1.4;
+          ctx.lineWidth = 1.3;
           ctx.fillRect(c.x, bodyTop, this.candleWidth, bodyHeight);
           ctx.strokeRect(c.x, bodyTop, this.candleWidth, bodyHeight);
         }
