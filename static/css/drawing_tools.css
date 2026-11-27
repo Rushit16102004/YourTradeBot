@@ -119,15 +119,10 @@
             pointer-events: none;
             touch-action: none;
             z-index: 15;
-            will-change: transform;
-            transform: translateZ(0);
-            backface-visibility: hidden;
         }
 
-        /* 🛡️ Strict Chart Area Clipping: Never cover bottom X-axis time bar or right Y-axis price bar */
-        #sr-overlay-layer,
-        #drawings-overlay-layer,
-        #live-preview-layer {
+        /* 🛡️ Strict Chart Area Clipping: S&R lines only (drawings layer must never be clipped) */
+        #sr-overlay-layer {
             clip-path: url(#chart-plot-clip);
         }
 
@@ -156,9 +151,6 @@
             height: 100%;
             pointer-events: none;
             z-index: 14;
-            will-change: transform;
-            transform: translateZ(0);
-            backface-visibility: hidden;
         }
 
         #pencil-canvas.pencil-active {

@@ -2983,14 +2983,16 @@
                 handleChartCandleClick(param);
             });
 
-            // Sync drawing overlay on pan, zoom & scale drags (Coalesced 120 FPS RAF)
+            // Sync drawing overlay on pan, zoom & scale drags
             chart.timeScale().subscribeVisibleTimeRangeChange(() => {
                 hideAICandlePill();
                 scheduleRenderDrawings();
+                updateYAxisCandleTimerPosition();
             });
             chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
                 scheduleRenderDrawings();
                 checkLatestCandleVisibility();
+                updateYAxisCandleTimerPosition();
             });
 
             // Right Price Scale drag, time scale drag, mouse wheel, and general interaction sync
@@ -2999,27 +3001,34 @@
                 viewport.addEventListener('mousemove', e => {
                     if (e.buttons > 0) {
                         scheduleRenderDrawings();
+                        updateYAxisCandleTimerPosition();
                     }
                 });
                 viewport.addEventListener('mouseup', () => {
                     scheduleRenderDrawings();
+                    updateYAxisCandleTimerPosition();
                 });
                 viewport.addEventListener('wheel', () => {
                     scheduleRenderDrawings();
+                    updateYAxisCandleTimerPosition();
                 }, { passive: true });
 
                 // 📱 MOBILE TOUCH CHART PAN & PINCH-ZOOM DRAWING SYNC
                 viewport.addEventListener('touchstart', () => {
                     scheduleRenderDrawings();
+                    updateYAxisCandleTimerPosition();
                 }, { passive: true });
                 viewport.addEventListener('touchmove', () => {
                     scheduleRenderDrawings();
+                    updateYAxisCandleTimerPosition();
                 }, { passive: true });
                 viewport.addEventListener('touchend', () => {
                     scheduleRenderDrawings();
+                    updateYAxisCandleTimerPosition();
                 }, { passive: true });
                 viewport.addEventListener('touchcancel', () => {
                     scheduleRenderDrawings();
+                    updateYAxisCandleTimerPosition();
                 }, { passive: true });
             }
 
@@ -3134,7 +3143,7 @@
             }
         }
 
-        // ⏳ Positions Candle Countdown Badge dynamically directly BELOW live price label on Y-Axis (Zero-Reflow Cached Geometry)
+        // ⏳ Positions Candle Countdown Badge dynamically directly BELOW live price label on Y-Axis
         function updateYAxisCandleTimerPosition() {
             const timerBadge = document.getElementById('yaxis-candle-timer');
             if (!timerBadge || !chart || !candleSeries) return;
@@ -3152,19 +3161,21 @@
 
             const currentPrice = (typeof lastKnownLtp === 'number' && lastKnownLtp > 0) ? lastKnownLtp : lastCandle.close;
             const y = candleSeries.priceToCoordinate(currentPrice);
-            if (y === null || isNaN(y)) {
+            const container = document.getElementById('chart-container');
+            if (!container || y === null || isNaN(y)) {
                 timerBadge.style.display = 'none';
                 return;
             }
 
-            const chartHeight = cachedChartHeight || (cachedChartContainer ? cachedChartContainer.clientHeight : 600);
+            const chartHeight = container.clientHeight;
             // Hide if off-screen vertically
             if (y < 4 || y > chartHeight - 16) {
                 timerBadge.style.display = 'none';
                 return;
             }
 
-            const scaleWidth = cachedRightScaleWidth || 65;
+            const rightScale = chart.priceScale('right');
+            const scaleWidth = rightScale ? Math.max(52, rightScale.width()) : 65;
 
             timerBadge.style.display = 'inline-flex';
             timerBadge.style.right = '2px';
@@ -3422,59 +3433,7 @@
             return g;
         }
 
-        // ⚡ 120+ FPS High-Performance Geometry Cache (Eliminates forced synchronous layout reflows)
-        let cachedChartContainer = null;
-        let cachedChartWidth = 0;
-        let cachedChartHeight = 0;
-        let cachedRightScaleWidth = 65;
-        let cachedOverlayRect = null;
-        let cachedWrapperRect = null;
-
-        function refreshChartCachedDimensions() {
-            if (!cachedChartContainer) {
-                cachedChartContainer = document.getElementById('chart-container');
-            }
-            if (cachedChartContainer) {
-                cachedChartWidth = cachedChartContainer.clientWidth || 1200;
-                cachedChartHeight = cachedChartContainer.clientHeight || 600;
-            }
-            const rightScale = chart ? chart.priceScale('right') : null;
-            if (rightScale && typeof rightScale.width === 'function') {
-                cachedRightScaleWidth = Math.max(52, rightScale.width());
-            }
-            const overlay = document.getElementById('drawing-overlay');
-            if (overlay) cachedOverlayRect = overlay.getBoundingClientRect();
-            const wrapper = document.getElementById('main-chart-wrapper');
-            if (wrapper) cachedWrapperRect = wrapper.getBoundingClientRect();
-        }
-
-        function getCachedOverlayRect() {
-            if (!cachedOverlayRect) {
-                const overlay = document.getElementById('drawing-overlay');
-                if (overlay) cachedOverlayRect = overlay.getBoundingClientRect();
-            }
-            return cachedOverlayRect || { left: 0, top: 0, width: 1200, height: 600 };
-        }
-
-        function getCachedWrapperRect() {
-            if (!cachedWrapperRect) {
-                const wrapper = document.getElementById('main-chart-wrapper');
-                if (wrapper) cachedWrapperRect = wrapper.getBoundingClientRect();
-            }
-            return cachedWrapperRect || { left: 0, top: 0, width: 1200, height: 600 };
-        }
-
-        window.addEventListener('resize', () => {
-            cachedOverlayRect = null;
-            cachedWrapperRect = null;
-            refreshChartCachedDimensions();
-        }, { passive: true });
-        window.addEventListener('scroll', () => {
-            cachedOverlayRect = null;
-            cachedWrapperRect = null;
-        }, { passive: true });
-
-        // Ultra-High-Performance 120+ FPS RAF Coalescing (Zero stutter, zero runaway recursion)
+        // Ultra-High-Performance 60/120 FPS RAF Coalescing (Zero stutter, zero runaway recursion)
         let isDrawingsRenderPending = false;
         function scheduleRenderDrawings() {
             if (isDrawingsRenderPending) return;
@@ -3482,9 +3441,6 @@
             requestAnimationFrame(() => {
                 isDrawingsRenderPending = false;
                 renderAllDrawings();
-                if (typeof updateYAxisCandleTimerPosition === 'function') {
-                    updateYAxisCandleTimerPosition();
-                }
             });
         }
 
@@ -7753,7 +7709,7 @@ function showIndicatorLineActionPill(ind, point) {
             const wrapper = document.getElementById('main-chart-wrapper');
             if (!wrapper) return null;
 
-            const rect = getCachedWrapperRect();
+            const rect = wrapper.getBoundingClientRect();
             const x = clientX - rect.left;
             const y = clientY - rect.top;
 
@@ -8000,7 +7956,7 @@ function showIndicatorLineActionPill(ind, point) {
 
             const wrapper = document.getElementById('main-chart-wrapper');
             if (!wrapper) return;
-            const wrapRect = getCachedWrapperRect();
+            const wrapRect = wrapper.getBoundingClientRect();
             const x = e.clientX - wrapRect.left;
             const y = e.clientY - wrapRect.top;
 
@@ -8220,9 +8176,9 @@ function showIndicatorLineActionPill(ind, point) {
             const overlay = document.getElementById('drawing-overlay');
             if (!svg || !overlay) return;
 
-            const rect = getCachedOverlayRect();
-            const width = rect.width || cachedChartWidth || 1200;
-            const height = rect.height || cachedChartHeight || 600;
+            const rect = overlay.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
 
             if (curX < 0 || curX > width || curY < 0 || curY > height) {
                 hideDrawingCrosshair();
@@ -8379,7 +8335,7 @@ function showIndicatorLineActionPill(ind, point) {
                     return;
                 }
 
-                const rect = getCachedOverlayRect();
+                const rect = overlay.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
 
@@ -8530,7 +8486,7 @@ function showIndicatorLineActionPill(ind, point) {
             }
 
             const handlePencilMove = (clientX, clientY) => {
-                const rect = getCachedOverlayRect();
+                const rect = overlay.getBoundingClientRect();
                 const curX = clientX - rect.left;
                 const curY = clientY - rect.top;
                 updateDrawingCrosshair(curX, curY);
@@ -8594,7 +8550,7 @@ function showIndicatorLineActionPill(ind, point) {
                     if (activeTool === 'pencil') {
                         handlePencilMove(t.clientX, t.clientY);
                     } else if (drawStartPoint) {
-                        const rect = getCachedOverlayRect();
+                        const rect = overlay.getBoundingClientRect();
                         const curX = t.clientX - rect.left;
                         const curY = t.clientY - rect.top;
                         updateDrawingCrosshair(curX, curY);
@@ -8604,7 +8560,7 @@ function showIndicatorLineActionPill(ind, point) {
             }, { passive: false });
 
             overlay.addEventListener('mousemove', e => {
-                const rect = getCachedOverlayRect();
+                const rect = overlay.getBoundingClientRect();
                 const curX = e.clientX - rect.left;
                 const curY = e.clientY - rect.top;
 
@@ -8630,7 +8586,7 @@ function showIndicatorLineActionPill(ind, point) {
                 if (activeTool === 'pencil' && isDrawing) {
                     finishPencilDrawing();
                 } else if (isDrawing && drawStartPoint && activeTool !== 'select') {
-                    const rect = getCachedOverlayRect();
+                    const rect = overlay.getBoundingClientRect();
                     const curX = e.clientX - rect.left;
                     const curY = e.clientY - rect.top;
                     const dist = Math.hypot(curX - drawStartPoint.x, curY - drawStartPoint.y);
@@ -8646,7 +8602,7 @@ function showIndicatorLineActionPill(ind, point) {
                     finishPencilDrawing();
                 } else if (isDrawing && drawStartPoint && activeTool !== 'select') {
                     if (lastTouchDrawPos) {
-                        const rect = getCachedOverlayRect();
+                        const rect = overlay.getBoundingClientRect();
                         const curX = lastTouchDrawPos.clientX - rect.left;
                         const curY = lastTouchDrawPos.clientY - rect.top;
                         const dist = Math.hypot(curX - drawStartPoint.x, curY - drawStartPoint.y);
@@ -8700,7 +8656,7 @@ function showIndicatorLineActionPill(ind, point) {
             const x1 = (typeof timeToX === 'function' ? timeToX(time) : null) || 120;
             const yEntry = (typeof priceToY === 'function' ? priceToY(entryPrice) : null) || 120;
             const wrap = document.getElementById('main-chart-wrapper');
-            const wrapRect = getCachedWrapperRect();
+            const wrapRect = wrap ? wrap.getBoundingClientRect() : { left: 0, top: 0 };
             showShapeActionPill(wrapRect.left + x1, wrapRect.top + yEntry, box);
         }
 
@@ -9305,7 +9261,7 @@ function showIndicatorLineActionPill(ind, point) {
             const wrapper = document.getElementById('main-chart-wrapper');
             if (!tip || !txt || !wrapper) return;
 
-            const rect = getCachedWrapperRect();
+            const rect = wrapper.getBoundingClientRect();
             const curX = clientX - rect.left;
             const curY = clientY - rect.top;
 
@@ -9328,7 +9284,7 @@ function showIndicatorLineActionPill(ind, point) {
             const wrapper = document.getElementById('main-chart-wrapper');
             if (!tip || tip.style.display === 'none' || !wrapper) return;
 
-            const rect = getCachedWrapperRect();
+            const rect = wrapper.getBoundingClientRect();
             const curX = clientX - rect.left;
             const curY = clientY - rect.top;
 
@@ -9350,9 +9306,11 @@ function showIndicatorLineActionPill(ind, point) {
 
         function renderSRLevels(overlay) {
             if (!overlay) return;
-            const chartWidth = Math.max(800, cachedChartWidth || 1200);
-            const chartHeight = Math.max(300, cachedChartHeight || 600);
-            const rightW = cachedRightScaleWidth || 65;
+            const chartContainer = document.getElementById('chart-container');
+            const chartWidth = Math.max(800, chartContainer ? chartContainer.clientWidth : 1200);
+            const chartHeight = Math.max(300, chartContainer ? chartContainer.clientHeight : 600);
+            const rightScale = chart ? chart.priceScale('right') : null;
+            const rightW = (rightScale && typeof rightScale.width === 'function') ? Math.max(52, rightScale.width()) : 65;
             // Stop S&R lines and zones strictly before right price scale (Y-axis) and bottom time scale (X-axis)
             const maxUsableWidth = Math.max(200, chartWidth - rightW);
             const maxUsableHeight = Math.max(100, chartHeight - 28);
@@ -10007,7 +9965,7 @@ function showIndicatorLineActionPill(ind, point) {
             const wrapper = document.getElementById('main-chart-wrapper');
             if (!pill || !wrapper || !shape) return;
 
-            const wrapRect = getCachedWrapperRect();
+            const wrapRect = wrapper.getBoundingClientRect();
             const x = clientX - wrapRect.left;
             const y = clientY - wrapRect.top;
 
@@ -10062,33 +10020,23 @@ function showIndicatorLineActionPill(ind, point) {
                 drawingsLayer = document.getElementById('drawings-overlay-layer');
             }
 
-            // Enforce SVG ClipPath to strictly prevent ANY overlay element from encroaching on X (bottom) or Y (right) axis! (Zero layout thrashing)
-            const cWidth = cachedChartWidth || (cachedChartContainer ? cachedChartContainer.clientWidth : 1200);
-            const cHeight = cachedChartHeight || (cachedChartContainer ? cachedChartContainer.clientHeight : 600);
-            const rightW = cachedRightScaleWidth || 65;
+            // Enforce SVG ClipPath to strictly prevent S&R overlay elements from encroaching on X (bottom) or Y (right) axis!
+            const chartContainer = document.getElementById('chart-container');
+            const cWidth = chartContainer ? chartContainer.clientWidth : 1200;
+            const cHeight = chartContainer ? chartContainer.clientHeight : 600;
+            const rightScale = chart ? chart.priceScale('right') : null;
+            const rightW = (rightScale && typeof rightScale.width === 'function') ? Math.max(52, rightScale.width()) : 65;
             const maxUsableW = Math.max(200, cWidth - rightW);
             const maxUsableH = Math.max(100, cHeight - 28);
             let clip = document.getElementById('chart-plot-clip');
             if (!clip) {
                 clip = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
                 clip.id = 'chart-plot-clip';
-                const clipRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                clipRect.id = 'chart-plot-clip-rect';
-                clip.appendChild(clipRect);
                 defs.appendChild(clip);
             }
-            let clipRect = document.getElementById('chart-plot-clip-rect');
-            if (!clipRect) {
-                clipRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                clipRect.id = 'chart-plot-clip-rect';
-                clip.appendChild(clipRect);
-            }
-            clipRect.setAttribute('x', '0');
-            clipRect.setAttribute('y', '0');
-            clipRect.setAttribute('width', String(maxUsableW));
-            clipRect.setAttribute('height', String(maxUsableH));
-            if (!srLayer.getAttribute('clip-path')) srLayer.setAttribute('clip-path', 'url(#chart-plot-clip)');
-            if (!drawingsLayer.getAttribute('clip-path')) drawingsLayer.setAttribute('clip-path', 'url(#chart-plot-clip)');
+            clip.innerHTML = `<rect x="0" y="0" width="${maxUsableW}" height="${maxUsableH}" />`;
+            srLayer.setAttribute('clip-path', 'url(#chart-plot-clip)');
+            drawingsLayer.removeAttribute('clip-path');
 
             // 🛡️ Auto Support & Resistance Engine Overlay (Only re-render when not drawingsOnly)
             if (!drawingsOnly) {
