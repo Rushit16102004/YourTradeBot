@@ -186,6 +186,7 @@ class BackgroundTradingEngine:
         # Background thread control
         self._running = False
         self._thread: Optional[threading.Thread] = None
+        self._is_syncing: bool = False
 
         # Seed 4 months initial data (1st Priority: RAM Cache / CSV fallback)
         cached_df = self.cache_mgr.get_candles(self.api_cfg.symbol, "5m")
@@ -372,6 +373,63 @@ class BackgroundTradingEngine:
             except Exception as ex_ind:
                 logger.debug("Fast tick indicator update note: %s", ex_ind)
 
+    def ensure_forming_candle(self, now_ist: Optional[datetime] = None) -> None:
+        """
+        ⚡ Immediately opens the new forming 5-minute candle on the clock boundary with 0.00s delay.
+        Prevents any lag or waiting for broker API historical sync when a candle closes.
+        """
+        if now_ist is None:
+            now_ist = datetime.now(IST)
+        sess = get_market_session_info(now_ist)
+        if sess["is_pre_market"] or sess["phase"] == "CLOSED":
+            return
+
+        with self.state_lock:
+            if self.latest_df_5m.empty:
+                return
+
+            curr_bucket = now_ist.replace(
+                minute=(now_ist.minute // 5) * 5,
+                second=0,
+                microsecond=0,
+            )
+            last_idx = self.latest_df_5m.index[-1]
+            last_ts = pd.to_datetime(last_idx)
+            if last_ts.tzinfo is None:
+                curr_bucket_cmp = curr_bucket.replace(tzinfo=None)
+            else:
+                curr_bucket_cmp = curr_bucket
+
+            if curr_bucket_cmp > last_ts:
+                # Instantly seal previous candle and open new candle bucket
+                cur_p = self.latest_price if (self.latest_price and self.latest_price > 1000.0) else float(self.latest_df_5m.iloc[-1]["close"])
+                new_row = self.latest_df_5m.iloc[-1].copy()
+                new_row["open"] = cur_p
+                new_row["high"] = cur_p
+                new_row["low"] = cur_p
+                new_row["close"] = cur_p
+                new_row["volume"] = 0.0
+                if "volume_ma_20" in self.latest_df_5m.columns and len(self.latest_df_5m) > 0:
+                    v_slice = self.latest_df_5m["volume"].iloc[-20:]
+                    new_row["volume_ma_20"] = round(float(v_slice.mean()), 2)
+                self.latest_df_5m.loc[curr_bucket_cmp] = new_row
+                self.last_sync_time = now_ist
+                logger.info("⚡ Instant candle rollover: Opened new 5m candle bucket %s at ₹%.2f (0.00s delay)", curr_bucket_cmp, cur_p)
+
+    def _run_async_sync_and_evaluate(self):
+        """Asynchronously refreshes 90 days of candles and evaluates signals without blocking live ticks."""
+        if getattr(self, "_is_syncing", False):
+            return
+        self._is_syncing = True
+        try:
+            # Short 1.5s delay inside background thread only, allowing broker to finalize the closed candle
+            time.sleep(1.5)
+            self.sync_and_evaluate(force_alert=False)
+        except Exception as ex_sync:
+            logger.error("Error in async sync_and_evaluate: %s", ex_sync)
+        finally:
+            self._is_syncing = False
+
     def _run_loop(self):
         """Continuous loop checking live tick & 5-minute clock boundary."""
         logger.info("Background evaluation loop active.")
@@ -420,6 +478,11 @@ class BackgroundTradingEngine:
                 else:
                     offline_synced = False
 
+                # ⚡ INSTANT CANDLE ROLLOVER (0.00s delay):
+                # Ensure the current 5-minute forming candle bucket exists immediately on clock boundary
+                self.ensure_forming_candle(now_ist)
+
+                # Background historical sync on 5-minute candle boundary (Non-blocking daemon thread)
                 if wait_secs <= 2 or wait_secs >= 298:
                     curr_bucket = now_ist.replace(
                         minute=(now_ist.minute // 5) * 5,
@@ -427,12 +490,11 @@ class BackgroundTradingEngine:
                         microsecond=0,
                     )
                     if self.last_processed_candle_ts != curr_bucket:
-                        # Skip historical candle fetch in pre-market (today's candles only start at 09:15)
-                        if not sess["is_pre_market"]:
-                            time.sleep(2)
-                            self.sync_and_evaluate(force_alert=False)
                         with self.state_lock:
                             self.last_processed_candle_ts = curr_bucket
+                        # Run deep historical sync asynchronously in background so live quote & tick polling NEVER freezes
+                        if not sess["is_pre_market"]:
+                            threading.Thread(target=self._run_async_sync_and_evaluate, daemon=True).start()
 
                 # Periodic live tick polling every 2 seconds
                 tick_counter += 1
@@ -656,6 +718,12 @@ class BackgroundTradingEngine:
 
             sess = get_market_session_info(datetime.now(IST))
             with self.state_lock:
+                # If a live forming candle is already present in self.latest_df_5m, preserve it!
+                if not self.latest_df_5m.empty and not df_ind.empty:
+                    last_live_idx = self.latest_df_5m.index[-1]
+                    if last_live_idx > df_ind.index[-1]:
+                        forming_row = self.latest_df_5m.iloc[-1].copy()
+                        df_ind.loc[last_live_idx] = forming_row
                 self.latest_df_5m = df_ind
                 # In pre-market, preserve live discovered price, do not overwrite with yesterday close
                 if not sess["is_pre_market"] or (not self.latest_price or self.latest_price < 1000.0):
@@ -1045,6 +1113,7 @@ class BackgroundTradingEngine:
 
     def get_snapshot(self, timeframe: str = "5m"):
         """Returns thread-safe snapshot of latest data for UI rendering across timeframes."""
+        self.ensure_forming_candle()
         with self.state_lock:
             base_df = self.latest_df_5m.copy() if not self.latest_df_5m.empty else pd.DataFrame()
             cur_price = self.latest_price

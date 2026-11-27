@@ -12705,6 +12705,64 @@ function showIndicatorLineActionPill(ind, point) {
                 }
             }
             updateYAxisCandleTimerPosition();
+
+            // ⚡ Instant Candle Close Transition (0.00s delay):
+            // Check if active timeframe candle reached closing boundary
+            checkAndPerformInstantCandleRollover(tf, remSec);
+        }
+
+        let lastRolloverCandleTime = 0;
+        function checkAndPerformInstantCandleRollover(tf, remSec) {
+            if (!chart || !candleSeries || !activeCandles || activeCandles.length === 0) return;
+            const ist = getISTDetails();
+            if (!ist.isLiveMarket) return;
+            if (tf !== '5m' && tf !== '15m') return;
+
+            const nowUnix = Math.floor(Date.now() / 1000);
+            const tfSec = (tf === '15m') ? 900 : 300;
+            const currentBucketTime = Math.floor(nowUnix / tfSec) * tfSec;
+
+            const lastIdx = activeCandles.length - 1;
+            const lastC = activeCandles[lastIdx];
+            if (!lastC || !lastC.time) return;
+
+            // If a new candle interval has arrived and activeCandles hasn't advanced yet:
+            if (currentBucketTime > lastC.time && currentBucketTime !== lastRolloverCandleTime) {
+                lastRolloverCandleTime = currentBucketTime;
+                const curPrice = (typeof lastKnownLtp === 'number' && lastKnownLtp > 0) ? lastKnownLtp : lastC.close;
+                const newBar = {
+                    time: currentBucketTime,
+                    open: curPrice,
+                    high: curPrice,
+                    low: curPrice,
+                    close: curPrice,
+                    volume: 0,
+                    volume_ma: lastC.volume_ma,
+                    mean: lastC.mean,
+                    vwap: lastC.vwap,
+                    vwap_upper_2: lastC.vwap_upper_2,
+                    vwap_lower_2: lastC.vwap_lower_2,
+                    z: 0,
+                    slope: lastC.slope
+                };
+                activeCandles.push(newBar);
+                if (activeCandlesMap) activeCandlesMap.set(currentBucketTime, newBar);
+                candleSeries.update({
+                    time: newBar.time,
+                    open: newBar.open,
+                    high: newBar.high,
+                    low: newBar.low,
+                    close: newBar.close,
+                });
+                updateFutureWhitespaceSeries();
+                updateYAxisCandleTimerPosition();
+                scheduleRenderDrawings();
+                // Proactively query live candle delta immediately
+                fetchLiveCandle();
+            } else if (remSec === 300 || remSec <= 1) {
+                // Candle just closed on the timer: immediately query server delta
+                fetchLiveCandle();
+            }
         }
 
         let isCopilotDragInit = false;
