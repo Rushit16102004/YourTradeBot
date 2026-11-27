@@ -245,6 +245,14 @@ a:hover {
   color: #ffffff;
 }
 
+.btn-mobile-text {
+  display: none !important;
+}
+
+.btn-full-text {
+  display: inline !important;
+}
+
 /* =====================================================================
    Hero Section
    ===================================================================== */
@@ -1296,28 +1304,35 @@ textarea.form-control {
 
   /* Hero Section */
   .hero {
-    padding: 20px 12px 16px 12px;
+    padding: 20px 16px 16px 16px;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     text-align: center;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    box-sizing: border-box;
   }
   .hero-pill {
     font-size: 9.5px;
     padding: 3px 8px;
-    margin-bottom: 10px;
+    margin: 0 auto 10px auto;
   }
   .hero-title {
     font-size: clamp(18px, 5.2vw, 23px);
     line-height: 1.22;
-    margin-bottom: 8px;
+    margin: 0 auto 8px auto;
     text-align: center;
+    width: 100%;
   }
   .hero-subtitle {
     font-size: 11px;
     line-height: 1.48;
-    margin-bottom: 14px;
+    margin: 0 auto 14px auto;
     text-align: center;
+    width: 100%;
     max-width: 100%;
   }
   .hero-ctas {
@@ -1329,11 +1344,14 @@ textarea.form-control {
     width: 100%;
     max-width: 360px;
     margin: 0 auto 16px auto;
+    padding: 0;
+    box-sizing: border-box;
   }
   .btn-hero-guest {
     width: 100%;
+    max-width: 100%;
     box-sizing: border-box;
-    padding: 11px 16px;
+    padding: 12px 14px;
     font-size: 13px;
     border-radius: 10px;
     display: flex;
@@ -1341,26 +1359,43 @@ textarea.form-control {
     align-items: center;
     justify-content: center;
     text-align: center;
+    margin: 0 auto;
     gap: 3px;
+  }
+  .btn-hero-guest span {
+    display: block;
+    width: 100%;
+    text-align: center;
+    margin: 0 auto;
   }
   .btn-hero-guest .btn-guest-subtext {
     font-size: 11px;
     opacity: 0.9;
     font-weight: 600;
     display: block;
+    width: 100%;
     text-align: center;
+    margin: 0 auto;
   }
   .btn-hero-login {
     width: 100%;
+    max-width: 100%;
     box-sizing: border-box;
-    padding: 11px 16px;
+    padding: 12px 14px;
     font-size: 13px;
     border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
+    margin: 0 auto;
     gap: 8px;
+  }
+  .btn-hero-login span {
+    display: block;
+    width: 100%;
+    text-align: center;
+    margin: 0 auto;
   }
   .trust-badges {
     display: grid;
@@ -1369,6 +1404,8 @@ textarea.form-control {
     margin: 8px auto 0 auto;
     width: 100%;
     max-width: 360px;
+    padding: 0;
+    box-sizing: border-box;
   }
   .trust-badge-item {
     font-size: 9px;
@@ -1378,6 +1415,8 @@ textarea.form-control {
     align-items: center;
     justify-content: center;
     text-align: center;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   /* Section Common */
