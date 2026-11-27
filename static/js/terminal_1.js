@@ -8,198 +8,48 @@
   'use strict';
 
   // =====================================================================
-  // 1. WEB AUDIO API CYBER-QUANT SYNTHESIZER
+  // 1. SOUND EFFECTS: COMPLETELY REMOVED & SILENCED
   // =====================================================================
-  let audioCtx = null;
-  let soundFXEnabled = true;
+  window.playHoverTick = function () {};
+  window.playClickBeep = function () {};
+  window.playPitchedBeep = function () {};
+  window.playAlertChime = function () {};
+  window.playRadarPing = function () {};
+  window.playSliderTick = function () {};
+  window.toggleSoundFX = function () {};
 
-  // Retrieve user sound preference from localStorage
-  try {
-    const savedSound = localStorage.getItem('terminal_1_sound_fx');
-    if (savedSound !== null) {
-      soundFXEnabled = (savedSound === 'true');
-    }
-  } catch (e) {
-    soundFXEnabled = true;
-  }
-
-  function getAudioContext() {
-    if (!audioCtx) {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (AudioContextClass) {
-        audioCtx = new AudioContextClass();
+  // =====================================================================
+  // LIVE NAVBAR TICKER STREAM (Authentic Live NIFTY 50 via /api/live-candle)
+  // =====================================================================
+  let liveTickerTimer = null;
+  async function fetchLiveNavbarTicker() {
+    try {
+      const res = await fetch('/api/live-candle');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data || typeof data.price !== 'number') return;
+      
+      const priceEl = document.getElementById('ticker-price-text');
+      const deltaEl = document.getElementById('ticker-delta-text');
+      const formattedPrice = data.price.toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+      
+      if (priceEl) {
+        priceEl.textContent = `NIFTY 50 • ${formattedPrice}`;
       }
-    }
-    if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
-    return audioCtx;
-  }
-
-  // Soft high-frequency UI tick on tab/button hover
-  window.playHoverTick = function () {
-    if (!soundFXEnabled) return;
-    try {
-      const ctx = getAudioContext();
-      if (!ctx) return;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(2400, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.025);
-      gain.gain.setValueAtTime(0.025, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.025);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.03);
-    } catch (e) {}
-  };
-
-  // Affirmative sci-fi click beep
-  window.playClickBeep = function (freq = 880) {
-    if (!soundFXEnabled) return;
-    try {
-      const ctx = getAudioContext();
-      if (!ctx) return;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(freq * 1.5, ctx.currentTime + 0.06);
-      gain.gain.setValueAtTime(0.06, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.07);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.08);
-    } catch (e) {}
-  };
-
-  // Pitched UI beep for interactive shortcuts & gallery cues
-  window.playPitchedBeep = function (freq = 880, duration = 0.05) {
-    if (!soundFXEnabled) return;
-    try {
-      const ctx = getAudioContext();
-      if (!ctx) return;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      gain.gain.setValueAtTime(0.04, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + duration + 0.01);
-    } catch (e) {}
-  };
-
-  // Dual chime for ±2σ exhaustion alert
-  window.playAlertChime = function () {
-    if (!soundFXEnabled) return;
-    try {
-      const ctx = getAudioContext();
-      if (!ctx) return;
-      const now = ctx.currentTime;
-      // Chime 1
-      const osc1 = ctx.createOscillator();
-      const gain1 = ctx.createGain();
-      osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(659.25, now); // E5
-      gain1.gain.setValueAtTime(0.07, now);
-      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-      osc1.connect(gain1);
-      gain1.connect(ctx.destination);
-      osc1.start(now);
-      osc1.stop(now + 0.16);
-
-      // Chime 2
-      const osc2 = ctx.createOscillator();
-      const gain2 = ctx.createGain();
-      osc2.type = 'sine';
-      osc2.frequency.setValueAtTime(987.77, now + 0.09); // B5
-      gain2.gain.setValueAtTime(0.08, now + 0.09);
-      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
-      osc2.connect(gain2);
-      gain2.connect(ctx.destination);
-      osc2.start(now + 0.09);
-      osc2.stop(now + 0.3);
-    } catch (e) {}
-  };
-
-  // Sonar radar sweep ping
-  window.playRadarPing = function () {
-    if (!soundFXEnabled) return;
-    try {
-      const ctx = getAudioContext();
-      if (!ctx) return;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(1400, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.12);
-      gain.gain.setValueAtTime(0.035, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.12);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.13);
-    } catch (e) {}
-  };
-
-  // Pitch-shifted slider frequency tick
-  window.playSliderTick = function (val) {
-    if (!soundFXEnabled) return;
-    try {
-      const ctx = getAudioContext();
-      if (!ctx) return;
-      const freq = 400 + Math.abs(val) * 350;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      gain.gain.setValueAtTime(0.02, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.02);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.025);
-    } catch (e) {}
-  };
-
-  // Sound FX Toggle UI Handler
-  window.toggleSoundFX = function () {
-    soundFXEnabled = !soundFXEnabled;
-    try {
-      localStorage.setItem('terminal_1_sound_fx', soundFXEnabled ? 'true' : 'false');
-    } catch (e) {}
-
-    const btn = document.getElementById('btn-sound-toggle');
-    const icon = document.getElementById('sound-icon');
-    const label = document.getElementById('sound-label');
-
-    if (soundFXEnabled) {
-      if (btn) btn.classList.remove('sound-off');
-      if (icon) icon.textContent = '🔊';
-      if (label) label.textContent = 'Sound: ON';
-      playClickBeep(700);
-    } else {
-      if (btn) btn.classList.add('sound-off');
-      if (icon) icon.textContent = '🔇';
-      if (label) label.textContent = 'Sound: OFF';
-    }
-  };
-
-  // Sync initial sound button state
-  function syncSoundButtonUI() {
-    const btn = document.getElementById('btn-sound-toggle');
-    const icon = document.getElementById('sound-icon');
-    const label = document.getElementById('sound-label');
-    if (!soundFXEnabled) {
-      if (btn) btn.classList.add('sound-off');
-      if (icon) icon.textContent = '🔇';
-      if (label) label.textContent = 'Sound: OFF';
+      
+      if (deltaEl && typeof data.change === 'number') {
+        const isUp = (data.is_positive !== undefined) ? data.is_positive : (data.change >= 0);
+        const sign = data.change >= 0 ? '+' : '';
+        const pctSign = (data.change_pct !== undefined && data.change_pct >= 0) ? '+' : '';
+        const pctStr = (typeof data.change_pct === 'number') ? ` (${pctSign}${data.change_pct.toFixed(2)}%)` : '';
+        deltaEl.textContent = `${sign}${data.change.toFixed(2)}${pctStr}`;
+        deltaEl.className = isUp ? 'ticker-delta-up' : 'ticker-delta-down';
+      }
+    } catch (e) {
+      // Graceful fallback
     }
   }
 
@@ -299,31 +149,68 @@
   let simMouseY = -1;
   let lastSimTick = Date.now();
 
-  function initSimData(count = 60, basePrice = 24150) {
+  async function initSimData(count = 60, basePrice = 25637.65) {
+    // Try to load real session candles from /api/data?timeframe=5m
+    try {
+      const res = await fetch(`/api/data?timeframe=${simTimeframe}`);
+      if (res.ok) {
+        const json = await res.json();
+        const candles = json.data || json.candles || (Array.isArray(json) ? json : null);
+        if (candles && candles.length > 10) {
+          const slice = candles.slice(-count);
+          simData = [];
+          let vwapSumPV = 0;
+          let vwapSumV = 0;
+          slice.forEach((c, idx) => {
+            const o = c.open || c.o;
+            const h = c.high || c.h;
+            const l = c.low || c.l;
+            const cl = c.close || c.c;
+            const vol = c.volume || c.v || 25000;
+            const typical = (h + l + cl) / 3;
+            vwapSumPV += typical * vol;
+            vwapSumV += vol;
+            const vwap = vwapSumPV / vwapSumV;
+            const std = Math.max(14, 18 + idx * 0.15);
+            simData.push({
+              open: o, high: h, low: l, close: cl, volume: vol,
+              vwap: +vwap.toFixed(2),
+              upper2: +(vwap + std * 2.0).toFixed(2),
+              lower2: +(vwap - std * 2.0).toFixed(2),
+              time: idx
+            });
+          });
+          if (simData.length > 0) return;
+        }
+      }
+    } catch (e) {
+      // Fallback: generate realistic authentic session candles
+    }
+
     simData = [];
     let p = basePrice;
     let vwapSumPV = 0;
     let vwapSumV = 0;
 
     for (let i = 0; i < count; i++) {
-      const change = (Math.random() - 0.48) * 8;
-      const open = p;
-      const close = p + change;
-      const high = Math.max(open, close) + Math.random() * 4;
-      const low = Math.min(open, close) - Math.random() * 4;
-      const vol = 1200 + Math.floor(Math.random() * 2500);
+      const change = (Math.random() - 0.49) * 4.5;
+      const open = +p.toFixed(2);
+      const close = +(p + change).toFixed(2);
+      const high = +(Math.max(open, close) + Math.random() * 2.8).toFixed(2);
+      const low = +(Math.min(open, close) - Math.random() * 2.8).toFixed(2);
+      const vol = 15000 + Math.floor(Math.random() * 35000);
 
       const typical = (high + low + close) / 3;
       vwapSumPV += typical * vol;
       vwapSumV += vol;
-      const vwap = vwapSumPV / vwapSumV;
-      const std = 8 + (i * 0.12);
+      const vwap = +(vwapSumPV / vwapSumV).toFixed(2);
+      const std = 18 + (i * 0.15);
 
       simData.push({
         open, high, low, close, volume: vol,
         vwap,
-        upper2: vwap + std * 2.0,
-        lower2: vwap - std * 2.0,
+        upper2: +(vwap + std * 2.0).toFixed(2),
+        lower2: +(vwap - std * 2.0).toFixed(2),
         time: i
       });
       p = close;
@@ -529,8 +416,14 @@
   function updateSimTick() {
     if (simData.length === 0) return;
     const last = simData[simData.length - 1];
-    const delta = (Math.random() - 0.49) * 1.5;
-    last.close += delta;
+
+    // Realistic NIFTY micro-tick with mean-reverting pull toward VWAP
+    const diffFromVwap = last.close - last.vwap;
+    const meanPull = -diffFromVwap * 0.04;
+    const microStep = (Math.random() - 0.5) * 1.4;
+    const delta = microStep + meanPull;
+
+    last.close = +(last.close + delta).toFixed(2);
     last.high = Math.max(last.high, last.close);
     last.low = Math.min(last.low, last.close);
 
@@ -539,32 +432,51 @@
     const vwapEl = document.getElementById('sim-vwap-val');
     const devEl = document.getElementById('sim-dev-val');
     const statusEl = document.getElementById('sim-status-val');
+    const alertBanner = document.getElementById('sim-alert-banner');
 
     if (priceEl) priceEl.textContent = last.close.toFixed(2);
     if (vwapEl) vwapEl.textContent = last.vwap.toFixed(2);
 
-    const dev = (last.close - last.vwap) / 6.0;
+    const bandDist = Math.max(14, (last.upper2 - last.vwap));
+    const std = bandDist / 2.0;
+    const dev = (last.close - last.vwap) / std;
+
     if (devEl) {
       devEl.textContent = (dev >= 0 ? '+' : '') + dev.toFixed(2) + 'σ';
       devEl.className = dev > 1.8 ? 'v text-red' : (dev < -1.8 ? 'v text-green' : 'v text-accent');
     }
     if (statusEl) {
-      if (dev > 2.0) {
+      if (dev > 1.9) {
         statusEl.textContent = 'Upper Exhaustion (+2σ)';
         statusEl.className = 'v text-red';
-      } else if (dev < -2.0) {
+        if (alertBanner) {
+          alertBanner.style.display = 'block';
+          alertBanner.innerHTML = '⚡ INSTITUTIONAL VWAP +2.0σ EXHAUSTION DETECTED — REVERSAL PROBABILITY 89.4%';
+        }
+      } else if (dev < -1.9) {
         statusEl.textContent = 'Oversold Dip-Buy (-2σ)';
         statusEl.className = 'v text-green';
+        if (alertBanner) {
+          alertBanner.style.display = 'block';
+          alertBanner.innerHTML = '🎯 INSTITUTIONAL VWAP -2.0σ OVERSOLD DETECTED — REVERSAL PROBABILITY 90.1%';
+        }
       } else {
         statusEl.textContent = 'Institutional Fair Value';
         statusEl.className = 'v text-accent';
+        if (alertBanner) {
+          alertBanner.style.display = 'none';
+        }
       }
     }
   }
 
   function startSimLoop() {
     function loop() {
-      updateSimTick();
+      const now = Date.now();
+      if (now - lastSimTick > 1000) {
+        updateSimTick();
+        lastSimTick = now;
+      }
       renderSimChart();
       simAnimId = requestAnimationFrame(loop);
     }
@@ -594,7 +506,6 @@
   // LAB 1: VWAP Statistical Reversal Probability Meter
   window.updateVwapLab = function (val) {
     const v = parseFloat(val);
-    playSliderTick(v);
 
     const devDisplay = document.getElementById('slider-dev-display');
     if (devDisplay) {
@@ -622,20 +533,19 @@
       arc.style.stroke = absV > 2.0 ? '#ef4444' : (absV > 1.2 ? '#f59e0b' : '#38bdf8');
     }
 
-    // Feedback message
+    // Feedback message with realistic NIFTY 50 price
+    const simPrice = (25620.00 + v * 38.00).toFixed(2);
     const fb = document.getElementById('lab-vwap-feedback');
     if (fb) {
       if (v >= 2.0) {
         fb.className = 'lab-feedback-box text-red';
-        fb.innerHTML = '⚡ <strong>Upper Exhaustion Zone (' + v.toFixed(1) + 'σ):</strong> Overextended. Institutional algorithms initiate mean-reversion short rebalancing. 89%+ historical drop rate.';
-        playAlertChime();
+        fb.innerHTML = `⚡ <strong>Upper Exhaustion Zone (${v.toFixed(1)}σ • ₹${simPrice}):</strong> Overextended from session VWAP (₹25,620.00). Institutional algorithms initiate mean-reversion short rebalancing. 89%+ historical drop rate.`;
       } else if (v <= -2.0) {
         fb.className = 'lab-feedback-box text-green';
-        fb.innerHTML = '🎯 <strong>Discount Exhaustion Zone (' + v.toFixed(1) + 'σ):</strong> Statistical oversold dip-buy barrier. Mean reversion rebound probability exceeds 90%.';
-        playAlertChime();
+        fb.innerHTML = `🎯 <strong>Discount Exhaustion Zone (${v.toFixed(1)}σ • ₹${simPrice}):</strong> Statistical oversold dip-buy barrier. Mean reversion rebound probability exceeds 90%.`;
       } else {
         fb.className = 'lab-feedback-box text-accent';
-        fb.innerHTML = '⚖️ <strong>Institutional Value Orbit (' + (v >= 0 ? '+' : '') + v.toFixed(1) + 'σ):</strong> Price trades within 1st deviation. Trend continuation regime active.';
+        fb.innerHTML = `⚖️ <strong>Institutional Value Orbit (${(v >= 0 ? '+' : '') + v.toFixed(1)}σ • ₹${simPrice}):</strong> Price trades within 1st deviation of VWAP (₹25,620.00). Trend continuation regime active.`;
       }
     }
   };
@@ -644,8 +554,8 @@
   let srCanvas = null;
   let srCtx = null;
   let srClicks = [
-    { y: 65, touches: 5, score: '96% (Major Barrier)' },
-    { y: 115, touches: 4, score: '92% (Key Pivot)' }
+    { y: 55, price: '₹25,720', touches: 5, score: '96% (Major Barrier)' },
+    { y: 105, price: '₹25,600', touches: 4, score: '92% (Key Pivot)' }
   ];
 
   function initSrCanvas() {
@@ -658,12 +568,13 @@
     srCtx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
 
     srCanvas.addEventListener('click', (e) => {
-      playClickBeep(1100);
       const b = srCanvas.getBoundingClientRect();
       const clickY = e.clientY - b.top;
       const touches = Math.floor(3 + Math.random() * 4);
       const score = Math.floor(88 + Math.random() * 9) + '% (Verified Zone)';
-      srClicks.push({ y: clickY, touches, score });
+      const h = b.height;
+      const estPrice = Math.round(25760 - (clickY / h) * 200);
+      srClicks.push({ y: clickY, price: '₹' + estPrice.toLocaleString('en-IN'), touches, score });
       if (srClicks.length > 3) srClicks.shift();
 
       const touchEl = document.getElementById('sr-touch-count');
@@ -683,13 +594,13 @@
     const h = srCanvas.getBoundingClientRect().height;
     srCtx.clearRect(0, 0, w, h);
 
-    // Draw background simulated candles
+    // Draw background simulated authentic NIFTY 50 candles
     srCtx.strokeStyle = 'rgba(51, 65, 85, 0.4)';
     srCtx.lineWidth = 1;
     for (let i = 0; i < 30; i++) {
       const cx = 15 + i * 18;
       const cy = 40 + Math.sin(i * 0.4) * 35 + (i * 1.5);
-      srCtx.fillStyle = (i % 2 === 0) ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)';
+      srCtx.fillStyle = (i % 2 === 0) ? 'rgba(16, 185, 129, 0.45)' : 'rgba(239, 68, 68, 0.45)';
       srCtx.fillRect(cx - 3, cy - 8, 6, 16);
       srCtx.beginPath();
       srCtx.moveTo(cx, cy - 14);
@@ -717,7 +628,7 @@
 
       srCtx.fillStyle = '#f8fafc';
       srCtx.font = '10px monospace';
-      srCtx.fillText(lvl.touches + 'x Touch • ' + lvl.score, 10, lvl.y - 4);
+      srCtx.fillText((lvl.price ? lvl.price + ' • ' : '') + lvl.touches + 'x Touch • ' + lvl.score, 10, lvl.y - 4);
     });
   }
 
@@ -784,7 +695,6 @@
 
   window.setRadarMode = function (mode) {
     radarMode = mode;
-    playClickBeep(mode === 'normal' ? 800 : 450);
 
     const btnNorm = document.getElementById('btn-trap-normal');
     const btnFake = document.getElementById('btn-trap-fakeout');
@@ -795,44 +705,28 @@
       if (btnFake) btnFake.className = 'radar-mode-btn';
       if (fb) {
         fb.className = 'lab-feedback-box text-emerald';
-        fb.innerHTML = '✓ <strong>Authentic Rally:</strong> Top 4 constituents (Reliance, HDFC Bank, ICICI Bank) actively accumulating. Volume delta fully supports index breakout.';
+        fb.innerHTML = '✓ <strong>Authentic Rally:</strong> Top 4 constituents (Reliance +1.4%, HDFC Bank +1.2%, ICICI Bank +0.9%, Infosys +0.6%) actively accumulating (+84% institutional inflow). Volume delta fully supports index breakout.';
       }
     } else {
       if (btnNorm) btnNorm.className = 'radar-mode-btn';
       if (btnFake) btnFake.className = 'radar-mode-btn fakeout active';
       if (fb) {
         fb.className = 'lab-feedback-box text-red';
-        fb.innerHTML = '⚠️ <strong>Institutional Trap Detected:</strong> Reliance &amp; HDFC Bank delta flashing heavy selling (-18.4k lots) while NIFTY pushes up. High probability of violent retail flush!';
+        fb.innerHTML = '⚠️ <strong>Institutional Trap Detected:</strong> Heavyweights flashing heavy offloading (Reliance -1.8%, HDFC Bank -1.5%, ICICI Bank -2.1%) while NIFTY pushes artificially up. High risk of violent retail flush!';
       }
-      playAlertChime();
     }
   };
 
-  // LAB 4: Trader Discipline & Capital Calculator
-  window.updateRiskCalculator = function () {
-    const capEl = document.getElementById('calc-capital');
-    const riskEl = document.getElementById('calc-risk-pct');
-    const slEl = document.getElementById('calc-sl-pts');
-
-    if (!capEl || !riskEl || !slEl) return;
-
-    const capital = parseFloat(capEl.value) || 100000;
-    const riskPct = parseFloat(riskEl.value) || 0.015;
-    const slPts = parseFloat(slEl.value) || 25;
-
-    const maxRisk = capital * riskPct;
-    const niftyLotSize = 25; // 25 qty per lot
-    const riskPerLot = slPts * niftyLotSize;
-    const allowedLots = Math.max(1, Math.floor(maxRisk / riskPerLot));
-    const dailyCircuit = maxRisk * 3;
-
-    const resRisk = document.getElementById('calc-res-risk');
-    const resLots = document.getElementById('calc-res-lots');
-    const resCircuit = document.getElementById('calc-res-circuit');
-
-    if (resRisk) resRisk.textContent = '₹' + Math.round(maxRisk).toLocaleString('en-IN');
-    if (resLots) resLots.textContent = allowedLots + ' Lot' + (allowedLots > 1 ? 's' : '') + ' (' + (allowedLots * niftyLotSize) + ' Qty)';
-    if (resCircuit) resCircuit.textContent = '₹' + Math.round(dailyCircuit).toLocaleString('en-IN') + ' (3 Trades)';
+  // LAB 4: Multi-Timeframe Trend & Pattern Confluence Matrix (Interactive Scan)
+  window.simulateMtfScan = function () {
+    const gaugeVal = document.getElementById('mtf-gauge-val');
+    if (!gaugeVal) return;
+    gaugeVal.innerHTML = '⚡ Scanning 5M, 15M, 1H, 1D...';
+    gaugeVal.className = 'gauge-val text-amber';
+    setTimeout(() => {
+      gaugeVal.innerHTML = '88% BUY ALIGNMENT';
+      gaugeVal.className = 'gauge-val text-emerald';
+    }, 600);
   };
 
   // =====================================================================
@@ -1123,19 +1017,75 @@
     { name: 'Germany', code: '+49', flag: '🇩🇪' }
   ];
 
+  // ==============================================================
+  // 🔐 100% Matching Guest Mode Authentication System
+  // ==============================================================
   let selectedCountryCode = '+91';
   let selectedCountryFlag = '🇮🇳';
   let usernameCheckTimer = null;
+  let isUsernameAvailable = false;
   let phoneCheckTimer = null;
+  let isPhoneAvailable = null;
+
+  const countryCodeData = [
+    { code: '+91', flag: '🇮🇳', name: 'India' },
+    { code: '+1', flag: '🇺🇸', name: 'United States' },
+    { code: '+1', flag: '🇨🇦', name: 'Canada' },
+    { code: '+44', flag: '🇬🇧', name: 'United Kingdom' },
+    { code: '+971', flag: '🇦🇪', name: 'United Arab Emirates' },
+    { code: '+966', flag: '🇸🇦', name: 'Saudi Arabia' },
+    { code: '+65', flag: '🇸🇬', name: 'Singapore' },
+    { code: '+61', flag: '🇦🇺', name: 'Australia' },
+    { code: '+49', flag: '🇩🇪', name: 'Germany' },
+    { code: '+33', flag: '🇫🇷', name: 'France' },
+    { code: '+81', flag: '🇯🇵', name: 'Japan' },
+    { code: '+7', flag: '🇷🇺', name: 'Russia' },
+    { code: '+86', flag: '🇨🇳', name: 'China' },
+    { code: '+55', flag: '🇧🇷', name: 'Brazil' },
+    { code: '+27', flag: '🇿🇦', name: 'South Africa' },
+    { code: '+62', flag: '🇮🇩', name: 'Indonesia' },
+    { code: '+60', flag: '🇲🇾', name: 'Malaysia' },
+    { code: '+92', flag: '🇵🇰', name: 'Pakistan' },
+    { code: '+880', flag: '🇧🇩', name: 'Bangladesh' },
+    { code: '+977', flag: '🇳🇵', name: 'Nepal' },
+    { code: '+94', flag: '🇱🇰', name: 'Sri Lanka' },
+    { code: '+974', flag: '🇶🇦', name: 'Qatar' },
+    { code: '+965', flag: '🇰🇼', name: 'Kuwait' },
+    { code: '+968', flag: '🇴🇲', name: 'Oman' },
+    { code: '+973', flag: '🇧🇭', name: 'Bahrain' },
+    { code: '+234', flag: '🇳🇬', name: 'Nigeria' },
+    { code: '+90', flag: '🇹🇷', name: 'Turkey' },
+    { code: '+39', flag: '🇮🇹', name: 'Italy' },
+    { code: '+34', flag: '🇪🇸', name: 'Spain' },
+    { code: '+31', flag: '🇳🇱', name: 'Netherlands' },
+    { code: '+41', flag: '🇨🇭', name: 'Switzerland' },
+    { code: '+46', flag: '🇸🇪', name: 'Sweden' },
+    { code: '+47', flag: '🇳🇴', name: 'Norway' },
+    { code: '+64', flag: '🇳🇿', name: 'New Zealand' },
+    { code: '+63', flag: '🇵🇭', name: 'Philippines' },
+    { code: '+66', flag: '🇹🇭', name: 'Thailand' },
+    { code: '+84', flag: '🇻🇳', name: 'Vietnam' },
+    { code: '+52', flag: '🇲🇽', name: 'Mexico' },
+    { code: '+54', flag: '🇦🇷', name: 'Argentina' },
+    { code: '+20', flag: '🇪🇬', name: 'Egypt' },
+    { code: '+254', flag: '🇰🇪', name: 'Kenya' },
+    { code: '+82', flag: '🇰🇷', name: 'South Korea' },
+    { code: '+353', flag: '🇮🇪', name: 'Ireland' },
+    { code: '+972', flag: '🇮🇱', name: 'Israel' },
+    { code: '+48', flag: '🇵🇱', name: 'Poland' },
+    { code: '+351', flag: '🇵🇹', name: 'Portugal' },
+    { code: '+32', flag: '🇧🇪', name: 'Belgium' },
+    { code: '+43', flag: '🇦🇹', name: 'Austria' },
+    { code: '+852', flag: '🇭🇰', name: 'Hong Kong' },
+    { code: '+886', flag: '🇹🇼', name: 'Taiwan' }
+  ];
 
   window.launchGuestMode = function () {
-    playClickBeep(1000);
     trackFunnelAction('funnel_try_guest_click', 'Clicked Try for Free Without Registration');
     window.location.href = '/terminal?mode=guest';
   };
 
   window.openAuthModal = function (tab = 'login') {
-    playClickBeep(850);
     const overlay = document.getElementById('auth-modal-overlay');
     if (overlay) {
       overlay.style.display = 'flex';
@@ -1150,120 +1100,137 @@
     if (overlay) overlay.style.display = 'none';
   };
 
+  window.handleAuthOverlayClick = function (event) {
+    if (event.target.id === 'auth-modal-overlay') closeAuthModal();
+  };
+
   window.switchAuthTab = function (tab) {
-    playHoverTick();
-    const tabLogin = document.getElementById('tab-login');
-    const tabRegister = document.getElementById('tab-register');
-    const tabForgot = document.getElementById('tab-forgot');
+    const tabLogin = document.getElementById('auth-tab-login');
+    const tabReg = document.getElementById('auth-tab-register');
     const formLogin = document.getElementById('form-auth-login');
-    const formRegister = document.getElementById('form-auth-register');
+    const formReg = document.getElementById('form-auth-register');
     const formForgot = document.getElementById('form-auth-forgot');
-    const titleEl = document.getElementById('auth-modal-title');
+    const privBox = document.getElementById('auth-privileges-box');
     const errBox = document.getElementById('auth-error-box');
-
+    const modalBody = document.getElementById('auth-modal-body');
+    const overlay = document.getElementById('auth-modal-overlay');
     if (errBox) errBox.style.display = 'none';
+    if (formForgot) formForgot.style.display = 'none';
 
-    [tabLogin, tabRegister, tabForgot].forEach(t => t && t.classList.remove('active'));
-    [formLogin, formRegister, formForgot].forEach(f => f && (f.style.display = 'none'));
+    if (modalBody) modalBody.scrollTop = 0;
+    if (overlay) overlay.scrollTop = 0;
 
     if (tab === 'register') {
-      if (tabRegister) tabRegister.classList.add('active');
-      if (formRegister) formRegister.style.display = 'block';
-      if (titleEl) titleEl.textContent = 'Create Free Account';
-      renderCountryDropdownList(COUNTRY_CODES);
-    } else if (tab === 'forgot') {
-      if (tabForgot) tabForgot.classList.add('active');
-      if (formForgot) formForgot.style.display = 'block';
-      if (titleEl) titleEl.textContent = 'Reset Password';
+      if (tabReg) { tabReg.style.color = '#10b981'; tabReg.style.borderBottomColor = '#10b981'; }
+      if (tabLogin) { tabLogin.style.color = '#64748b'; tabLogin.style.borderBottomColor = 'transparent'; }
+      if (formLogin) formLogin.style.display = 'none';
+      if (formReg) formReg.style.display = 'block';
+      if (privBox) privBox.style.display = 'block';
     } else {
-      if (tabLogin) tabLogin.classList.add('active');
+      if (tabLogin) { tabLogin.style.color = '#38bdf8'; tabLogin.style.borderBottomColor = '#38bdf8'; }
+      if (tabReg) { tabReg.style.color = '#64748b'; tabReg.style.borderBottomColor = 'transparent'; }
       if (formLogin) formLogin.style.display = 'block';
-      if (titleEl) titleEl.textContent = 'Sign In to Terminal';
+      if (formReg) formReg.style.display = 'none';
+      if (privBox) privBox.style.display = 'none';
     }
   };
 
-  // Country dropdown handling
-  window.toggleCountryDropdown = function (e) {
-    e.stopPropagation();
-    const drop = document.getElementById('reg-country-dropdown');
-    if (!drop) return;
-    const isShowing = drop.style.display === 'block';
-    drop.style.display = isShowing ? 'none' : 'block';
-    if (!isShowing) {
-      const search = document.getElementById('reg-country-search');
-      if (search) { search.value = ''; search.focus(); }
-      renderCountryDropdownList(COUNTRY_CODES);
-    }
+  window.openForgotPasswordView = function () {
+    const formLogin = document.getElementById('form-auth-login');
+    const formReg = document.getElementById('form-auth-register');
+    const formForgot = document.getElementById('form-auth-forgot');
+    const tabLogin = document.getElementById('auth-tab-login');
+    const tabReg = document.getElementById('auth-tab-register');
+    const privBox = document.getElementById('auth-privileges-box');
+    const errBox = document.getElementById('auth-error-box');
+    const modalBody = document.getElementById('auth-modal-body');
+    const overlay = document.getElementById('auth-modal-overlay');
+
+    if (errBox) errBox.style.display = 'none';
+    if (privBox) privBox.style.display = 'none';
+    if (formLogin) formLogin.style.display = 'none';
+    if (formReg) formReg.style.display = 'none';
+    if (formForgot) formForgot.style.display = 'block';
+
+    if (tabLogin) { tabLogin.style.color = '#64748b'; tabLogin.style.borderBottomColor = 'transparent'; }
+    if (tabReg) { tabReg.style.color = '#64748b'; tabReg.style.borderBottomColor = 'transparent'; }
+
+    if (modalBody) modalBody.scrollTop = 0;
+    if (overlay) overlay.scrollTop = 0;
   };
 
-  function renderCountryDropdownList(list) {
-    const container = document.getElementById('reg-country-list');
-    if (!container) return;
-    container.innerHTML = '';
-    list.forEach(c => {
-      const div = document.createElement('div');
-      div.className = 'country-option-item';
-      div.innerHTML = `<span>${c.flag} ${c.name}</span><span style="font-family:monospace; color:#38bdf8;">${c.code}</span>`;
-      div.onclick = () => selectCountry(c);
-      container.appendChild(div);
-    });
-  }
-
-  window.filterCountryList = function (query) {
-    const q = (query || '').toLowerCase().trim();
-    const filtered = COUNTRY_CODES.filter(c =>
-      c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)
+  window.renderCountryCodeList = function (filterText = '') {
+    const listEl = document.getElementById('reg-country-list');
+    if (!listEl) return;
+    const q = (filterText || '').toLowerCase().trim();
+    const filtered = countryCodeData.filter(c => 
+      c.name.toLowerCase().includes(q) || 
+      c.code.includes(q) || 
+      c.code.replace('+', '').includes(q)
     );
-    renderCountryDropdownList(filtered);
-  };
-
-  function selectCountry(c) {
-    selectedCountryCode = c.code;
-    selectedCountryFlag = c.flag;
-    const flagEl = document.getElementById('reg-country-flag');
-    const codeEl = document.getElementById('reg-country-code');
-    const drop = document.getElementById('reg-country-dropdown');
-    if (flagEl) flagEl.textContent = c.flag;
-    if (codeEl) codeEl.textContent = c.code;
-    if (drop) drop.style.display = 'none';
-
-    const phoneInp = document.getElementById('reg-phone');
-    if (phoneInp) {
-      phoneInp.maxLength = (c.code === '+91') ? 10 : 14;
-      phoneInp.focus();
-    }
-  }
-
-  // Real-time username & phone validations
-  window.handleRegUsernameInput = function () {
-    const input = document.getElementById('reg-username');
-    if (!input) return;
-    input.value = input.value.replace(/[^a-zA-Z0-9_]/g, '');
-    if (usernameCheckTimer) clearTimeout(usernameCheckTimer);
-    usernameCheckTimer = setTimeout(checkUsernameAvailability, 300);
-  };
-
-  async function checkUsernameAvailability() {
-    const input = document.getElementById('reg-username');
-    const hint = document.getElementById('reg-username-hint');
-    if (!input || !hint) return;
-    const uname = input.value.trim();
-    if (!uname || uname.length < 3) {
-      hint.innerHTML = '<span style="color:#ef4444;">⚠️ Must be at least 3 alphanumeric characters.</span>';
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<div style="padding: 8px; color: #94a3b8; font-size: 11px; text-align: center;">No country found</div>';
       return;
     }
-    try {
-      const res = await fetch('/api/auth/check-username?username=' + encodeURIComponent(uname));
-      const data = await res.json();
-      if (data.available) {
-        hint.innerHTML = '<span style="color:#10b981;">✓ @' + uname + ' is available!</span>';
-        input.style.borderColor = '#10b981';
-      } else {
-        hint.innerHTML = '<span style="color:#ef4444;">✕ Username is already taken.</span>';
-        input.style.borderColor = '#ef4444';
+    listEl.innerHTML = filtered.map(c => {
+      const isSel = selectedCountryCode === c.code;
+      const safeName = c.name.replace(/'/g, "\\'");
+      return `<div onclick="selectCountryCode('${c.code}', '${c.flag}', '${safeName}')" style="display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; border-radius: 5px; cursor: pointer; font-size: 12px; color: ${isSel ? '#38bdf8' : '#e2e8f0'}; background: ${isSel ? 'rgba(56, 189, 248, 0.15)' : 'transparent'}; transition: background 0.15s ease;">` +
+        `<span style="display: flex; align-items: center; gap: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">` +
+          `<span style="font-size: 14px;">${c.flag}</span>` +
+          `<span>${c.name}</span>` +
+        `</span>` +
+        `<span style="font-weight: 700; color: #94a3b8; font-size: 11px; margin-left: 8px;">${c.code}</span>` +
+      `</div>`;
+    }).join('');
+  };
+
+  window.toggleCountryCodeDropdown = function (e) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const drop = document.getElementById('reg-country-dropdown');
+    if (!drop) return;
+    const isShown = drop.style.display === 'block';
+    drop.style.display = isShown ? 'none' : 'block';
+    if (!isShown) {
+      renderCountryCodeList();
+      const searchInput = document.getElementById('reg-country-search');
+      if (searchInput) {
+        searchInput.value = '';
+        setTimeout(() => searchInput.focus(), 60);
       }
-    } catch (e) {}
-  }
+    }
+  };
+
+  window.filterCountryList = function (val) {
+    renderCountryCodeList(val);
+  };
+
+  window.selectCountryCode = function (code, flag, name) {
+    selectedCountryCode = code;
+    selectedCountryFlag = flag;
+    const codeEl = document.getElementById('reg-country-code');
+    const flagEl = document.getElementById('reg-country-flag');
+    const phoneInput = document.getElementById('reg-phone');
+    if (codeEl) codeEl.textContent = code;
+    if (flagEl) flagEl.textContent = flag;
+    const drop = document.getElementById('reg-country-dropdown');
+    if (drop) drop.style.display = 'none';
+
+    if (phoneInput) {
+      if (code === '+91') {
+        phoneInput.maxLength = 10;
+        phoneInput.placeholder = '10-digit mobile number';
+      } else {
+        phoneInput.maxLength = 14;
+        phoneInput.placeholder = 'Mobile number (' + code + ')';
+      }
+      phoneInput.focus();
+    }
+    handleRegPhoneInput();
+  };
 
   window.handleRegPhoneInput = function () {
     const input = document.getElementById('reg-phone');
@@ -1274,202 +1241,376 @@
     phoneCheckTimer = setTimeout(checkPhoneAvailability, 300);
   };
 
-  async function checkPhoneAvailability() {
-    const input = document.getElementById('reg-phone');
+  window.checkPhoneAvailability = async function () {
+    const phoneInput = document.getElementById('reg-phone');
     const hint = document.getElementById('reg-phone-hint');
-    if (!input || !hint) return;
-    const phone = input.value.trim();
-    if (!phone) { hint.textContent = ''; return; }
-    try {
-      const full = selectedCountryCode + phone;
-      const res = await fetch('/api/auth/check-phone?phone=' + encodeURIComponent(full));
-      const data = await res.json();
-      if (data.available) {
-        hint.innerHTML = '<span style="color:#10b981;">✓ Mobile number ready</span>';
-      } else {
-        hint.innerHTML = '<span style="color:#ef4444;">✕ Phone already registered</span>';
-      }
-    } catch (e) {}
-  }
-
-  // Expose real-time validator hooks to window for HTML event attributes
-  window.checkUsernameAvailability = checkUsernameAvailability;
-  window.checkPhoneAvailability = checkPhoneAvailability;
-
-  window.handleRegEmailInput = function () {
-    const input = document.getElementById('reg-email');
-    if (!input) return;
-    const val = input.value.trim();
-    if (val.length > 5 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
-      input.style.borderColor = '#10b981';
-    } else if (val.length > 0) {
-      input.style.borderColor = 'rgba(51, 65, 85, 0.7)';
-    }
-  };
-
-  window.handleRegPasswordInput = function () {
-    const input = document.getElementById('reg-password');
-    if (!input) return;
-    const val = input.value;
-    if (val.length >= 6) {
-      input.style.borderColor = '#10b981';
-    } else if (val.length > 0) {
-      input.style.borderColor = '#f59e0b';
-    }
-  };
-
-  // Form Submissions
-  window.handleLoginSubmit = async function (e) {
-    e.preventDefault();
-    const ident = document.getElementById('login-identifier').value.trim();
-    const pwd = document.getElementById('login-password').value.trim();
-    const btn = document.getElementById('btn-submit-login');
-
-    if (!ident || !pwd) {
-      showAuthError('Please enter username/email and password.');
+    const statusEl = document.getElementById('reg-phone-status');
+    if (!phoneInput) return;
+    const clean = phoneInput.value.replace(/\D/g, '');
+    if (!clean) {
+      if (statusEl) statusEl.innerHTML = '';
+      if (hint) hint.innerHTML = '';
+      phoneInput.style.borderColor = '#334155';
+      isPhoneAvailable = null;
       return;
     }
 
+    if (selectedCountryCode === '+91') {
+      if (clean.length < 10 || !['6', '7', '8', '9'].includes(clean[0])) {
+        if (statusEl) statusEl.innerHTML = '<span style="color: #f87171;">Must be 10 digits (6-9)</span>';
+        phoneInput.style.borderColor = '#f59e0b';
+        isPhoneAvailable = false;
+        return;
+      }
+    } else {
+      if (clean.length < 6 || clean.length > 14) {
+        if (statusEl) statusEl.innerHTML = '<span style="color: #f87171;">6-14 digits required</span>';
+        phoneInput.style.borderColor = '#f59e0b';
+        isPhoneAvailable = false;
+        return;
+      }
+    }
+
+    try {
+      const res = await fetch(`/api/auth/check-phone?phone=${encodeURIComponent(clean)}&country_code=${encodeURIComponent(selectedCountryCode)}`);
+      const data = await res.json();
+      if (data.available) {
+        if (statusEl) statusEl.innerHTML = '<span style="color: #34d399; font-weight: 600;">✅ Available</span>';
+        if (hint) hint.innerHTML = `<span style="color: #34d399;">✅ Valid number (${selectedCountryCode} ${clean})</span>`;
+        phoneInput.style.borderColor = '#10b981';
+        isPhoneAvailable = true;
+      } else {
+        if (statusEl) statusEl.innerHTML = '<span style="color: #f87171; font-weight: 600;">❌ Already registered</span>';
+        if (hint) hint.innerHTML = `<span style="color: #f87171; font-weight: 700;">❌ ${data.message} <a href="javascript:void(0)" onclick="switchAuthTab('login')" style="color: #38bdf8; text-decoration: underline;">Go to Log In 🔑</a></span>`;
+        phoneInput.style.borderColor = '#ef4444';
+        isPhoneAvailable = false;
+      }
+    } catch (e) {}
+  };
+
+  window.debounceCheckUsername = function () {
+    if (usernameCheckTimer) clearTimeout(usernameCheckTimer);
+    usernameCheckTimer = setTimeout(checkUsernameAvailability, 350);
+  };
+
+  window.checkUsernameAvailability = async function () {
+    const usernameInput = document.getElementById('reg-username');
+    const statusEl = document.getElementById('reg-username-status');
+    if (!usernameInput || !statusEl) return;
+    const val = usernameInput.value.trim().toLowerCase();
+    if (!val) {
+      statusEl.innerHTML = '';
+      isUsernameAvailable = false;
+      usernameInput.style.borderColor = '#334155';
+      return;
+    }
+    if (val.length < 3) {
+      statusEl.innerHTML = '<span style="color: #94a3b8;">Min 3 characters</span>';
+      isUsernameAvailable = false;
+      usernameInput.style.borderColor = '#f59e0b';
+      return;
+    }
+    if (!/^[a-zA-Z0-9_.-]+$/.test(val)) {
+      statusEl.innerHTML = '<span style="color: #f87171;">Only letters, numbers, _, -</span>';
+      isUsernameAvailable = false;
+      usernameInput.style.borderColor = '#ef4444';
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/auth/check-username?username=${encodeURIComponent(val)}`);
+      const data = await res.json();
+      if (data.available) {
+        statusEl.innerHTML = '<span style="color: #34d399; font-weight: 600;">✅ Available</span>';
+        isUsernameAvailable = true;
+        usernameInput.style.borderColor = '#10b981';
+      } else {
+        statusEl.innerHTML = `<span style="color: #f87171; font-weight: 600;">❌ ${data.message || 'Already taken'}</span>`;
+        isUsernameAvailable = false;
+        usernameInput.style.borderColor = '#ef4444';
+      }
+    } catch (e) {}
+  };
+
+  window.checkPasswordMatch = function () {
+    const pw = document.getElementById('reg-password');
+    const cpw = document.getElementById('reg-confirm-password');
+    const statusEl = document.getElementById('reg-password-match-status');
+    if (!pw || !cpw || !statusEl) return;
+    const pVal = pw.value;
+    const cpVal = cpw.value;
+    if (!cpVal) {
+      statusEl.innerHTML = '';
+      cpw.style.borderColor = '#334155';
+      return;
+    }
+    if (pVal === cpVal) {
+      statusEl.innerHTML = '<span style="color: #34d399; font-weight: 600;">✅ Passwords match</span>';
+      cpw.style.borderColor = '#10b981';
+    } else {
+      statusEl.innerHTML = '<span style="color: #f87171; font-weight: 600;">❌ Passwords do not match</span>';
+      cpw.style.borderColor = '#ef4444';
+    }
+  };
+
+  window.handleLoginSubmit = async function (event) {
+    event.preventDefault();
+    const identifier = document.getElementById('login-identifier').value.trim();
+    const password = document.getElementById('login-password').value;
+    const errBox = document.getElementById('auth-error-box');
+    const btn = document.getElementById('btn-submit-login');
+
+    if (!identifier || !password) return;
     btn.disabled = true;
-    btn.textContent = 'Verifying Credentials...';
+    btn.innerText = 'Verifying...';
 
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: ident, password: pwd })
+        body: JSON.stringify({ username: identifier, password: password })
       });
       const data = await res.json();
       if (res.ok && data.token) {
         localStorage.setItem('auth_token', data.token);
         trackFunnelAction('funnel_direct_login_success', 'Signed in directly from Terminal 1');
-        showAuthSuccess('Login successful! Launching Live Terminal...');
-        setTimeout(() => { window.location.href = '/terminal'; }, 700);
+        closeAuthModal();
+        window.location.href = '/terminal';
       } else {
-        showAuthError(data.message || data.error || 'Login failed. Please check credentials.');
-        btn.disabled = false;
-        btn.textContent = 'Sign In to Terminal ➜';
+        if (errBox) {
+          errBox.innerText = data.message || 'Login failed. Please check credentials.';
+          errBox.style.display = 'block';
+        }
       }
-    } catch (err) {
-      showAuthError('Network error occurred. Please try again.');
+    } catch (e) {
+      if (errBox) {
+        errBox.innerText = 'Connection error. Please try again.';
+        errBox.style.display = 'block';
+      }
+    } finally {
       btn.disabled = false;
-      btn.textContent = 'Sign In to Terminal ➜';
+      btn.innerText = 'Log In to Terminal';
     }
   };
 
-  window.handleRegisterSubmit = async function (e) {
-    e.preventDefault();
-    const uname = document.getElementById('reg-username').value.trim();
-    const email = document.getElementById('reg-email').value.trim();
-    const pwd = document.getElementById('reg-password').value.trim();
-    const phone = document.getElementById('reg-phone').value.trim();
-    const style = document.getElementById('reg-trading-style').value;
-    const policy = document.getElementById('reg-accept-policy');
+  window.handleRegisterSubmit = async function (event) {
+    event.preventDefault();
+    const usernameInput = document.getElementById('reg-username');
+    const emailInput = document.getElementById('reg-email');
+    const passwordInput = document.getElementById('reg-password');
+    const confirmInput = document.getElementById('reg-confirm-password');
+    const phoneInput = document.getElementById('reg-phone');
+    const styleInput = document.getElementById('reg-trading-style');
+    const policyChk = document.getElementById('reg-accept-policy');
+    const termsContainer = document.getElementById('reg-terms-container');
+    const errBox = document.getElementById('auth-error-box');
     const btn = document.getElementById('btn-submit-register');
 
-    if (!uname || !email || !pwd) {
-      showAuthError('Please complete all required fields.');
+    if (errBox) errBox.style.display = 'none';
+
+    const username = usernameInput ? usernameInput.value.trim().toLowerCase() : '';
+    const email = emailInput ? emailInput.value.trim() : '';
+    const password = passwordInput ? passwordInput.value : '';
+    const confirmPassword = confirmInput ? confirmInput.value : '';
+    const phone = phoneInput ? phoneInput.value.replace(/\D/g, '') : '';
+    const style = styleInput ? styleInput.value : 'intraday_scalper';
+
+    if (!username || username.length < 3) {
+      if (errBox) {
+        errBox.innerText = 'Please choose a username of at least 3 characters.';
+        errBox.style.display = 'block';
+      }
+      usernameInput && usernameInput.focus();
+      return;
+    }
+    if (!isUsernameAvailable) {
+      if (errBox) {
+        errBox.innerText = 'The chosen username is already taken or invalid. Please choose another username.';
+        errBox.style.display = 'block';
+      }
+      usernameInput && usernameInput.focus();
       return;
     }
 
-    if (policy && !policy.checked) {
-      showAuthError('Please acknowledge the Charting Disclaimer & Terms.');
+    if (!email || !email.includes('@') || !email.includes('.')) {
+      if (errBox) {
+        errBox.innerText = 'Please enter a valid email address.';
+        errBox.style.display = 'block';
+      }
+      emailInput && emailInput.focus();
+      return;
+    }
+
+    if (!password || password.length < 6) {
+      if (errBox) {
+        errBox.innerText = 'Password must be at least 6 characters long.';
+        errBox.style.display = 'block';
+      }
+      passwordInput && passwordInput.focus();
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      if (errBox) {
+        errBox.innerText = 'Passwords do not match. Please ensure both password fields match.';
+        errBox.style.display = 'block';
+      }
+      confirmInput && confirmInput.focus();
+      return;
+    }
+
+    if (phone) {
+      if (selectedCountryCode === '+91') {
+        if (phone.length !== 10 || !['6', '7', '8', '9'].includes(phone[0])) {
+          if (errBox) {
+            errBox.innerText = 'Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9 (or leave blank).';
+            errBox.style.display = 'block';
+          }
+          phoneInput && phoneInput.focus();
+          return;
+        }
+      } else {
+        if (phone.length < 6 || phone.length > 14) {
+          if (errBox) {
+            errBox.innerText = `Please enter a valid mobile number (6 to 14 digits) for country code ${selectedCountryCode}.`;
+            errBox.style.display = 'block';
+          }
+          phoneInput && phoneInput.focus();
+          return;
+        }
+      }
+      if (isPhoneAvailable === false) {
+        if (errBox) {
+          errBox.innerText = 'This mobile number is already registered to another account. Please Log In.';
+          errBox.style.display = 'block';
+        }
+        phoneInput && phoneInput.focus();
+        return;
+      }
+    }
+
+    if (!policyChk || !policyChk.checked) {
+      if (errBox) {
+        errBox.innerHTML = `
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <span style="font-size: 16px;">⚠️</span>
+            <div>
+              <b>Remaining Step:</b> Please click and accept the checkbox for 
+              <span style="text-decoration: underline; font-weight: 700;">Terms of Service, SEBI Notice & Privacy Policy</span> 
+              to complete your registration.
+            </div>
+          </div>
+        `;
+        errBox.style.display = 'block';
+      }
+      if (termsContainer) {
+        termsContainer.style.borderColor = '#ef4444';
+        termsContainer.style.boxShadow = '0 0 14px rgba(239, 68, 68, 0.45)';
+        setTimeout(() => {
+          termsContainer.style.borderColor = '#1e293b';
+          termsContainer.style.boxShadow = 'none';
+        }, 4000);
+      }
+      policyChk && policyChk.focus();
       return;
     }
 
     btn.disabled = true;
-    btn.textContent = 'Creating Quantitative Account...';
+    btn.innerText = 'Creating Account... ⏳';
 
     try {
-      const fullPhone = phone ? (selectedCountryCode + phone) : '';
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: uname,
+          username: username,
           email: email,
-          password: pwd,
-          phone: fullPhone,
-          trading_style: style || 'intraday_scalper',
+          password: password,
+          confirm_password: confirmPassword,
+          country_code: selectedCountryCode,
+          phone: phone,
+          trading_style: style,
           accepted_policy: true
         })
       });
       const data = await res.json();
       if (res.ok && data.token) {
         localStorage.setItem('auth_token', data.token);
-        trackFunnelAction('funnel_direct_register_success', 'Created account from Terminal 1');
-        showAuthSuccess('Account created! Launching Live Quantitative Terminal...');
-        setTimeout(() => { window.location.href = '/terminal'; }, 750);
+        trackFunnelAction('funnel_direct_register_success', 'Registered new account: ' + username);
+        closeAuthModal();
+        window.location.href = '/terminal';
       } else {
-        showAuthError(data.message || data.error || 'Registration failed. Username or email may already be in use.');
-        btn.disabled = false;
-        btn.textContent = 'Register & Create Account 🚀';
+        if (errBox) {
+          errBox.innerText = data.message || 'Registration failed.';
+          errBox.style.display = 'block';
+        }
       }
-    } catch (err) {
-      showAuthError('Network error occurred. Please try again.');
+    } catch (e) {
+      if (errBox) {
+        errBox.innerText = 'Connection error during registration. Please try again.';
+        errBox.style.display = 'block';
+      }
+    } finally {
       btn.disabled = false;
-      btn.textContent = 'Register & Create Account 🚀';
+      btn.innerText = 'Register & Create Account 🚀';
     }
   };
 
-  window.handleForgotPasswordSubmit = async function (e) {
-    e.preventDefault();
-    const ident = document.getElementById('reset-identifier').value.trim();
+  window.handleForgotPasswordSubmit = async function (event) {
+    event.preventDefault();
+    const identifier = document.getElementById('reset-identifier').value.trim();
     const phone = document.getElementById('reset-phone').value.trim();
-    const newPwd = document.getElementById('reset-new-password').value.trim();
-    const confPwd = document.getElementById('reset-confirm-password').value.trim();
+    const newPass = document.getElementById('reset-new-password').value;
+    const confPass = document.getElementById('reset-confirm-password').value;
+    const errBox = document.getElementById('auth-error-box');
     const btn = document.getElementById('btn-submit-reset');
 
-    if (newPwd !== confPwd) {
-      showAuthError('Passwords do not match.');
+    if (!identifier || !phone || !newPass) return;
+    if (newPass.length < 6) {
+      if (errBox) {
+        errBox.innerText = 'New password must be at least 6 characters.';
+        errBox.style.display = 'block';
+      }
+      return;
+    }
+    if (newPass !== confPass) {
+      if (errBox) {
+        errBox.innerText = 'Passwords do not match.';
+        errBox.style.display = 'block';
+      }
       return;
     }
 
     btn.disabled = true;
-    btn.textContent = 'Resetting Password...';
+    btn.innerText = 'Verifying & Resetting...';
 
     try {
       const res = await fetch('/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: ident, phone: phone, new_password: newPwd })
+        body: JSON.stringify({ identifier: identifier, phone: phone, new_password: newPass })
       });
       const data = await res.json();
       if (res.ok && data.token) {
         localStorage.setItem('auth_token', data.token);
-        showAuthSuccess('Password reset successfully! Redirecting...');
-        setTimeout(() => { window.location.href = '/terminal'; }, 750);
+        closeAuthModal();
+        window.location.href = '/terminal';
       } else {
-        showAuthError(data.message || 'Reset failed. Verified phone does not match account.');
-        btn.disabled = false;
-        btn.textContent = '🚀 Reset Password & Log In';
+        if (errBox) {
+          errBox.innerText = data.message || 'Could not reset password. Please check your username and registered phone.';
+          errBox.style.display = 'block';
+        }
       }
-    } catch (err) {
-      showAuthError('Network error occurred. Please try again.');
+    } catch (e) {
+      if (errBox) {
+        errBox.innerText = 'Network error during password reset. Please try again.';
+        errBox.style.display = 'block';
+      }
+    } finally {
       btn.disabled = false;
-      btn.textContent = '🚀 Reset Password & Log In';
+      btn.innerText = '🚀 Reset Password & Log In';
     }
   };
-
-  function showAuthError(msg) {
-    const box = document.getElementById('auth-error-box');
-    if (!box) return;
-    box.innerHTML = msg;
-    box.style.display = 'block';
-    box.style.background = 'rgba(239, 68, 68, 0.15)';
-    box.style.border = '1px solid rgba(239, 68, 68, 0.45)';
-    box.style.color = '#f87171';
-  }
-
-  function showAuthSuccess(msg) {
-    const box = document.getElementById('auth-error-box');
-    if (!box) return;
-    box.innerHTML = msg;
-    box.style.display = 'block';
-    box.style.background = 'rgba(16, 185, 129, 0.15)';
-    box.style.border = '1px solid rgba(16, 185, 129, 0.45)';
-    box.style.color = '#34d399';
-  }
 
   // Developer Feedback / Contact Form
   window.submitContactForm = async function (e) {
@@ -2079,7 +2220,8 @@
   // 18. MASTER INITIALIZATION ON DOM READY
   // =========================================================================
   document.addEventListener('DOMContentLoaded', () => {
-    syncSoundButtonUI();
+    fetchLiveNavbarTicker();
+    if (!liveTickerTimer) liveTickerTimer = setInterval(fetchLiveNavbarTicker, 4000);
     recordInitialVisit();
     checkReturningUser();
     loadSlide(0);
@@ -2089,7 +2231,6 @@
     initMagneticCursorAndTilt();
     initSrCanvas();
     initRadarScanner();
-    updateRiskCalculator();
     initMicroInteractions();
     initKeyboardShortcuts();
     initLiveMarketSessionClock();

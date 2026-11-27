@@ -26,7 +26,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
     
     <!-- Terminal 1 Master Stylesheet (World's Best Animated UI/UX) -->
-    <link rel="stylesheet" href="/static/css/terminal_1.css?v=20261127_05">
+    <link rel="stylesheet" href="/static/css/terminal_1.css?v=20261127_07">
 </head>
 <body>
 
@@ -60,32 +60,27 @@
                     <span class="brand-subtext">QUANTITATIVE TERMINAL 1</span>
                 </div>
             </a>
-            <div class="live-ticker-badge">
+            <div class="live-ticker-badge" id="navbar-live-ticker">
                 <span class="live-dot"></span>
-                <span class="live-ticker-text">NIFTY 50 • 24,180.50</span>
-                <span class="ticker-delta-up">+142.30 (+0.59%)</span>
+                <span id="ticker-price-text" class="live-ticker-text">NIFTY 50 • 25,637.65</span>
+                <span id="ticker-delta-text" class="ticker-delta-down">-246.85 (-0.95%)</span>
+                <span class="ticker-exchange-tag">LIVE NSE</span>
             </div>
         </div>
 
         <nav class="nav-center-menu">
             <ul class="nav-links">
-                <li><a href="#simulator" class="nav-link-item"><span class="nav-num">01</span>Live Simulator</a></li>
-                <li><a href="#screenshots" class="nav-link-item"><span class="nav-num">02</span>3D Showcase</a></li>
-                <li><a href="#quant-labs" class="nav-link-item"><span class="nav-num">03</span>Quant Labs</a></li>
-                <li><a href="#features" class="nav-link-item"><span class="nav-num">04</span>Core Engines</a></li>
-                <li><a href="#comparison" class="nav-link-item"><span class="nav-num">05</span>Quant Edge</a></li>
-                <li><a href="#pricing" class="nav-link-item"><span class="nav-num">06</span>Free Access</a></li>
-                <li><a href="#contact" class="nav-link-item"><span class="nav-num">07</span>Connect</a></li>
+                <li><a href="#simulator" class="nav-link-item">Live Simulator</a></li>
+                <li><a href="#screenshots" class="nav-link-item">3D Showcase</a></li>
+                <li><a href="#quant-labs" class="nav-link-item">Quant Labs</a></li>
+                <li><a href="#features" class="nav-link-item">Core Engines</a></li>
+                <li><a href="#comparison" class="nav-link-item">Quant Edge</a></li>
+                <li><a href="#pricing" class="nav-link-item">Free Access</a></li>
+                <li><a href="#contact" class="nav-link-item">Connect</a></li>
             </ul>
         </nav>
 
         <div class="nav-actions">
-            <!-- Audio Synthesizer Toggle -->
-            <button id="btn-sound-toggle" class="btn-sound" onclick="toggleSoundFX()" title="Toggle Futuristic Cyber Audio FX">
-                <span id="sound-icon">🔊</span>
-                <span id="sound-label" class="hide-on-mobile">Sound: ON</span>
-            </button>
-
             <!-- Direct Login Button -->
             <button id="nav-login-btn" class="btn-login" onclick="openAuthModal('login')">
                 <span class="btn-icon">🔐</span>
@@ -148,7 +143,7 @@
                 </div>
                 <div class="trust-badge-item">
                     <div class="trust-icon-box"><svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg></div>
-                    <span>Sub-Second Pure HTML5 RAM Engine</span>
+                    <span>Real-Time Institutional Quant Math</span>
                 </div>
                 <div class="trust-badge-item">
                     <div class="trust-icon-box"><svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg></div>
@@ -458,48 +453,89 @@
                     </div>
                 </div>
 
-                <!-- LAB 4: Trader Psychology & Risk Calculator -->
-                <div class="lab-card" id="lab-card-risk">
+                <!-- LAB 4: Multi-Timeframe Trend & Pattern Confluence Matrix -->
+                <div class="lab-card" id="lab-card-mtf">
                     <div class="lab-header">
                         <div class="lab-badge">LAB 04</div>
-                        <h3>Discipline &amp; Capital Guardian</h3>
+                        <h3>Multi-Timeframe Trend &amp; Pattern Confluence</h3>
                     </div>
                     <p class="lab-desc">
-                        Eliminate revenge trading. Set your account size to compute mathematical position sizing and drawdown circuit breakers.
+                        Scans 5m, 15m, 1h, and 1D timeframes simultaneously. Quantifies harmonic geometry, algorithmic order blocks, and directional confluence before executing trades.
                     </p>
 
-                    <div class="risk-calculator-wrap">
-                        <div class="calc-row">
-                            <label>Account Capital (INR):</label>
-                            <input type="number" id="calc-capital" value="100000" step="10000" oninput="updateRiskCalculator()">
-                        </div>
-                        <div class="calc-row">
-                            <label>Risk Per Trade:</label>
-                            <select id="calc-risk-pct" onchange="updateRiskCalculator()">
-                                <option value="0.01">1.0% (Conservative Pro)</option>
-                                <option value="0.015" selected>1.5% (Balanced)</option>
-                                <option value="0.02">2.0% (Aggressive)</option>
-                            </select>
-                        </div>
-                        <div class="calc-row">
-                            <label>Stop Loss Distance (pts):</label>
-                            <input type="number" id="calc-sl-pts" value="25" min="5" max="100" oninput="updateRiskCalculator()">
+                    <!-- Interactive MTF Matrix -->
+                    <div class="mtf-matrix-wrap">
+                        <div class="mtf-matrix-header">
+                            <span class="mtf-status-pill">✨ 2 Active Patterns Detected</span>
+                            <div class="mtf-confluence-gauge">
+                                <span class="gauge-label">CONFLUENCE:</span>
+                                <span id="mtf-gauge-val" class="gauge-val text-emerald">88% BUY ALIGNMENT</span>
+                            </div>
                         </div>
 
-                        <!-- Calculated Results -->
-                        <div class="calc-results-grid">
-                            <div class="calc-res-item">
-                                <span class="calc-k">MAX RISK AMOUNT:</span>
-                                <span id="calc-res-risk" class="calc-v text-red">₹1,500</span>
+                        <div class="mtf-cards-list">
+                            <!-- 5M Pattern Card -->
+                            <div class="mtf-pattern-item active-pattern">
+                                <div class="mtf-pattern-top">
+                                    <span class="mtf-tf-tag">5M</span>
+                                    <div class="mtf-pattern-title">
+                                        <strong>Bullish Butterfly Harmonic</strong>
+                                        <span class="mtf-action-badge action-buy">BUY (CALL)</span>
+                                    </div>
+                                    <span class="mtf-state-pill">FORMING</span>
+                                </div>
+                                <div class="mtf-metrics-grid">
+                                    <div><span class="m-k">Entry:</span> <strong class="m-v">₹25,696.5</strong></div>
+                                    <div><span class="m-k">Target:</span> <strong class="m-v text-emerald">₹25,806.7</strong></div>
+                                    <div><span class="m-k">SL:</span> <strong class="m-v text-red">₹25,622.7</strong></div>
+                                    <div><span class="m-k">R:R:</span> <strong class="m-v text-amber">1 : 2.5</strong></div>
+                                </div>
                             </div>
-                            <div class="calc-res-item">
-                                <span class="calc-k">ALLOWED NIFTY LOTS:</span>
-                                <span id="calc-res-lots" class="calc-v text-cyan">1 Lot (25 Qty)</span>
+
+                            <!-- 15M Pattern Card -->
+                            <div class="mtf-pattern-item active-pattern">
+                                <div class="mtf-pattern-top">
+                                    <span class="mtf-tf-tag">15M</span>
+                                    <div class="mtf-pattern-title">
+                                        <strong>Bullish Gartley Harmonic</strong>
+                                        <span class="mtf-action-badge action-buy">BUY (CALL)</span>
+                                    </div>
+                                    <span class="mtf-state-pill">FORMING</span>
+                                </div>
+                                <div class="mtf-metrics-grid">
+                                    <div><span class="m-k">Entry:</span> <strong class="m-v">₹25,696.5</strong></div>
+                                    <div><span class="m-k">Target:</span> <strong class="m-v text-emerald">₹25,831.3</strong></div>
+                                    <div><span class="m-k">SL:</span> <strong class="m-v text-red">₹25,612.8</strong></div>
+                                    <div><span class="m-k">R:R:</span> <strong class="m-v text-amber">1 : 2.5</strong></div>
+                                </div>
                             </div>
-                            <div class="calc-res-item">
-                                <span class="calc-k">DAILY LOSS STOP:</span>
-                                <span id="calc-res-circuit" class="calc-v text-amber">₹4,500 (3 Trades)</span>
+
+                            <!-- 1H Filter Card -->
+                            <div class="mtf-pattern-item passive-pattern">
+                                <div class="mtf-pattern-top">
+                                    <span class="mtf-tf-tag tf-passive">1H</span>
+                                    <div class="mtf-pattern-title">
+                                        <span>Rangebound Consolidation</span>
+                                    </div>
+                                    <span class="mtf-passive-pill">Natural Filter Active</span>
+                                </div>
                             </div>
+
+                            <!-- 1D Filter Card -->
+                            <div class="mtf-pattern-item passive-pattern">
+                                <div class="mtf-pattern-top">
+                                    <span class="mtf-tf-tag tf-passive">1D</span>
+                                    <div class="mtf-pattern-title">
+                                        <span>Macro Range Equilibrium</span>
+                                    </div>
+                                    <span class="mtf-passive-pill">Orbit Boundary Hold</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mtf-footer-bar">
+                            <span class="mtf-engine-status">⚡ Auto-scans every 10s • Geometric Harmonic Filter</span>
+                            <button type="button" class="btn-mtf-rescan" onclick="simulateMtfScan()">⚡ Scan Confluence</button>
                         </div>
                     </div>
                 </div>
@@ -592,45 +628,115 @@
              ===================================================================== -->
         <section id="comparison" class="section">
             <div class="section-header">
-                <span class="section-tag">Interactive Before &amp; After</span>
+                <span class="section-tag">Institutional Contrast Matrix</span>
                 <h2 class="section-title">Retail Trading vs. The Quant Edge</h2>
                 <p class="section-desc">
-                    Drag the slider below to contrast messy, subjective retail setups with clean, mathematical institutional intelligence.
+                    Contrast subjective, emotional retail trading setups with clean, mathematical institutional intelligence.
                 </p>
             </div>
 
-            <!-- Split Comparison Slider -->
-            <div class="split-slider-container" id="split-slider-wrap">
-                <!-- Under Layer: Retail -->
-                <div class="split-layer split-layer-retail">
-                    <div class="split-content-inner">
-                        <div class="split-badge badge-retail">❌ STANDARD RETAIL SETUP</div>
-                        <ul class="split-feature-list">
-                            <li>⚠️ 10+ Messy subjective trendlines that conflict with each other</li>
-                            <li>⚠️ Laggy RSI / MACD indicators giving late signals after major move ends</li>
-                            <li>⚠️ Getting trapped buying breakouts at the exact institutional high</li>
-                            <li>⚠️ Revenge trading and emotional sizing wiping out accounts</li>
-                        </ul>
+            <!-- Side-by-Side Dual-Card Comparison Grid -->
+            <div class="comparison-matrix-grid">
+                <!-- Card 1: Conventional Retail Trading -->
+                <div class="comparison-matrix-card card-retail">
+                    <div class="comp-card-header">
+                        <span class="comp-status-icon">❌</span>
+                        <div class="comp-header-text">
+                            <h3>Conventional Retail Trading</h3>
+                            <span class="comp-subtag">Subjective, Emotional &amp; Lagging</span>
+                        </div>
                     </div>
+                    <ul class="comp-feature-checklist">
+                        <li>
+                            <span class="comp-bullet-icon">⚠️</span>
+                            <div>
+                                <strong>10+ Conflicting Subjective Trendlines:</strong>
+                                <p>Retailers draw random diagonal lines across different pivots, leading to hesitation, contradictory signals, and second-guessing.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="comp-bullet-icon">⚠️</span>
+                            <div>
+                                <strong>Lagging Indicators (RSI, MACD):</strong>
+                                <p>Standard momentum oscillators lag behind price by 5–10 bars, signaling entries only after smart money has completed its move.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="comp-bullet-icon">⚠️</span>
+                            <div>
+                                <strong>Getting Trapped at Fake Breakouts:</strong>
+                                <p>Buying the top of candles into major resistance, getting trapped as institutions dump large block orders on late retail buyers.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="comp-bullet-icon">⚠️</span>
+                            <div>
+                                <strong>Revenge Trading &amp; Emotional Position Sizing:</strong>
+                                <p>Doubling down after a stop-loss hit without statistical risk parameters, wiping out weeks of trading profits in a single session.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="comp-bullet-icon">⚠️</span>
+                            <div>
+                                <strong>Zero Heavyweight Order Flow Awareness:</strong>
+                                <p>Trading the NIFTY index blindly without tracking whether Reliance, HDFC Bank, and ICICI Bank are accumulating or distributing.</p>
+                            </div>
+                        </li>
+                    </ul>
                 </div>
 
-                <!-- Over Layer: YourTradeBot Pro -->
-                <div class="split-layer split-layer-pro" id="split-layer-pro">
-                    <div class="split-content-inner">
-                        <div class="split-badge badge-pro">✅ YOURTRADEBOT QUANT TERMINAL</div>
-                        <ul class="split-feature-list">
-                            <li>✓ Statistical ±2σ Exhaustion Bands identifying exact reversal boundaries</li>
-                            <li>✓ Algorithmic S&amp;R Confluence with verified historical touch counts</li>
-                            <li>✓ Heavyweight constituent delta tracking bull &amp; bear traps in real time</li>
-                            <li>✓ AI Strategy Copilot validating setups with disciplined risk parameters</li>
-                        </ul>
+                <!-- Card 2: YourTradeBot Quant Precision -->
+                <div class="comparison-matrix-card card-pro">
+                    <div class="comp-pro-glow"></div>
+                    <div class="comp-card-header">
+                        <span class="comp-status-icon">✅</span>
+                        <div class="comp-header-text">
+                            <h3>YourTradeBot Quant Precision</h3>
+                            <span class="comp-subtag text-cyan">Volume-Weighted Institutional Intelligence</span>
+                        </div>
                     </div>
-                </div>
-
-                <!-- Draggable Divider -->
-                <div class="split-divider-handle" id="split-handle">
-                    <div class="split-handle-button">
-                        <span>◀ ▶</span>
+                    <ul class="comp-feature-checklist">
+                        <li>
+                            <span class="comp-bullet-icon pro-check">✓</span>
+                            <div>
+                                <strong>Anchored VWAP ±2σ Exhaustion Bands:</strong>
+                                <p>Identifies mathematically proven mean-reversion reversal boundaries where institutional odds of exhaustion exceed 88%.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="comp-bullet-icon pro-check">✓</span>
+                            <div>
+                                <strong>Algorithmic Multi-Touch S&amp;R Confluence:</strong>
+                                <p>Instantly scans historical candle wicks and bodies to quantify exact liquidity pivot zones with verified rejection counts.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="comp-bullet-icon pro-check">✓</span>
+                            <div>
+                                <strong>Real-Time Heavyweight Constituent Delta:</strong>
+                                <p>Tracks top constituents in real time to spot institutional bull/bear traps before index fakeouts trap retail traders.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="comp-bullet-icon pro-check">✓</span>
+                            <div>
+                                <strong>Multi-Timeframe Pattern Recognition Matrix:</strong>
+                                <p>Detects harmonic geometry (Gartley, Butterfly) across 5m, 15m, 1h, and 1D timeframes with automated stop and target levels.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="comp-bullet-icon pro-check">✓</span>
+                            <div>
+                                <strong>24/7 AI Strategy Copilot &amp; Pre-Flight Discipline:</strong>
+                                <p>Validates trade setups against strict risk-reward thresholds, ensuring capital protection and disciplined trade execution.</p>
+                            </div>
+                        </li>
+                    </ul>
+                    <div class="comp-cta-footer">
+                        <a href="/terminal?guest=true" class="btn-comp-cta">
+                            <span>Launch Live Quant Terminal Free</span>
+                            <span>➜</span>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -781,87 +887,122 @@
         </div>
     </footer>
 
-    <!-- 10. Embedded Auth Modal (Matching Live Terminal Guest Mode) -->
-    <div id="auth-modal-overlay" class="auth-modal-overlay" style="display: none;">
-        <div class="auth-modal-card">
-            <!-- Modal Header -->
-            <div class="auth-modal-header">
+    <!-- 10. Multi-User Authentication Modal (Login / Register / Forgot) -->
+    <div id="auth-modal-overlay" onclick="handleAuthOverlayClick(event)">
+        <div id="auth-modal-card">
+            <!-- Modal Header (Always Pinned at Top) -->
+            <div id="auth-modal-header">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 20px;">👑</span>
-                    <h2 id="auth-modal-title" style="margin: 0; font-size: 18px; font-weight: 800; color: #f8fafc; letter-spacing: -0.02em;">Trader Portal</h2>
+                    <span style="font-size: 18px;">🛡️</span>
+                    <span style="font-weight: 700; color: #f8fafc; font-size: 15px;">NIFTY 50 Terminal Account</span>
                 </div>
-                <button type="button" class="auth-modal-close" onclick="closeAuthModal()" title="Close Modal">✕</button>
+                <button type="button" onclick="closeAuthModal()" aria-label="Close" style="background: transparent; border: none; color: #94a3b8; font-size: 20px; cursor: pointer; padding: 4px 8px; line-height: 1; border-radius: 6px; transition: color 0.15s ease;">✕</button>
             </div>
 
-            <!-- Modal Nav Tabs -->
-            <div class="auth-modal-tabs">
-                <button type="button" id="tab-login" class="auth-tab active" onclick="switchAuthTab('login')">Log In</button>
-                <button type="button" id="tab-register" class="auth-tab" onclick="switchAuthTab('register')">Register Free</button>
-                <button type="button" id="tab-forgot" class="auth-tab" onclick="switchAuthTab('forgot')">Reset Password</button>
+            <!-- Tab Switcher (Pinned at Top: Log In & Register) -->
+            <div id="auth-modal-tabs">
+                <button type="button" id="auth-tab-login" onclick="switchAuthTab('login')" style="flex: 1; padding: 12px 6px; font-weight: 700; font-size: 13px; border: none; background: transparent; color: #38bdf8; border-bottom: 2px solid #38bdf8; cursor: pointer; transition: all 0.2s ease;">
+                    🔑 Log In
+                </button>
+                <button type="button" id="auth-tab-register" onclick="switchAuthTab('register')" style="flex: 1; padding: 12px 6px; font-weight: 700; font-size: 13px; border: none; background: transparent; color: #64748b; border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.2s ease;">
+                    ✨ Register
+                </button>
             </div>
 
-            <div class="auth-modal-body">
-                <div id="auth-error-box" class="auth-error-box" style="display: none;"></div>
+            <!-- Modal Body (Scrollable with Momentum & Containment) -->
+            <div id="auth-modal-body">
+                <!-- Institutional Privileges Highlight Box (Visible exclusively on Registration tab, hidden on Login tab) -->
+                <div id="auth-privileges-box" style="display: none; background: linear-gradient(135deg, rgba(37,99,235,0.18), rgba(16,185,129,0.14)); border: 1px solid rgba(56,189,248,0.35); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 11.5px; line-height: 1.5; color: #cbd5e1;">
+                    <div style="font-weight: 800; color: #38bdf8; margin-bottom: 5px; display: flex; align-items: center; gap: 6px;">
+                        <span>✨ Free Institutional Pro Privileges Included:</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; color: #94a3b8; font-size: 11px;">
+                        <div>🤖 <b style="color: #f1f5f9;">AI Strategy Copilot</b></div>
+                        <div>🏛️ <b style="color: #f1f5f9;">Auto S&R Levels</b></div>
+                        <div>📰 <b style="color: #f1f5f9;">Breaking Macro News</b></div>
+                        <div>🚀 <b style="color: #f1f5f9;">Pre-Flight Confluence</b></div>
+                    </div>
+                </div>
+                <!-- Error / Status Box -->
+                <div id="auth-error-box" style="display: none; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; padding: 10px 12px; border-radius: 8px; font-size: 12px; margin-bottom: 14px; line-height: 1.4;"></div>
 
-                <!-- Form: Login -->
-                <form id="form-auth-login" onsubmit="handleLoginSubmit(event)" style="display: block;">
+                <!-- Form: Log In (Username/Email & Password) -->
+                <form id="form-auth-login" autocomplete="off" onsubmit="handleLoginSubmit(event)" style="display: block;">
                     <div style="margin-bottom: 14px;">
-                        <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 5px;">Username, Email, or Mobile Number</label>
-                        <input id="login-identifier" type="text" required placeholder="e.g. trader1, trader@email.com, or +919876543210" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 10px 12px; border-radius: 8px; font-size: 14px; outline: none;">
+                        <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 6px;">Username or Email</label>
+                        <input id="login-identifier" type="text" autocomplete="username" required placeholder="e.g. trader1 or trader@email.com" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 10px 12px; border-radius: 8px; font-size: 13px; outline: none;">
                     </div>
-                    <div style="margin-bottom: 6px;">
-                        <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 5px;">Password</label>
-                        <input id="login-password" type="password" required placeholder="Enter your password" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 10px 12px; border-radius: 8px; font-size: 14px; outline: none;">
+                    <div style="margin-bottom: 18px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <label style="font-size: 12px; color: #94a3b8; font-weight: 600;">Password</label>
+                            <a href="javascript:void(0)" onclick="openForgotPasswordView()" style="color: #38bdf8; font-size: 11.5px; text-decoration: underline; font-weight: 600;">Forgot Password? 🔑</a>
+                        </div>
+                        <input id="login-password" type="password" autocomplete="current-password" required placeholder="Enter your password" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 10px 12px; border-radius: 8px; font-size: 13px; outline: none;">
                     </div>
-                    <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
-                        <a href="javascript:void(0)" onclick="switchAuthTab('forgot')" style="font-size: 12px; color: #38bdf8; text-decoration: underline;">Forgot Password?</a>
-                    </div>
-                    <button type="submit" id="btn-submit-login" style="width: 100%; min-height: 44px; padding: 12px; background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: #fff; border: 1px solid #60a5fa; font-weight: 700; border-radius: 8px; font-size: 14px; cursor: pointer; box-shadow: 0 4px 14px rgba(37,99,235,0.4);">
-                        Sign In to Terminal ➜
+                    <button type="submit" id="btn-submit-login" style="width: 100%; padding: 12px; min-height: 44px; background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: #fff; border: 1px solid #60a5fa; font-weight: 700; border-radius: 8px; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(37,99,235,0.4);">
+                        Log In to Terminal
                     </button>
-                    <div style="margin-top: 14px; text-align: center; font-size: 12px; color: #64748b;">
-                        Don't have an account? <a href="javascript:void(0)" onclick="switchAuthTab('register')" style="color: #38bdf8; font-weight: 700; text-decoration: underline;">Create 100% Free Account (10s)</a>
+                    <div style="margin-top: 16px; margin-bottom: 8px; text-align: center; font-size: 12px; color: #64748b;">
+                        Don't have an account? <a href="javascript:void(0)" onclick="switchAuthTab('register')" style="color: #10b981; font-weight: 700; text-decoration: underline;">Create New Account ✨</a>
                     </div>
                 </form>
 
                 <!-- Form: Register -->
                 <form id="form-auth-register" onsubmit="handleRegisterSubmit(event)" style="display: none; padding-bottom: 10px;">
-                    <!-- 1. Username -->
+                    <!-- 1. Username with Live Availability Check -->
                     <div style="margin-bottom: 12px;">
-                        <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 5px;">Username <span style="color: #ef4444;">*</span></label>
-                        <input id="reg-username" type="text" required placeholder="Choose a unique username" oninput="handleRegUsernameInput()" onblur="checkUsernameAvailability()" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none; transition: border-color 0.2s ease;">
-                        <div id="reg-username-hint" style="font-size: 11px; color: #64748b; margin-top: 4px;"></div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <label style="font-size: 12px; color: #94a3b8; font-weight: 600;">Username <span style="color: #ef4444;">*</span></label>
+                            <span id="reg-username-status" style="font-size: 11px;"></span>
+                        </div>
+                        <input id="reg-username" type="text" autocomplete="username" required placeholder="Choose a unique username" oninput="debounceCheckUsername()" onblur="checkUsernameAvailability()" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none; transition: border-color 0.2s ease;">
                     </div>
 
-                    <!-- 2. Email -->
+                    <!-- 2. Email Address -->
                     <div style="margin-bottom: 12px;">
                         <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 5px;">Email Address <span style="color: #ef4444;">*</span></label>
-                        <input id="reg-email" type="email" required placeholder="yourname@gmail.com" oninput="handleRegEmailInput()" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none;">
+                        <input id="reg-email" type="email" required placeholder="your.name@example.com" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none;">
                     </div>
 
                     <!-- 3. Password -->
                     <div style="margin-bottom: 12px;">
                         <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 5px;">Password <span style="color: #ef4444;">*</span></label>
-                        <input id="reg-password" type="password" required minlength="6" placeholder="At least 6 characters" oninput="handleRegPasswordInput()" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none;">
+                        <input id="reg-password" type="password" autocomplete="new-password" required minlength="6" placeholder="At least 6 characters" oninput="checkPasswordMatch()" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none;">
                     </div>
 
-                    <!-- 4. Phone Number with Country Code Dropdown -->
+                    <!-- 4. Confirm Password -->
                     <div style="margin-bottom: 12px;">
-                        <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 5px;">Mobile Number (Optional)</label>
-                        <div style="display: flex; gap: 6px; position: relative;">
-                            <button type="button" id="reg-country-btn" onclick="toggleCountryDropdown(event)" style="background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 8px 10px; border-radius: 8px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0;">
-                                <span id="reg-country-flag">🇮🇳</span> <span id="reg-country-code">+91</span> ▾
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <label style="font-size: 12px; color: #94a3b8; font-weight: 600;">Confirm Password <span style="color: #ef4444;">*</span></label>
+                            <span id="reg-password-match-status" style="font-size: 11px;"></span>
+                        </div>
+                        <input id="reg-confirm-password" type="password" autocomplete="new-password" required minlength="6" placeholder="Re-enter your password" oninput="checkPasswordMatch()" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none; transition: border-color 0.2s ease;">
+                    </div>
+
+                    <!-- 5. Worldwide Mobile Number with Searchable Country Code -->
+                    <div style="margin-bottom: 12px; position: relative;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <label style="font-size: 12px; color: #94a3b8; font-weight: 600;">Mobile Number <span style="font-size: 11px; color: #64748b; font-weight: 500;">(Optional)</span></label>
+                            <span id="reg-phone-status" style="font-size: 11px;"></span>
+                        </div>
+                        <div style="display: flex; gap: 8px; position: relative;">
+                            <!-- Searchable Country Code Trigger Button -->
+                            <button type="button" id="reg-country-btn" onclick="toggleCountryCodeDropdown(event)" style="background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: pointer; flex-shrink: 0; outline: none; transition: all 0.2s ease;">
+                                <span id="reg-country-flag">🇮🇳</span> <span id="reg-country-code">+91</span> <span style="font-size: 9px; color: #94a3b8;">▼</span>
                             </button>
-                            <div id="reg-country-dropdown" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; width: 280px; max-width: 90vw; background: #0f172a; border: 1px solid #334155; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.6); z-index: 10001; padding: 8px;">
+                            <!-- Searchable Country Code Popup List -->
+                            <div id="reg-country-dropdown" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; width: 280px; max-width: 90vw; background: #0f172a; border: 1px solid #3b82f6; border-radius: 8px; box-shadow: 0 16px 36px rgba(0,0,0,0.9); z-index: 10001; padding: 8px; box-sizing: border-box;">
                                 <input type="text" id="reg-country-search" placeholder="Type country or code (+91, US...)" oninput="filterCountryList(this.value)" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #475569; color: #f8fafc; padding: 7px 10px; border-radius: 6px; font-size: 12px; outline: none; margin-bottom: 6px;">
-                                <div id="reg-country-list" style="max-height: 180px; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 2px;"></div>
+                                <div id="reg-country-list" style="max-height: 180px; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 2px;">
+                                    <!-- Populated dynamically by JS -->
+                                </div>
                             </div>
-                            <input id="reg-phone" type="tel" maxlength="10" placeholder="10-digit mobile number" oninput="handleRegPhoneInput()" onblur="checkPhoneAvailability()" style="flex: 1; min-width: 0; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 14px; outline: none; letter-spacing: 0.5px;">
+                            <input id="reg-phone" type="tel" maxlength="10" placeholder="10-digit mobile number" oninput="handleRegPhoneInput()" onblur="checkPhoneAvailability()" style="flex: 1; min-width: 0; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 14px; outline: none; letter-spacing: 0.5px; transition: border-color 0.2s ease;">
                         </div>
                         <div id="reg-phone-hint" style="font-size: 11px; color: #64748b; margin-top: 4px;"></div>
                     </div>
 
-                    <!-- 5. Trading Style -->
+                    <!-- 6. Trading Style -->
                     <div style="margin-bottom: 14px;">
                         <label style="display: block; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 5px;">Trading Style (Customizes AI Responses)</label>
                         <select id="reg-trading-style" style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none; cursor: pointer;">
@@ -872,8 +1013,8 @@
                         </select>
                     </div>
 
-                    <!-- 6. Terms & Conditions Checkbox -->
-                    <div id="reg-terms-container" style="margin: 14px 0 16px 0; display: flex; align-items: flex-start; gap: 8px; background: #0f172a; padding: 10px 12px; border-radius: 8px; border: 1px solid #1e293b;">
+                    <!-- 7. Terms & Conditions Checkbox -->
+                    <div id="reg-terms-container" style="margin: 14px 0 16px 0; display: flex; align-items: flex-start; gap: 8px; background: #0f172a; padding: 10px 12px; border-radius: 8px; border: 1px solid #1e293b; transition: all 0.3s ease;">
                         <input id="reg-accept-policy" type="checkbox" style="margin-top: 2px; accent-color: #2563eb; cursor: pointer; width: 16px; height: 16px; flex-shrink: 0;">
                         <label for="reg-accept-policy" style="font-size: 11px; color: #94a3b8; line-height: 1.45; cursor: pointer;">
                             I understand that this is strictly <strong style="color: #fca5a5;">Charting/Analytics Software, NOT Investment Advice</strong>. I accept the
@@ -882,7 +1023,7 @@
                     </div>
 
                     <!-- Submit Button & Login Link -->
-                    <button type="submit" id="btn-submit-register" style="display: block; width: 100%; min-height: 46px; padding: 12px; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #fff; border: 1px solid #34d399; font-weight: 700; border-radius: 8px; font-size: 14px; cursor: pointer; box-shadow: 0 4px 14px rgba(16,185,129,0.4);">
+                    <button type="submit" id="btn-submit-register" style="display: block; width: 100%; min-height: 46px; padding: 12px; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #fff; border: 1px solid #34d399; font-weight: 700; border-radius: 8px; font-size: 14px; cursor: pointer; box-shadow: 0 4px 14px rgba(16,185,129,0.4); transition: transform 0.1s ease;">
                         Register &amp; Create Account 🚀
                     </button>
                     <div style="margin-top: 14px; margin-bottom: 12px; text-align: center; font-size: 12px; color: #64748b;">
@@ -947,7 +1088,7 @@
     </div>
 
     <!-- Master Interactive Scripts -->
-    <script src="/static/js/terminal_1_bg.js?v=20261127_05"></script>
-    <script src="/static/js/terminal_1.js?v=20261127_05"></script>
+    <script src="/static/js/terminal_1_bg.js?v=20261127_07"></script>
+    <script src="/static/js/terminal_1.js?v=20261127_07"></script>
 </body>
 </html>
