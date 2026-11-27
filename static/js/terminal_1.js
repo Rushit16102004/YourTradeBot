@@ -471,7 +471,9 @@
   }
 
   function startSimLoop() {
+    if (!simCanvas) return;
     function loop() {
+      if (!simCanvas) return;
       const now = Date.now();
       if (now - lastSimTick > 1000) {
         updateSimTick();

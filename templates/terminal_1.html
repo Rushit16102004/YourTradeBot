@@ -26,7 +26,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
     
     <!-- Terminal 1 Master Stylesheet (World's Best Animated UI/UX) -->
-    <link rel="stylesheet" href="/static/css/terminal_1.css?v=20261127_07">
+    <link rel="stylesheet" href="/static/css/terminal_1.css?v=20261127_08">
 </head>
 <body>
 
@@ -70,7 +70,6 @@
 
         <nav class="nav-center-menu">
             <ul class="nav-links">
-                <li><a href="#simulator" class="nav-link-item">Live Simulator</a></li>
                 <li><a href="#screenshots" class="nav-link-item">3D Showcase</a></li>
                 <li><a href="#quant-labs" class="nav-link-item">Quant Labs</a></li>
                 <li><a href="#features" class="nav-link-item">Core Engines</a></li>
@@ -148,77 +147,6 @@
                 <div class="trust-badge-item">
                     <div class="trust-icon-box"><svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg></div>
                     <span>Automated Liquidity Confluence</span>
-                </div>
-            </div>
-
-            <!-- =====================================================================
-                 Interactive Live Quant Simulator (The Hero Mini Terminal)
-                 ===================================================================== -->
-            <div id="simulator" class="hero-simulator-wrap">
-                <div class="simulator-hud-card">
-                    <div class="simulator-hud-header">
-                        <div class="hud-window-controls">
-                            <span class="hud-dot dot-close"></span>
-                            <span class="hud-dot dot-min"></span>
-                            <span class="hud-dot dot-max"></span>
-                            <span class="hud-terminal-title">QUANT LAB 01 • LIVE INTERACTIVE NIFTY 50 ENGINE</span>
-                        </div>
-                        <div class="hud-timeframe-controls">
-                            <span class="hud-label">TF:</span>
-                            <button class="sim-tf-btn active" onclick="switchSimTimeframe('5m')">5m</button>
-                            <button class="sim-tf-btn" onclick="switchSimTimeframe('15m')">15m</button>
-                            <button class="sim-tf-btn" onclick="switchSimTimeframe('1h')">1h</button>
-                        </div>
-                        <div class="hud-layer-controls">
-                            <button id="sim-toggle-vwap" class="sim-layer-btn active" onclick="toggleSimLayer('vwap')">VWAP</button>
-                            <button id="sim-toggle-bands" class="sim-layer-btn active" onclick="toggleSimLayer('bands')">±2σ Bands</button>
-                            <button id="sim-toggle-sr" class="sim-layer-btn active" onclick="toggleSimLayer('sr')">Auto S&amp;R</button>
-                            <button id="sim-toggle-signals" class="sim-layer-btn active" onclick="toggleSimLayer('signals')">Signals</button>
-                        </div>
-                    </div>
-
-                    <!-- Canvas Interactive Chart -->
-                    <div class="simulator-canvas-viewport">
-                        <canvas id="hero-simulator-canvas"></canvas>
-                        <!-- Dynamic HUD Overlays -->
-                        <div id="sim-hud-crosshair" class="sim-hud-crosshair"></div>
-                        <div id="sim-hud-tooltip" class="sim-hud-tooltip">
-                            <div class="hud-coord-pair"><span class="k">PRICE:</span> <span id="sim-price-val" class="v">24,184.20</span></div>
-                            <div class="hud-coord-pair"><span class="k">VWAP:</span> <span id="sim-vwap-val" class="v">24,166.40</span></div>
-                            <div class="hud-coord-pair"><span class="k">DEV:</span> <span id="sim-dev-val" class="v text-accent">+1.78σ</span></div>
-                            <div class="hud-coord-pair"><span class="k">STATUS:</span> <span id="sim-status-val" class="v text-warning">Upper Exhaustion</span></div>
-                        </div>
-                        <!-- Alert Flash Banner -->
-                        <div id="sim-alert-banner" class="sim-alert-banner">
-                            <span class="sim-alert-icon">⚡</span>
-                            <span id="sim-alert-msg">INSTITUTIONAL VWAP +2.1σ EXHAUSTION DETECTED — REVERSAL PROBABILITY 91.2%</span>
-                        </div>
-                    </div>
-
-                    <!-- Simulator Footer Telemetry Bar -->
-                    <div class="simulator-hud-footer">
-                        <div class="sim-stat-item">
-                            <span class="sim-stat-k">LIVE SPREAD:</span>
-                            <span class="sim-stat-v" id="sim-spread-val">0.05 pts</span>
-                        </div>
-                        <div class="sim-stat-item">
-                            <span class="sim-stat-k">2σ UPPER:</span>
-                            <span class="sim-stat-v text-red" id="sim-upper-val">24,210.00</span>
-                        </div>
-                        <div class="sim-stat-item">
-                            <span class="sim-stat-k">2σ LOWER:</span>
-                            <span class="sim-stat-v text-green" id="sim-lower-val">24,122.00</span>
-                        </div>
-                        <div class="sim-stat-item">
-                            <span class="sim-stat-k">CONFLUENCE TOUCH:</span>
-                            <span class="sim-stat-v text-cyan" id="sim-touch-val">4x Confirmed S&amp;R Zone</span>
-                        </div>
-                        <div class="sim-stat-action">
-                            <button class="btn-sim-fullview" onclick="launchGuestMode()">
-                                <span>Open Full Terminal Live</span> ➜
-                            </button>
-                        </div>
-                    </div>
                 </div>
             </div>
         </section>
@@ -1088,7 +1016,7 @@
     </div>
 
     <!-- Master Interactive Scripts -->
-    <script src="/static/js/terminal_1_bg.js?v=20261127_07"></script>
-    <script src="/static/js/terminal_1.js?v=20261127_07"></script>
+    <script src="/static/js/terminal_1_bg.js?v=20261127_08"></script>
+    <script src="/static/js/terminal_1.js?v=20261127_08"></script>
 </body>
 </html>
