@@ -254,13 +254,10 @@
                             <span id="patterns-active-count-tag" style="font-size: 10px; padding: 2px 8px; border-radius: 12px; font-weight: 800; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">Scanning...</span>
                         </div>
 
-                        <!-- Global Multi-Plot & Clear Action Bar -->
-                        <div style="display: flex; gap: 8px; padding: 8px 12px; background: rgba(30, 41, 59, 0.4); border-bottom: 1px solid #1e293b;">
-                            <button onclick="plotAllDetectedPatterns()" style="flex: 1; background: linear-gradient(135deg, #0284c7, #2563eb); color: #ffffff; border: 1px solid rgba(255,255,255,0.25); border-radius: 5px; padding: 5px 10px; font-size: 11px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 8px rgba(2,132,199,0.35);">
-                                <span>👁️</span> Plot All Patterns
-                            </button>
-                            <button onclick="clearPlottedPattern(true)" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 5px; padding: 5px 10px; font-size: 11px; font-weight: 700; cursor: pointer;">
-                                ✕ Clear
+                        <!-- Global Multi-Plot Action Bar -->
+                        <div style="padding: 8px 12px; background: rgba(30, 41, 59, 0.4); border-bottom: 1px solid #1e293b;">
+                            <button onclick="plotAllDetectedPatterns()" style="width: 100%; background: linear-gradient(135deg, #0284c7, #2563eb); color: #ffffff; border: 1px solid rgba(255,255,255,0.25); border-radius: 5px; padding: 6px 12px; font-size: 11.5px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 8px rgba(2,132,199,0.35);">
+                                <span>👁️</span> Plot All Patterns on Chart
                             </button>
                         </div>
 
@@ -8861,35 +8858,7 @@ function showIndicatorLineActionPill(ind, point) {
                 // Render cards inside dropdown container
                 renderPatternsDropdown(d);
 
-                // Auto-cleanup retired patterns: If a plotted pattern reached Target or SL, or was replaced, remove it from chart!
-                if (activePlottedPatterns.size > 0 && d.timeframes) {
-                    const activePatIds = new Set();
-                    Object.values(d.timeframes).forEach(tfObj => {
-                        const prim = tfObj.primary_pattern || tfObj.pattern;
-                        if (prim && prim.id) activePatIds.add(prim.id);
-                        if (Array.isArray(tfObj.active_patterns)) {
-                            tfObj.active_patterns.forEach(p => activePatIds.add(p.id));
-                        }
-                    });
-
-                    let retiredCount = 0;
-                    for (const plottedId of Array.from(activePlottedPatterns.keys())) {
-                        if (!activePatIds.has(plottedId)) {
-                            removeIndividualPattern(plottedId);
-                            retiredCount++;
-                        }
-                    }
-                    if (retiredCount > 0) {
-                        const toast = document.createElement('div');
-                        toast.style.cssText = 'position: fixed; bottom: 80px; right: 24px; z-index: 999999; background: #0f172a; border: 1.5px solid #22c55e; color: white; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 12.5px; box-shadow: 0 4px 16px rgba(0,0,0,0.6); display: flex; align-items: center; gap: 8px; pointer-events: none; transition: opacity 0.4s ease;';
-                        toast.innerHTML = `<span>🎯</span> <strong>Pattern Auto-Retired:</strong> Target or SL was reached. Completed trade cleared from chart.`;
-                        document.body.appendChild(toast);
-                        setTimeout(() => {
-                            toast.style.opacity = '0';
-                            setTimeout(() => toast.remove(), 400);
-                        }, 4000);
-                    }
-                }
+                // Note: Once patterns are plotted on chart, they remain permanently until manually deleted by the user
 
             } catch (err) {
                 console.debug("Error fetching multi-timeframe detected patterns:", err);
@@ -8951,15 +8920,9 @@ function showIndicatorLineActionPill(ind, point) {
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
                                 <span style="font-size: 10px; color: #94a3b8;">📅 Span: <strong>${prim.span_str || (prim.candle_span ? prim.candle_span + ' bars' : 'Multi-Day')}</strong></span>
                                 <div style="display: flex; gap: 6px;">
-                                    ${isPlotted ? `
-                                        <button onclick="removeIndividualPattern('${prim.id}')" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 4px; padding: 3px 8px; font-size: 10.5px; font-weight: 700; cursor: pointer;">
-                                            ✕ Remove
-                                        </button>
-                                    ` : `
-                                        <button onclick="plotSpecificPattern('${tf}', '${prim.id}')" style="background: linear-gradient(135deg, #0284c7, #2563eb); color: #ffffff; border: 1px solid rgba(255,255,255,0.25); border-radius: 4px; padding: 3px 10px; font-size: 10.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 6px rgba(2,132,199,0.35);">
-                                            <span>🎯</span> Plot on Chart
-                                        </button>
-                                    `}
+                                    <button onclick="plotSpecificPattern('${tf}', '${prim.id}')" style="background: linear-gradient(135deg, #0284c7, #2563eb); color: #ffffff; border: 1px solid rgba(255,255,255,0.25); border-radius: 4px; padding: 3px 12px; font-size: 11px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 6px rgba(2,132,199,0.35);">
+                                        <span>🎯</span> Plot on Chart
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -9003,10 +8966,10 @@ function showIndicatorLineActionPill(ind, point) {
                 alert("Pattern details not found for timeframe " + tf);
                 return;
             }
-            plotDetectedPattern(pat, false);
+            plotDetectedPattern(pat, true);
         }
 
-        function plotDetectedPattern(pat, addToExisting = false) {
+        function plotDetectedPattern(pat, addToExisting = true) {
             if (!pat || !Array.isArray(pat.drawing_shapes) || pat.drawing_shapes.length === 0) {
                 alert("No geometric lines/shapes available for this pattern.");
                 return;
@@ -9018,20 +8981,11 @@ function showIndicatorLineActionPill(ind, point) {
                 const isCrossTF = activeChartTF !== patternTF;
                 const tfPrefix = `[${patternTF.toUpperCase()} on ${activeChartTF.toUpperCase()}]`;
 
-                if (!addToExisting) {
-                    clearPlottedPattern(false);
-                } else {
-                    // Same-timeframe pattern replacement: clear older pattern drawings from this same timeframe
-                    if (typeof drawings !== 'undefined') {
-                        drawings = drawings.filter(d => !(d.isAutoPattern && (d.patternTimeframe || '').toLowerCase() === patternTF && d.patternId !== pat.id));
-                    }
-                }
-
                 if (typeof recordCurrentDrawingUndoState === 'function') {
                     recordCurrentDrawingUndoState();
                 }
 
-                // Remove existing shapes for this pattern to prevent duplicate ghost boxes stacking
+                // Remove existing shapes for this exact pattern to prevent duplicate lines stacking if re-clicked
                 if (typeof drawings !== 'undefined') {
                     drawings = drawings.filter(s => !(s.isAutoPattern && s.patternId === pat.id));
                 }
@@ -9119,8 +9073,6 @@ function showIndicatorLineActionPill(ind, point) {
             }
 
             try {
-                clearPlottedPattern(false);
-
                 if (typeof recordCurrentDrawingUndoState === 'function') {
                     recordCurrentDrawingUndoState();
                 }
@@ -9132,6 +9084,10 @@ function showIndicatorLineActionPill(ind, point) {
                     const tfData = latestMTFPatternsData.timeframes[tf];
                     const prim = tfData ? (tfData.primary_pattern || tfData.pattern) : null;
                     if (prim && Array.isArray(prim.drawing_shapes) && prim.drawing_shapes.length > 0 && !prim.name.includes('Rangebound')) {
+                        // Remove existing shapes for this exact pattern to prevent duplicate lines
+                        if (typeof drawings !== 'undefined') {
+                            drawings = drawings.filter(s => !(s.isAutoPattern && s.patternId === prim.id));
+                        }
                         const shapeIds = [];
                         prim.drawing_shapes.forEach(shape => {
                             const uniqueId = shape.id + '_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
@@ -12278,7 +12234,17 @@ function showIndicatorLineActionPill(ind, point) {
             if (!selectedShapeId) return;
             recordCurrentDrawingUndoState();
             const delId = selectedShapeId;
-            drawings = drawings.filter(d => d.id !== delId);
+            const targetShape = (typeof drawings !== 'undefined') ? drawings.find(d => d.id === delId) : null;
+            if (targetShape && targetShape.isAutoPattern && targetShape.patternId) {
+                const patId = targetShape.patternId;
+                drawings = drawings.filter(d => d.patternId !== patId);
+                if (typeof activePlottedPatterns !== 'undefined') {
+                    activePlottedPatterns.delete(patId);
+                    if (activePlottedPatterns.size === 0) isPatternPlottedOnChart = false;
+                }
+            } else {
+                drawings = drawings.filter(d => d.id !== delId);
+            }
             closePropertiesPanel();
             saveDrawings();
             renderAllDrawings();
@@ -12315,6 +12281,10 @@ function showIndicatorLineActionPill(ind, point) {
                 recordCurrentDrawingUndoState();
                 drawings = [];
                 pencilStrokes = [];
+                if (typeof activePlottedPatterns !== 'undefined') {
+                    activePlottedPatterns.clear();
+                }
+                isPatternPlottedOnChart = false;
                 const canvas = document.getElementById('pencil-canvas');
                 if (canvas) {
                     const ctx = canvas.getContext('2d');
