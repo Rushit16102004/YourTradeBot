@@ -78,19 +78,59 @@
       generateCandle(prevClose, index) {
         if (--this.trendCountdown <= 0) {
           this.currentTrend = Math.random() > 0.48 ? 1 : -1;
-          this.trendCountdown = Math.floor(12 + Math.random() * 24);
+          this.trendCountdown = Math.floor(10 + Math.random() * 20);
         }
 
-        const drift = this.currentTrend * (Math.random() * (this.volatility * 0.65) + 1.8);
-        const meanReversion = (this.basePrice - prevClose) * 0.016;
-        const change = drift + meanReversion + (Math.random() - 0.5) * this.volatility;
+        // Realistic combination of Long expansion bars, Short consolidation bars, Pin-bars, and Trend bars
+        const roll = Math.random();
+        let change = 0;
+        let upperWick = 0;
+        let lowerWick = 0;
+
+        const meanReversion = (this.basePrice - prevClose) * 0.015;
+
+        if (roll < 0.28) {
+          // 1. Long Impulsive Expansion Candle (Marubozu / Strong Institutional Surge)
+          const dir = Math.random() > 0.32 ? this.currentTrend : -this.currentTrend;
+          const bodyMag = this.volatility * (1.6 + Math.random() * 1.8);
+          change = dir * bodyMag + meanReversion;
+          upperWick = Math.random() * (this.volatility * 0.22) + 2.0;
+          lowerWick = Math.random() * (this.volatility * 0.22) + 2.0;
+        } else if (roll < 0.60) {
+          // 2. Short / Tight Consolidation Candle (Doji, small spinning top, tight balance bar)
+          const bodyMag = this.volatility * (0.05 + Math.random() * 0.35);
+          const dir = Math.random() > 0.5 ? 1 : -1;
+          change = dir * bodyMag + meanReversion * 0.4;
+          upperWick = Math.random() * (this.volatility * 0.55) + 2.5;
+          lowerWick = Math.random() * (this.volatility * 0.55) + 2.5;
+        } else if (roll < 0.78) {
+          // 3. Pin-Bar / Long Rejection Wick Candle (Liquidity Sweep)
+          const bodyMag = this.volatility * (0.15 + Math.random() * 0.35);
+          const dir = Math.random() > 0.5 ? 1 : -1;
+          change = dir * bodyMag + meanReversion * 0.5;
+          if (Math.random() > 0.5) {
+            // Upper rejection (shooting star)
+            upperWick = this.volatility * (1.2 + Math.random() * 1.4);
+            lowerWick = Math.random() * (this.volatility * 0.25) + 1.5;
+          } else {
+            // Lower rejection (hammer)
+            lowerWick = this.volatility * (1.2 + Math.random() * 1.4);
+            upperWick = Math.random() * (this.volatility * 0.25) + 1.5;
+          }
+        } else {
+          // 4. Standard Trend Continuation Candle
+          const dir = Math.random() > 0.25 ? this.currentTrend : -this.currentTrend;
+          const bodyMag = this.volatility * (0.65 + Math.random() * 0.75);
+          change = dir * bodyMag + meanReversion;
+          upperWick = Math.random() * (this.volatility * 0.5) + 2.5;
+          lowerWick = Math.random() * (this.volatility * 0.5) + 2.5;
+        }
 
         const open = prevClose;
         const close = open + change;
-        const wickSpread = Math.random() * (this.volatility * 0.85) + 3.0;
-        const high = Math.max(open, close) + wickSpread;
-        const low = Math.min(open, close) - wickSpread;
-        const volume = Math.floor(30 + Math.random() * 90 + (Math.abs(change) / this.volatility) * 70);
+        const high = Math.max(open, close) + upperWick;
+        const low = Math.min(open, close) - lowerWick;
+        const volume = Math.floor(40 + Math.random() * 100 + (Math.abs(change) / this.volatility) * 80);
 
         return {
           open,
@@ -290,7 +330,8 @@
           const lowY = this.priceToY(c.low, minP, maxP, canvasHeight);
 
           const bodyTop = Math.min(openY, closeY);
-          const bodyHeight = Math.max(Math.abs(closeY - openY), 4.0);
+          const bodyHeight = Math.max(Math.abs(closeY - openY), 4.5);
+          const bodyBottom = bodyTop + bodyHeight;
           const centerX = c.x + this.candleWidth / 2;
 
           // Illumination when hit by AI laser beam
@@ -308,84 +349,88 @@
           }
 
           const totalGlow = Math.min(scanGlow + pointerGlow, 1.0);
+          const isBull = c.isBullish;
+          const alphaStroke = Math.min((0.85 + totalGlow * 0.15), 1.0) * this.alphaMod;
+          const wickColor = isBull
+            ? `rgba(52, 211, 153, ${alphaStroke})`
+            : `rgba(248, 113, 113, ${alphaStroke})`;
+          const strokeColor = isBull
+            ? `rgba(52, 211, 153, ${alphaStroke})`
+            : `rgba(248, 113, 113, ${alphaStroke})`;
 
-          if (c.isBullish) {
-            // Emerald Bullish
-            const alphaFill = (0.24 + totalGlow * 0.55) * this.alphaMod;
-            const alphaStroke = (0.60 + totalGlow * 0.40) * this.alphaMod;
+          // Solid, rich, non-transparent fill colors (No hollow transparency, No line cutting through)
+          const fillColor = isBull
+            ? (totalGlow > 0.25 ? '#10b981' : '#059669')
+            : (totalGlow > 0.25 ? '#ef4444' : '#dc2626');
 
-            ctx.strokeStyle = `rgba(16, 185, 129, ${alphaStroke})`;
-            ctx.fillStyle = `rgba(16, 185, 129, ${alphaFill})`;
-
-            ctx.lineWidth = 2.0;
+          // 1. Draw Upper Wick (STRICTLY ABOVE BODY: highY to bodyTop - NEVER cuts through body)
+          ctx.strokeStyle = wickColor;
+          ctx.lineWidth = this.candleWidth >= 24 ? 2.2 : 1.8;
+          if (highY < bodyTop - 0.5) {
             ctx.beginPath();
             ctx.moveTo(centerX, highY);
-            ctx.lineTo(centerX, lowY);
+            ctx.lineTo(centerX, bodyTop);
             ctx.stroke();
-
-            ctx.fillRect(c.x, bodyTop, this.candleWidth, bodyHeight);
-            ctx.strokeRect(c.x, bodyTop, this.candleWidth, bodyHeight);
-          } else {
-            // Crimson Bearish
-            const alphaFill = (0.22 + totalGlow * 0.55) * this.alphaMod;
-            const alphaStroke = (0.55 + totalGlow * 0.40) * this.alphaMod;
-
-            ctx.strokeStyle = `rgba(239, 68, 68, ${alphaStroke})`;
-            ctx.fillStyle = `rgba(239, 68, 68, ${alphaFill})`;
-
-            ctx.lineWidth = 2.0;
-            ctx.beginPath();
-            ctx.moveTo(centerX, highY);
-            ctx.lineTo(centerX, lowY);
-            ctx.stroke();
-
-            ctx.fillRect(c.x, bodyTop, this.candleWidth, bodyHeight);
-            ctx.strokeRect(c.x, bodyTop, this.candleWidth, bodyHeight);
           }
+
+          // 2. Draw Lower Wick (STRICTLY BELOW BODY: bodyBottom to lowY - NEVER cuts through body)
+          if (lowY > bodyBottom + 0.5) {
+            ctx.beginPath();
+            ctx.moveTo(centerX, bodyBottom);
+            ctx.lineTo(centerX, lowY);
+            ctx.stroke();
+          }
+
+          // 3. Draw Solid Opaque Candle Body (Rich Color, Zero Middle Line Display Problem)
+          ctx.fillStyle = fillColor;
+          ctx.strokeStyle = strokeColor;
+          ctx.lineWidth = 1.4;
+          ctx.fillRect(c.x, bodyTop, this.candleWidth, bodyHeight);
+          ctx.strokeRect(c.x, bodyTop, this.candleWidth, bodyHeight);
         }
       }
     }
 
     // Configure 3 complementary institutional tracks with enlarged, prominent candles
     const streams = [
-      // Track 1: Upper High-Speed Scalp Stream (kinetic, enlarged 12px)
+      // Track 1: Upper High-Speed Scalp Stream (kinetic, enlarged 16px)
       new CandleStream({
         name: 'scalp',
-        yMinPct: 0.05,
+        yMinPct: 0.04,
         yMaxPct: 0.32,
-        candleWidth: 12,
-        candleSpacing: 16,
-        speed: 28,
+        candleWidth: 16,
+        candleSpacing: 22,
+        speed: 26,
         basePrice: 25440,
-        volatility: 16,
-        alphaMod: 0.90
+        volatility: 22,
+        alphaMod: 0.95
       }),
-      // Track 2: Center Institutional Anchor Engine (VWAP ±2σ Bands + AI Neural Constellation, enlarged 18px)
+      // Track 2: Center Institutional Anchor Engine (VWAP ±2σ Bands + AI Neural Constellation, enlarged 24px)
       new CandleStream({
         name: 'institutional',
         yMinPct: 0.28,
         yMaxPct: 0.72,
-        candleWidth: 18,
-        candleSpacing: 25,
-        speed: 18,
+        candleWidth: 24,
+        candleSpacing: 32,
+        speed: 16,
         basePrice: 25370,
-        volatility: 24,
+        volatility: 34,
         hasVWAP: true,
         hasNeuralNodes: true,
-        alphaMod: 1.20
+        alphaMod: 1.05
       }),
-      // Track 3: Lower Macro Liquidity & Depth Stream (volume pillars, macro width 26px)
+      // Track 3: Lower Macro Liquidity & Depth Stream (volume pillars, macro width 34px)
       new CandleStream({
         name: 'macro',
-        yMinPct: 0.64,
-        yMaxPct: 0.94,
-        candleWidth: 26,
-        candleSpacing: 36,
-        speed: 11,
+        yMinPct: 0.62,
+        yMaxPct: 0.95,
+        candleWidth: 34,
+        candleSpacing: 44,
+        speed: 10,
         basePrice: 25310,
-        volatility: 32,
+        volatility: 42,
         hasVolume: true,
-        alphaMod: 0.80
+        alphaMod: 0.90
       })
     ];
 
