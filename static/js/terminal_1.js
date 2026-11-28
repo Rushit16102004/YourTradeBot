@@ -68,6 +68,8 @@
   const visitorId = getOrInitVisitorId();
 
   async function trackFunnelAction(actionType, actionDetail) {
+    const allowed = ['funnel_t1_visit', 'funnel_try_guest_click', 'funnel_direct_login_success', 'funnel_direct_register_success'];
+    if (!allowed.includes(actionType)) return;
     try {
       const token = localStorage.getItem('auth_token');
       fetch('/api/analytics/action', {

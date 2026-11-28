@@ -1699,7 +1699,7 @@ async def api_admin_unblock_ip(payload: dict = Body(...)):
 
 @app.post("/api/analytics/display-time")
 async def api_track_display_time(request: Request):
-    """Client telemetry endpoint: records active focused on-screen display seconds."""
+    """Client telemetry endpoint: active display tracking disabled per user request."""
     client_ip = get_client_ip(request)
 
     # Instant blocking feedback: If IP is blocked, return 403 to trigger front-end modal
@@ -1707,27 +1707,6 @@ async def api_track_display_time(request: Request):
     if is_blocked:
         return JSONResponse(status_code=403, content={"status": "error", "message": f"Blocked: {block_reason}"})
 
-    try:
-        raw_body = await request.body()
-        payload = json.loads(raw_body.decode("utf-8")) if raw_body else {}
-    except Exception:
-        payload = {}
-
-    visitor_id = str(payload.get("visitor_id") or "").strip()
-    user_id = payload.get("user_id")
-    seconds = int(payload.get("seconds") or 15)
-
-    if not user_id:
-        u = get_current_user_from_request(request)
-        if u:
-            user_id = u.get("sub") or u.get("id")
-
-    if user_id:
-        is_frozen, freeze_reason = user_db.is_user_frozen(user_id)
-        if is_frozen:
-            return JSONResponse(status_code=403, content={"status": "error", "message": f"Blocked: {freeze_reason}"})
-
-    user_db.add_active_display_time(visitor_id=visitor_id, user_id=user_id, seconds=seconds, ip=client_ip)
     return JSONResponse(content={"status": "ok"})
 
 
@@ -2099,6 +2078,16 @@ async def api_analytics_action(request: Request):
     action_type = payload.get("action_type") or "click"
     action_detail = payload.get("action_detail") or ""
     path = payload.get("path") or "/"
+
+    # Strictly retain and track only the 4 high-level conversion funnel actions (Image 2)
+    allowed_funnel_actions = {
+        'funnel_t1_visit',
+        'funnel_try_guest_click',
+        'funnel_direct_login_success',
+        'funnel_direct_register_success'
+    }
+    if action_type not in allowed_funnel_actions:
+        return JSONResponse(content={"status": "ok", "message": "Ignored: general activity tracking disabled"})
 
     ua = request.headers.get("user-agent") or ""
     u = get_current_user_from_request(request)

@@ -932,7 +932,7 @@
 
         /* 📱 Mobile Header Interactive Scroll Hint Banner */
         .mobile-header-scroll-hint {
-            display: none;
+            display: none !important;
             position: fixed;
             top: 76px;
             left: 50%;

@@ -258,20 +258,12 @@ def render_admin_command_center_html(
                 <div style="font-size: 12px; color: #cbd5e1;">{last_login_ist}</div>
             </td>
             <td>
-                <div class="display-time-badge" title="Total active on-screen display time">⏱️ {active_display}</div>
-            </td>
-            <td>
                 <div style="display: flex; gap: 6px; font-size: 11px;">
                     <span class="pill-metric" title="Saved chart drawings">🎨 {drawings_cnt}</span>
                     <span class="pill-metric" title="AI Copilot questions asked">🤖 {copilot_cnt}</span>
                 </div>
             </td>
             <td>{status_pill}</td>
-            <td style="text-align: right;">
-                <button class="btn btn-view" onclick="openUserProfileModal({html.escape(json.dumps(u))})">
-                    👁️ View Profile & Timeline
-                </button>
-            </td>
         </tr>
         """)
 
@@ -318,18 +310,9 @@ def render_admin_command_center_html(
                 <div style="font-size: 10.5px; color: #64748b;">🌐 {gbrowser}</div>
             </td>
             <td>
-                <div class="display-time-badge" title="Total active on-screen display time">⏱️ {gdisplay}</div>
-            </td>
-            <td>
-                <div style="font-size: 12px; color: #cbd5e1;">{glast}</div>
-                <div style="font-size: 10.5px; color: #64748b;">{gvisits} visits • {gactions} actions</div>
+                <div style="font-size: 12px; color: #cbd5e1; font-family: monospace;">{glast}</div>
             </td>
             <td>{status_pill}</td>
-            <td style="text-align: right;">
-                <button class="btn btn-view" onclick="openGuestProfileModal({html.escape(json.dumps(g))})">
-                    🔍 Inspect Guest Activity
-                </button>
-            </td>
         </tr>
         """)
 
@@ -791,12 +774,11 @@ def render_admin_command_center_html(
             <div class="brand-icon">👑</div>
             <div>
                 <h1>User & Guest Intelligence Command Center</h1>
-                <div class="subtitle">Complete registered profile audit, guest IP telemetry, total active display time & lifecycle management</div>
+                <div class="subtitle">Complete registered profile audit, guest IP telemetry & conversion funnel intelligence</div>
             </div>
         </div>
         <div class="nav-links">
-            <a href="/api/admin/copilot/queries?admin_key={encoded_key}" class="btn btn-secondary">💬 Copilot Chat Audit</a>
-            <a href="/api/admin/visitors?admin_key={encoded_key}" class="btn btn-secondary">🌐 Daily Activity Log</a>
+            <a href="/api/admin/copilot/queries?admin_key={encoded_key}" class="btn" style="background: rgba(168, 85, 247, 0.2); border: 1px solid #c084fc; color: #f8fafc; font-weight: 700;">💬 Copilot Chat Audit</a>
             <a href="/api/admin/users/csv?admin_key={encoded_key}" class="btn btn-csv">📥 Download Users CSV</a>
             <a href="/" class="btn btn-secondary">🏠 Terminal 1 Showcase</a>
             <a href="/terminal" class="btn btn-primary">📈 Live Terminal</a>
@@ -861,10 +843,8 @@ def render_admin_command_center_html(
                             <th>Trading Style</th>
                             <th>Registered (IST)</th>
                             <th>Last Login (IST)</th>
-                            <th>Display Active Time</th>
                             <th>Activity Counts</th>
                             <th>Status</th>
-                            <th style="text-align: right;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -892,10 +872,8 @@ def render_admin_command_center_html(
                             <th>IP & Location</th>
                             <th>ISP / Network</th>
                             <th>Device & OS</th>
-                            <th>Display Active Time</th>
-                            <th>Last Seen (IST)</th>
+                            <th>Time & Date</th>
                             <th>Status</th>
-                            <th style="text-align: right;">Action</th>
                         </tr>
                     </thead>
                     <tbody>

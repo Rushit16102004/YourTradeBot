@@ -104,7 +104,7 @@
     <link rel='stylesheet' href='/static/css/drawing_tools.css'>
     <link rel='stylesheet' href='/static/css/copilot_dock.css'>
     <link rel='stylesheet' href='/static/css/mobile_responsive.css'>
-    <link rel='stylesheet' href='/static/css/modals_and_settings.css'>
+    <link rel='stylesheet' href='/static/css/modals_and_settings.css?v=20261128_01'>
     <!-- Centralized Reactive Terminal State Store -->
     <script src='/static/js/terminal_state.js'></script>
 
@@ -976,12 +976,7 @@
         </div>
     </header>
 
-    <!-- 📱 Mobile Header Interactive Hint Banner (Auto-nudges once on phone so user knows header scrolls) -->
-    <div id="mobile-header-scroll-hint" class="mobile-header-scroll-hint" onclick="dismissMobileHeaderHint(event)">
-        <span class="hint-swipe-hand">👉</span>
-        <span class="hint-text">Swipe header <b>left & right</b> for <b>Settings</b> & <b>Indicators</b></span>
-        <button type="button" class="hint-close-btn" onclick="dismissMobileHeaderHint(event)">✕</button>
-    </div>
+
     <!-- ✨ High-Converting Guest Free Access Incentive Banner -->
     <div id="guest-vip-banner" class="guest-vip-banner">
         <div class="guest-vip-content">
@@ -3188,68 +3183,12 @@
 
         // 📱 Mobile Header Interactive Peek / Auto-Scroll Hint Engine
         function runMobileHeaderPeekAnimation() {
-            if (window.innerWidth > 768) return;
-
-            try {
-                if (sessionStorage.getItem('mobile_header_peek_shown')) return;
-            } catch (e) {}
-
-            const topHeader = document.querySelector('.header-line-top');
-            const bottomHeader = document.querySelector('.header-line-bottom');
-            const hintBanner = document.getElementById('mobile-header-scroll-hint');
-
-            if (!topHeader && !bottomHeader) return;
-
-            try {
-                sessionStorage.setItem('mobile_header_peek_shown', '1');
-            } catch (e) {}
-
-            // Wait 800ms after initial page load so user sees the initial top view
-            setTimeout(() => {
-                // Show hint banner
-                if (hintBanner) {
-                    hintBanner.style.display = 'inline-flex';
-                }
-
-                // 1. Smoothly scroll header right to reveal Settings & Indicators
-                const targetScrollTop = topHeader ? Math.min(200, topHeader.scrollWidth - topHeader.clientWidth) : 0;
-                const targetScrollBottom = bottomHeader ? Math.min(200, bottomHeader.scrollWidth - bottomHeader.clientWidth) : 0;
-
-                if (topHeader && targetScrollTop > 20) {
-                    topHeader.scrollTo({ left: targetScrollTop, behavior: 'smooth' });
-                }
-                if (bottomHeader && targetScrollBottom > 20) {
-                    bottomHeader.scrollTo({ left: targetScrollBottom, behavior: 'smooth' });
-                }
-
-                // 2. Pause for 1100ms so the user clearly sees: "Settings button and more indicators are right here!"
-                setTimeout(() => {
-                    // Smoothly scroll back to the original start position
-                    if (topHeader) topHeader.scrollTo({ left: 0, behavior: 'smooth' });
-                    if (bottomHeader) bottomHeader.scrollTo({ left: 0, behavior: 'smooth' });
-
-                    // Automatically hide hint banner after 4.5 seconds
-                    setTimeout(() => {
-                        dismissMobileHeaderHint();
-                    }, 4500);
-                }, 1100);
-            }, 800);
-
-            // Listen for user swipe/touch to dismiss hint immediately
-            if (topHeader) topHeader.addEventListener('touchstart', () => dismissMobileHeaderHint(), { passive: true, once: true });
-            if (bottomHeader) bottomHeader.addEventListener('touchstart', () => dismissMobileHeaderHint(), { passive: true, once: true });
+            // Disabled banner hint per user request
+            return;
         }
 
         function dismissMobileHeaderHint(event) {
             if (event) event.stopPropagation();
-            const hintBanner = document.getElementById('mobile-header-scroll-hint');
-            if (hintBanner && hintBanner.style.display !== 'none') {
-                hintBanner.style.opacity = '0';
-                hintBanner.style.transition = 'opacity 0.3s ease-out';
-                setTimeout(() => {
-                    hintBanner.style.display = 'none';
-                }, 300);
-            }
         }
 
         function getTimeframeSeconds() {
@@ -15002,78 +14941,12 @@ function showIndicatorLineActionPill(ind, point) {
             startActiveDisplayTracker();
         }
 
-        let displayTimerInterval = null;
-        let lastDisplayHeartbeatTime = Date.now();
-
         function flushDisplayTimeBeacon() {
-            if (document.hidden) return;
-            const now = Date.now();
-            const elapsed = Math.round((now - lastDisplayHeartbeatTime) / 1000);
-            if (elapsed >= 2) {
-                lastDisplayHeartbeatTime = now;
-                const vid = getOrInitVisitorId();
-                const payloadStr = JSON.stringify({ visitor_id: vid, seconds: Math.min(60, elapsed) });
-                if (navigator.sendBeacon) {
-                    const blob = new Blob([payloadStr], { type: 'application/json' });
-                    navigator.sendBeacon('/api/analytics/display-time', blob);
-                } else {
-                    fetch('/api/analytics/display-time', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: payloadStr,
-                        keepalive: true
-                    }).catch(() => {});
-                }
-            }
+            // Display time tracking disabled per user request
         }
 
         function startActiveDisplayTracker() {
-            if (displayTimerInterval) clearInterval(displayTimerInterval);
-            lastDisplayHeartbeatTime = Date.now();
-            
-            // Accumulate active display seconds every 15s when tab is visible
-            const sendDisplayHeartbeat = async () => {
-                if (document.hidden) return; // Tab in background or minimized -> do not count idle time
-                const now = Date.now();
-                const elapsed = Math.max(1, Math.min(60, Math.round((now - lastDisplayHeartbeatTime) / 1000)));
-                lastDisplayHeartbeatTime = now;
-
-                const vid = getOrInitVisitorId();
-                const token = localStorage.getItem('auth_token');
-                try {
-                    const res = await fetch('/api/analytics/display-time', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            ...(token ? { 'Authorization': 'Bearer ' + token } : {})
-                        },
-                        body: JSON.stringify({
-                            visitor_id: vid,
-                            seconds: elapsed
-                        })
-                    });
-                    if (res.status === 403) {
-                        const d = await res.json().catch(() => ({}));
-                        if (d && d.message && d.message.includes('Blocked')) {
-                            showAccountBlockedModal(d.message);
-                        }
-                    }
-                } catch (e) {}
-            };
-
-            displayTimerInterval = setInterval(sendDisplayHeartbeat, 15000);
-            sendDisplayHeartbeat();
-
-            // Flush on tab hide or page close
-            document.addEventListener('visibilitychange', () => {
-                if (document.hidden) {
-                    flushDisplayTimeBeacon();
-                } else {
-                    lastDisplayHeartbeatTime = Date.now();
-                }
-            });
-            window.addEventListener('pagehide', flushDisplayTimeBeacon);
-            window.addEventListener('beforeunload', flushDisplayTimeBeacon);
+            // Display time tracking disabled per user request
         }
 
         function showAccountBlockedModal(msg) {
@@ -15247,6 +15120,10 @@ function showIndicatorLineActionPill(ind, point) {
         }
 
         function trackVisitorAction(actionType, actionDetail = '') {
+            // Only track high-level conversion funnel metrics; general user/guest activity tracking is disabled
+            const allowedFunnel = ['funnel_t1_visit', 'funnel_try_guest_click', 'funnel_direct_login_success', 'funnel_direct_register_success'];
+            if (!allowedFunnel.includes(actionType)) return;
+
             const vid = (typeof getOrInitVisitorId === 'function') ? getOrInitVisitorId() : (localStorage.getItem('terminal_visitor_id') || '');
             if (!vid) return;
             const token = localStorage.getItem('auth_token');
@@ -15705,7 +15582,7 @@ function showIndicatorLineActionPill(ind, point) {
                     localStorage.setItem('auth_token', data.token);
                     currentUser = data.user;
                     if (typeof trackVisitorAction === 'function') {
-                        trackVisitorAction('user_login', 'Logged in as ' + (currentUser && currentUser.username ? currentUser.username : identifier));
+                        trackVisitorAction('funnel_direct_login_success', 'Logged in as ' + (currentUser && currentUser.username ? currentUser.username : identifier));
                     }
                     closeAuthModal();
                     await checkAuthState();
@@ -15754,7 +15631,7 @@ function showIndicatorLineActionPill(ind, point) {
                     localStorage.setItem('auth_token', data.token);
                     currentUser = data.user;
                     if (typeof trackVisitorAction === 'function') {
-                        trackVisitorAction('user_login', 'Logged in as ' + (currentUser && currentUser.username ? currentUser.username : identifier));
+                        trackVisitorAction('funnel_direct_login_success', 'Logged in as ' + (currentUser && currentUser.username ? currentUser.username : identifier));
                     }
                     closeAuthModal();
                     await checkAuthState();
@@ -16227,7 +16104,7 @@ function showIndicatorLineActionPill(ind, point) {
                     localStorage.setItem('auth_token', data.token);
                     currentUser = data.user;
                     if (typeof trackVisitorAction === 'function') {
-                        trackVisitorAction('user_register', 'Registered new account: ' + username);
+                        trackVisitorAction('funnel_direct_register_success', 'Registered new account: ' + username);
                     }
                     closeAuthModal();
                     await checkAuthState();
